@@ -31,7 +31,7 @@ export function createApp({
   sessionStore,
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "0.3.0",
+  version = "0.4.0",
   startedAt = new Date(),
 }) {
   return async function app(request, response) {

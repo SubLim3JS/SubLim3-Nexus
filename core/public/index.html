@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#090b12">
     <title>SubLim3 Nexus</title>
     <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
-    <link rel="stylesheet" href="/assets/styles.css?v=0.3.0">
-    <script type="module" src="/assets/app.js?v=0.3.0"></script>
+    <link rel="stylesheet" href="/assets/styles.css?v=0.4.0">
+    <script type="module" src="/assets/app.js?v=0.4.0"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -101,6 +101,21 @@
               <p id="form-message" class="form-message" role="status"></p>
             </form>
           </div>
+        </section>
+
+        <section id="session" class="session-section" aria-labelledby="session-heading">
+          <div class="section-heading"><div><p class="eyebrow">LIVE TABLE</p><h2 id="session-heading">GM Session Console</h2></div><span id="battle-status" class="count-badge">Game mode</span></div>
+          <form id="session-form" class="session-console">
+            <div class="session-fields">
+              <label>Campaign<select id="session-campaign" required><option value="">Select a campaign</option></select></label>
+              <label>Mode<select id="session-mode"><option value="game">Game</option><option value="battle">Battle</option></select></label>
+              <label>Public scene title<input id="scene-title" placeholder="The Broken Gate"></label>
+              <label class="wide">Public scene description<textarea id="scene-description" rows="3" placeholder="What every player can currently see…"></textarea></label>
+              <label class="wide">Combatants <small>One per line: Name, initiative</small><textarea id="combatants" rows="5" placeholder="Sir Garrick, 18&#10;Goblin Scout, 12"></textarea></label>
+            </div>
+            <div class="session-actions"><button class="primary-button" type="submit">Publish session <span>→</span></button><button id="next-turn" class="secondary-button" type="button">Next turn</button><p id="session-message" class="form-message" role="status"></p></div>
+            <div id="turn-display" class="turn-display"><span>Current turn</span><strong>Not in battle</strong><small>Round 0</small></div>
+          </form>
         </section>
 
         <footer><span>SUBLIM3 NEXUS</span><span>Local-first • No cloud required</span></footer>

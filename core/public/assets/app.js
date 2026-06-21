@@ -82,7 +82,17 @@ async function loadCampaigns() {
   const list = $("#campaign-list");
   $("#campaign-count").textContent = `${data.length} ${data.length === 1 ? "campaign" : "campaigns"}`;
   list.replaceChildren(...(data.length ? data.map(campaignRow) : [emptyCampaignState()]));
+  const selector = $("#session-campaign");
+  const selected = selector.value;
+  selector.replaceChildren(new Option("Select a campaign", ""), ...data.map((campaign) => new Option(campaign.name, campaign.campaign_id)));
+  selector.value = selected;
 }
+
+function renderSession(session) { const active=session.battle.combatants[session.battle.turn_index]; $("#battle-status").textContent=session.mode==="battle"?`Battle • Round ${session.battle.round}`:"Game mode"; $("#turn-display strong").textContent=active?.name??"Not in battle"; $("#turn-display small").textContent=`Round ${session.battle.round}`; }
+async function loadSession() { const id=$("#session-campaign").value; if(!id)return; const {data}=await request(`/api/v1/campaigns/${id}/session`); $("#session-mode").value=data.mode; $("#scene-title").value=data.scene.title; $("#scene-description").value=data.scene.description; $("#combatants").value=data.battle.combatants.map(c=>`${c.name}, ${c.initiative}`).join("\n"); renderSession(data); }
+$("#session-campaign").addEventListener("change",loadSession);
+$("#session-form").addEventListener("submit",async(event)=>{event.preventDefault();const id=$("#session-campaign").value;if(!id)return;const combatants=$("#combatants").value.split("\n").filter(Boolean).map((line,index)=>{const [name,initiative]=line.split(",");return{combatant_id:`combatant_${index+1}`,name:name.trim(),initiative:Number(initiative)||0};});const {data}=await request(`/api/v1/campaigns/${id}/session`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({mode:$("#session-mode").value,scene:{title:$("#scene-title").value,description:$("#scene-description").value},battle:{combatants}})});renderSession(data);$("#session-message").textContent="Session published.";});
+$("#next-turn").addEventListener("click",async()=>{const id=$("#session-campaign").value;if(!id)return;const {data}=await request(`/api/v1/campaigns/${id}/battle/next`,{method:"POST"});renderSession(data);});
 
 function showMessage(message, type = "") {
   const element = $("#form-message");
