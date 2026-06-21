@@ -1,2 +1,702 @@
-# SubLim3-Nexus
-SubLim3 Nexus - RPG TableTop Platform
+# SubLim3 Nexus
+
+SubLim3 Nexus is a modular tabletop companion platform designed for music, ambiance, RFID interaction, campaign management, and physical player companion devices.
+
+The project is being rebuilt from scratch with a clean, reliable architecture inspired by previous projects:
+
+* Phoniebox
+* SubLim3 JukeBox
+* Ambiance Book
+* DnD Book
+* DnD Player Cubes
+
+SubLim3 Nexus is not designed as a Dungeons & Dragons-only tool. It is designed as a flexible RPG and tabletop platform that can support multiple game systems through templates, configurable resources, companion devices, and a central Nexus Core.
+
+---
+
+## Vision
+
+SubLim3 Nexus is a physical tabletop ecosystem.
+
+It combines:
+
+* RFID music and ambiance playback
+* Campaign management
+* Game system templates
+* Character tracking
+* Companion devices
+* Player-facing displays
+* DM-to-player messaging
+* Conditions, resources, and initiative
+* Future mobile app support
+
+The long-term goal is to create a universal physical RPG companion platform.
+
+---
+
+## Core Concepts
+
+### Nexus Core
+
+The Nexus Core is the central hub.
+
+Responsibilities:
+
+* Host the web interface
+* Store campaign data
+* Manage game systems
+* Manage characters
+* Register companion devices
+* Sync companion devices
+* Manage music and ambiance
+* Handle RFID events
+* Provide REST APIs
+* Serve local dashboard pages
+
+Initial development may use Raspberry Pi hardware.
+
+Long-term production hardware may use either:
+
+* Custom Linux SBC hardware
+* ESP32-S3 based embedded hardware
+* Hybrid architecture depending on product direction
+
+---
+
+### Nexus Companion
+
+The Nexus Companion is the player-facing physical device.
+
+Previous prototypes were called Player Cubes.
+
+Future hardware target:
+
+* LILYGO T-Display-S3
+* ESP32-S3
+* 1.9 inch display
+* Touch interface
+* WiFi
+* Optional battery
+* Optional haptic feedback
+* Optional speaker or buzzer
+
+The companion device should not contain hard-coded D&D logic. It should receive its layout, pages, fields, resources, and actions from the Nexus Core.
+
+---
+
+### Game Systems
+
+Game systems are templates.
+
+Examples:
+
+* Dungeons & Dragons
+* Pathfinder
+* Call of Cthulhu
+* Cyberpunk RED
+* Shadowrun
+* Savage Worlds
+* Custom RPG systems
+
+Each system defines:
+
+* Character fields
+* Resources
+* Conditions
+* Dice rules
+* Page layouts
+* Default actions
+* Optional initiative behavior
+
+---
+
+## Design Principles
+
+1. Build clean from scratch.
+2. Avoid hard-coded D&D assumptions.
+3. Make all RPG logic template-driven.
+4. Keep companion firmware generic.
+5. Make APIs simple and stable.
+6. Prefer reliable local networking.
+7. Keep campaign data portable.
+8. Design with future manufacturing in mind.
+9. Prioritize reliability over complexity.
+10. Make every feature work offline on the local network first.
+
+---
+
+## Planned Architecture
+
+```text
+SubLim3 Nexus
+├── Nexus Core
+│   ├── Web Interface
+│   ├── REST API
+│   ├── Game System Templates
+│   ├── Campaign Manager
+│   ├── Character Manager
+│   ├── Companion Manager
+│   ├── RFID Manager
+│   ├── Music / Ambiance Engine
+│   └── Local Storage
+│
+├── Nexus Companion Devices
+│   ├── Touch UI
+│   ├── Character Display
+│   ├── Resource Tracking
+│   ├── Conditions
+│   ├── DM Messages
+│   └── Local Sync Client
+│
+└── Future Mobile App
+    ├── Campaign Tools
+    ├── Character Tools
+    ├── Companion Setup
+    └── Remote Control
+```
+
+---
+
+## Data Model
+
+The system should use a generic RPG data model.
+
+### Game System
+
+```json
+{
+  "system_id": "dnd5e",
+  "name": "Dungeons & Dragons 5e",
+  "version": "1.0",
+  "resources": [],
+  "conditions": [],
+  "pages": [],
+  "actions": []
+}
+```
+
+---
+
+### Campaign
+
+```json
+{
+  "campaign_id": "lost_mines",
+  "name": "Lost Mines",
+  "system_id": "dnd5e",
+  "created": "2026-06-21 20:00:00",
+  "active": true
+}
+```
+
+---
+
+### Character
+
+```json
+{
+  "character_id": "sir_garrick",
+  "campaign_id": "lost_mines",
+  "player_name": "Jason",
+  "character_name": "Sir Garrick",
+  "portrait": "sir_garrick.png",
+  "resources": {
+    "hp": {
+      "label": "HP",
+      "value": 80,
+      "max": 100
+    },
+    "temp_hp": {
+      "label": "Temp HP",
+      "value": 5,
+      "max": null
+    }
+  },
+  "conditions": [],
+  "companion_id": "nexus-c630"
+}
+```
+
+---
+
+### Companion Device
+
+```json
+{
+  "companion_id": "nexus-c630",
+  "name": "Nexus C630",
+  "type": "lilygo_t_display_s3",
+  "assigned_character_id": "sir_garrick",
+  "last_seen": "2026-06-21 20:10:00",
+  "battery": 86,
+  "firmware": "0.1.0"
+}
+```
+
+---
+
+### Companion Page Layout
+
+```json
+{
+  "pages": [
+    {
+      "page_id": "health",
+      "title": "Health",
+      "fields": [
+        "hp",
+        "temp_hp"
+      ]
+    },
+    {
+      "page_id": "conditions",
+      "title": "Conditions",
+      "fields": [
+        "conditions"
+      ]
+    },
+    {
+      "page_id": "resources",
+      "title": "Resources",
+      "fields": [
+        "spell_slot_1",
+        "spell_slot_2",
+        "spell_slot_3"
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## API Design
+
+All APIs should be versioned.
+
+Base path:
+
+```text
+/api/v1/
+```
+
+---
+
+### System
+
+```text
+GET  /api/v1/system/status
+GET  /api/v1/system/info
+POST /api/v1/system/restart
+```
+
+---
+
+### Campaigns
+
+```text
+GET    /api/v1/campaigns
+POST   /api/v1/campaigns
+GET    /api/v1/campaigns/{campaign_id}
+PUT    /api/v1/campaigns/{campaign_id}
+DELETE /api/v1/campaigns/{campaign_id}
+POST   /api/v1/campaigns/{campaign_id}/activate
+```
+
+---
+
+### Characters
+
+```text
+GET    /api/v1/campaigns/{campaign_id}/characters
+POST   /api/v1/campaigns/{campaign_id}/characters
+GET    /api/v1/characters/{character_id}
+PUT    /api/v1/characters/{character_id}
+DELETE /api/v1/characters/{character_id}
+PATCH  /api/v1/characters/{character_id}/resources
+PATCH  /api/v1/characters/{character_id}/conditions
+```
+
+---
+
+### Companion Devices
+
+```text
+GET  /api/v1/companions
+POST /api/v1/companions/check-in
+GET  /api/v1/companions/{companion_id}
+POST /api/v1/companions/{companion_id}/assign
+POST /api/v1/companions/{companion_id}/unassign
+GET  /api/v1/companions/{companion_id}/state
+POST /api/v1/companions/{companion_id}/update
+```
+
+---
+
+### Messages
+
+```text
+GET  /api/v1/companions/{companion_id}/messages
+POST /api/v1/companions/{companion_id}/messages
+POST /api/v1/characters/{character_id}/messages
+```
+
+---
+
+### Initiative
+
+```text
+GET  /api/v1/campaigns/{campaign_id}/initiative
+POST /api/v1/campaigns/{campaign_id}/initiative
+POST /api/v1/campaigns/{campaign_id}/initiative/sort
+POST /api/v1/campaigns/{campaign_id}/initiative/next
+```
+
+---
+
+### Music and Ambiance
+
+```text
+GET  /api/v1/audio/status
+POST /api/v1/audio/play
+POST /api/v1/audio/pause
+POST /api/v1/audio/stop
+POST /api/v1/audio/volume
+POST /api/v1/audio/ambiance
+```
+
+---
+
+### RFID
+
+```text
+POST /api/v1/rfid/scan
+GET  /api/v1/rfid/last-scan
+POST /api/v1/rfid/cards
+GET  /api/v1/rfid/cards
+```
+
+---
+
+## Companion Protocol
+
+The companion should boot, connect to WiFi, and identify itself.
+
+### Check-In Request
+
+```json
+{
+  "companion_id": "nexus-c630",
+  "device_type": "lilygo_t_display_s3",
+  "firmware": "0.1.0",
+  "battery": 86
+}
+```
+
+### Check-In Response
+
+```json
+{
+  "success": true,
+  "assigned": true,
+  "campaign_id": "lost_mines",
+  "character_id": "sir_garrick",
+  "layout": {},
+  "state": {}
+}
+```
+
+If unassigned:
+
+```json
+{
+  "success": true,
+  "assigned": false,
+  "message": "Open Companion Registration on Nexus Core."
+}
+```
+
+---
+
+## Companion UI Goals
+
+The touch companion should support:
+
+* Character portrait
+* Character name
+* Page indicator
+* Health/resources
+* Conditions
+* Initiative status
+* DM messages
+* Sync status
+* Battery status
+* WiFi status
+
+The UI should be driven by server-provided layout data.
+
+---
+
+## Future Companion Screens
+
+### Home
+
+```text
+Character portrait
+Character name
+Current status
+```
+
+### Resources
+
+```text
+HP
+Temp HP
+Sanity
+Mana
+Stamina
+Ammo
+Custom resources
+```
+
+### Conditions
+
+```text
+Poisoned
+Blessed
+Invisible
+Bleeding
+Custom conditions
+```
+
+### Messages
+
+```text
+Private DM messages
+System alerts
+Turn notifications
+```
+
+### Initiative
+
+```text
+Current turn
+On deck
+Your initiative
+```
+
+### Inventory
+
+```text
+Items
+Charges
+Consumables
+```
+
+---
+
+## Initial Hardware Targets
+
+### Nexus Core Development Hardware
+
+* Raspberry Pi 4 or Raspberry Pi 5
+* Local web server
+* RFID reader
+* Audio output
+* Optional touchscreen
+* Local storage
+
+### Companion Development Hardware
+
+Primary:
+
+* LILYGO T-Display-S3
+* ESP32-S3
+* 1.9 inch ST7789 display
+* Touch input
+* WiFi
+
+Legacy test devices:
+
+* ESP-WROOM-32
+* I2C 16x02 LCD
+* Rotary encoder
+
+---
+
+## Storage
+
+Development storage may start as JSON files for simplicity.
+
+Recommended long-term path:
+
+```text
+Phase 1: JSON files
+Phase 2: SQLite
+Phase 3: Optional cloud sync
+```
+
+Portable local storage is preferred early in development.
+
+---
+
+## Suggested Directory Structure
+
+```text
+sublim3-nexus/
+├── README.md
+├── docs/
+│   ├── architecture.md
+│   ├── api.md
+│   ├── companion-protocol.md
+│   ├── hardware.md
+│   └── roadmap.md
+│
+├── core/
+│   ├── public/
+│   │   ├── index.php
+│   │   ├── dashboard.php
+│   │   └── assets/
+│   │
+│   ├── api/
+│   │   └── v1/
+│   │
+│   ├── includes/
+│   │   ├── config.php
+│   │   ├── storage.php
+│   │   ├── response.php
+│   │   └── auth.php
+│   │
+│   └── data/
+│       ├── campaigns/
+│       ├── systems/
+│       ├── companions/
+│       └── audio/
+│
+├── firmware/
+│   ├── companion-lilygo-s3/
+│   ├── companion-lcd-esp32/
+│   └── shared/
+│
+├── scripts/
+│   ├── install.sh
+│   ├── update.sh
+│   └── backup.sh
+│
+└── tests/
+```
+
+---
+
+## Roadmap
+
+### Phase 0 - Planning
+
+* Define architecture
+* Define data model
+* Define API contracts
+* Define companion protocol
+* Define hardware targets
+
+### Phase 1 - Core Foundation
+
+* Create Nexus Core web interface
+* Create campaign CRUD
+* Create character CRUD
+* Create generic resource system
+* Create companion registration
+* Create companion check-in API
+* Create local JSON storage
+
+### Phase 2 - Companion MVP
+
+* LILYGO T-Display-S3 firmware
+* WiFi setup
+* Companion ID
+* Registration screen
+* Character assignment
+* Resource display
+* Resource update
+* Sync with Nexus Core
+
+### Phase 3 - RPG Template System
+
+* Add game system templates
+* Add D&D 5e template
+* Add custom template editor
+* Add conditions
+* Add initiative
+
+### Phase 4 - Table Features
+
+* DM messages
+* Private player notifications
+* Inventory
+* Quest tracking
+* Turn alerts
+* Conditions sync
+
+### Phase 5 - Music and Ambiance
+
+* RFID music playback
+* Ambiance scenes
+* Sound effects
+* Campaign audio profiles
+
+### Phase 6 - Production Readiness
+
+* Installer
+* Backup/restore
+* Firmware update flow
+* Stable API versioning
+* Hardware abstraction
+* Enclosure design
+* Manufacturing review
+
+---
+
+## Commercialization Notes
+
+If this becomes a commercial product, avoid depending on hobby-only assumptions.
+
+Important considerations:
+
+* Custom PCB
+* Reliable power design
+* Battery charging
+* FCC/CE certification
+* Enclosure design
+* Firmware update mechanism
+* Factory reset process
+* Setup flow
+* Documentation
+* Support process
+
+The companion device should eventually be a custom ESP32-S3 board.
+
+The Nexus Core may start as Raspberry Pi-based but should remain abstract enough to move to custom hardware later.
+
+---
+
+## Project Status
+
+SubLim3 Nexus is starting from scratch.
+
+Current priority:
+
+1. Finalize architecture
+2. Create clean GitHub repository
+3. Build Core foundation
+4. Build generic API
+5. Build LILYGO T-Display-S3 companion firmware
+6. Avoid carrying forward technical debt from previous projects
+
+---
+
+## Project Philosophy
+
+Build the platform first.
+
+D&D is the first template, not the product.
+
+The product is SubLim3 Nexus.
