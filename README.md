@@ -682,6 +682,22 @@ The Nexus Core may start as Raspberry Pi-based but should remain abstract enough
 
 SubLim3 Nexus is starting from scratch.
 
+### Run the Phase 1 foundation
+
+Nexus Core currently requires Node.js 20 or newer and has no third-party runtime dependencies.
+
+```bash
+npm start
+```
+
+The API listens on `http://localhost:3000` by default. Configure it with `HOST`, `PORT`, and `NEXUS_DATA_DIR` environment variables.
+
+```bash
+npm test
+```
+
+The first working slice includes the system status endpoint, campaign CRUD, portable JSON storage, request validation, and API integration tests. See [the architecture notes](docs/architecture.md) for current boundaries and next steps.
+
 Current priority:
 
 1. Finalize architecture
