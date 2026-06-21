@@ -3,4 +3,5 @@ node_modules/
 coverage/
 core/data/campaigns/*.json
 !core/data/campaigns/.gitkeep
-
+core/data/sessions/*.json
+!core/data/sessions/.gitkeep

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readJson, sendJson } from "./http.js";
 import { serveStatic } from "./static.js";
+import { advanceTurn, emptySession, normalizeSession } from "./session.js";
 
 const API_PREFIX = "/api/v1";
 const defaultPublicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
@@ -10,6 +11,11 @@ const defaultPublicDirectory = path.resolve(path.dirname(fileURLToPath(import.me
 function campaignIdFrom(pathname) {
   const match = pathname.match(/^\/api\/v1\/campaigns\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]) : null;
+}
+
+function sessionRouteFrom(pathname) {
+  const match = pathname.match(/^\/api\/v1\/campaigns\/([^/]+)\/(session|battle\/next)$/);
+  return match ? { campaignId: decodeURIComponent(match[1]), action: match[2] } : null;
 }
 
 function validateCampaign(input, { requireId = true } = {}) {
@@ -22,9 +28,10 @@ function validateCampaign(input, { requireId = true } = {}) {
 
 export function createApp({
   campaignStore,
+  sessionStore,
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "0.2.2",
+  version = "0.3.0",
   startedAt = new Date(),
 }) {
   return async function app(request, response) {
@@ -78,6 +85,27 @@ export function createApp({
           return sendJson(response, 201, { data: campaign });
         }
 
+        return sendJson(response, 405, { error: "method_not_allowed" });
+      }
+
+      const sessionRoute = sessionStore ? sessionRouteFrom(url.pathname) : null;
+      if (sessionRoute) {
+        const campaign = await campaignStore.get(sessionRoute.campaignId);
+        if (!campaign) return sendJson(response, 404, { error: "campaign_not_found" });
+
+        if (sessionRoute.action === "session" && request.method === "GET") {
+          return sendJson(response, 200, { data: await sessionStore.get(sessionRoute.campaignId) ?? emptySession(sessionRoute.campaignId) });
+        }
+        if (sessionRoute.action === "session" && request.method === "PUT") {
+          const session = normalizeSession(sessionRoute.campaignId, await readJson(request));
+          await sessionStore.put(sessionRoute.campaignId, session);
+          return sendJson(response, 200, { data: session });
+        }
+        if (sessionRoute.action === "battle/next" && request.method === "POST") {
+          const session = advanceTurn(await sessionStore.get(sessionRoute.campaignId) ?? emptySession(sessionRoute.campaignId));
+          await sessionStore.put(sessionRoute.campaignId, session);
+          return sendJson(response, 200, { data: session });
+        }
         return sendJson(response, 405, { error: "method_not_allowed" });
       }
 

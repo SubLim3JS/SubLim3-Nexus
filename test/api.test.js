@@ -14,8 +14,10 @@ let temporaryDirectory;
 before(async () => {
   temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "nexus-test-"));
   const store = new JsonStore(path.join(temporaryDirectory, "campaigns"));
+  const sessionStore = new JsonStore(path.join(temporaryDirectory, "sessions"));
   server = createServer(createApp({
     campaignStore: store,
+    sessionStore,
     startedAt: new Date(),
     getSystemInfo: async () => ({
       hostname: "nexus-test",
@@ -102,4 +104,39 @@ test("rejects invalid campaign input", async () => {
     body: JSON.stringify({ campaign_id: "Invalid ID" }),
   });
   assert.equal(response.status, 422);
+});
+
+test("runs a system-neutral battle session", async () => {
+  await fetch(`${baseUrl}/api/v1/campaigns`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ campaign_id: "battle_test", name: "Battle Test", system_id: "custom" }),
+  });
+
+  const initial = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/session`).then((response) => response.json());
+  assert.equal(initial.data.mode, "game");
+  assert.equal(initial.data.battle.round, 0);
+
+  const saved = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/session`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      mode: "battle",
+      scene: { title: "The Broken Gate", description: "Rain lashes the old stones." },
+      battle: {
+        combatants: [
+          { combatant_id: "goblin", name: "Goblin", initiative: 12 },
+          { combatant_id: "hero", name: "Hero", initiative: 18 },
+        ],
+      },
+    }),
+  }).then((response) => response.json());
+  assert.equal(saved.data.battle.round, 1);
+  assert.equal(saved.data.battle.combatants[0].combatant_id, "hero");
+
+  const next = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/battle/next`, { method: "POST" }).then((response) => response.json());
+  assert.equal(next.data.battle.turn_index, 1);
+  const wrapped = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/battle/next`, { method: "POST" }).then((response) => response.json());
+  assert.equal(wrapped.data.battle.turn_index, 0);
+  assert.equal(wrapped.data.battle.round, 2);
 });

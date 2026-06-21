@@ -27,6 +27,13 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 | `GET` | `/api/v1/campaigns/{campaign_id}` | Read a campaign |
 | `PUT` | `/api/v1/campaigns/{campaign_id}` | Replace editable campaign fields |
 | `DELETE` | `/api/v1/campaigns/{campaign_id}` | Delete a campaign |
+| `GET` | `/api/v1/campaigns/{campaign_id}/session` | Read shared Game/Battle state |
+| `PUT` | `/api/v1/campaigns/{campaign_id}/session` | Publish scene and battle state |
+| `POST` | `/api/v1/campaigns/{campaign_id}/battle/next` | Advance the active turn |
+
+## Browser-first session model
+
+The GM dashboard and player views share one system-neutral session record per campaign. Game Mode publishes scene information. Battle Mode adds ordered combatants, initiative, round, and turn state. Player-specific resources and permissions will layer onto this contract before companion hardware uses it.
 
 ## Local dashboard
 

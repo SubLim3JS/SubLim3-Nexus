@@ -11,10 +11,12 @@ const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? "0.0.0.0";
 
 const campaignStore = new JsonStore(path.join(dataDirectory, "campaigns"));
-await campaignStore.initialize();
+const sessionStore = new JsonStore(path.join(dataDirectory, "sessions"));
+await Promise.all([campaignStore.initialize(), sessionStore.initialize()]);
 
 const server = createServer(createApp({
   campaignStore,
+  sessionStore,
   getSystemInfo: () => collectSystemInfo(dataDirectory),
 }));
 server.listen(port, host, () => {
