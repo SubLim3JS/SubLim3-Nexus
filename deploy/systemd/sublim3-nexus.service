@@ -13,7 +13,6 @@ EnvironmentFile=-/etc/default/sublim3-nexus
 ExecStart=/usr/bin/node /opt/sublim3-nexus/core/src/server.js
 Restart=on-failure
 RestartSec=5
-NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=full
@@ -21,4 +20,3 @@ ReadWritePaths=/var/lib/sublim3-nexus
 
 [Install]
 WantedBy=multi-user.target
-

@@ -30,6 +30,10 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 | `GET` | `/api/v1/campaigns/{campaign_id}/session` | Read shared Game/Battle state |
 | `PUT` | `/api/v1/campaigns/{campaign_id}/session` | Publish scene and battle state |
 | `POST` | `/api/v1/campaigns/{campaign_id}/battle/next` | Advance the active turn |
+| `GET` | `/api/v1/connectivity/status` | Read Wi-Fi and Bluetooth state |
+| `GET` | `/api/v1/connectivity/wifi/networks` | Scan Wi-Fi networks (Settings PIN) |
+| `POST` | `/api/v1/connectivity/wifi/mode` | Switch Local/Home mode (Settings PIN) |
+| `POST` | `/api/v1/connectivity/bluetooth/visibility` | Toggle Bluetooth discovery (Settings PIN) |
 
 ## Browser-first session model
 
@@ -38,6 +42,8 @@ The GM dashboard and player views share one system-neutral session record per ca
 ## Local dashboard
 
 Nexus Core serves its responsive command dashboard from `/`. The dashboard uses only local assets and the versioned API, so it remains fully functional without internet access. It displays live system information and provides campaign creation and deletion controls.
+
+The Settings page at `/settings/` uses a six-digit installer-generated PIN for connectivity mutations. Nexus Core remains unprivileged; a root-owned helper exposes only validated NetworkManager and BlueZ actions. Failed home Wi-Fi connections restore the Nexus hotspot, and a boot recovery service starts Local Mode whenever no Wi-Fi connection is available.
 
 ## Next boundaries
 

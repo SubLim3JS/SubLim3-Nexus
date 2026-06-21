@@ -10,6 +10,7 @@ import { JsonStore } from "../core/src/storage/json-store.js";
 let baseUrl;
 let server;
 let temporaryDirectory;
+const connectivityActions = [];
 
 before(async () => {
   temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "nexus-test-"));
@@ -18,6 +19,13 @@ before(async () => {
   server = createServer(createApp({
     campaignStore: store,
     sessionStore,
+    settingsPin: "123456",
+    connectivity: {
+      status: async () => ({ supported: true, wifi: { mode: "local", ssid: "SubLim3-Nexus", addresses: ["10.42.0.1/24"] }, bluetooth: { available: true, visible: false, connected_devices: [] } }),
+      scanWifi: async () => [{ ssid: "Table WiFi", signal: 88, security: "WPA2" }],
+      switchWifi: async (input) => { connectivityActions.push(["wifi", input]); },
+      setBluetoothVisible: async (visible) => { connectivityActions.push(["bluetooth", visible]); },
+    },
     startedAt: new Date(),
     getSystemInfo: async () => ({
       hostname: "nexus-test",
@@ -70,6 +78,39 @@ test("serves the Nexus logo asset", async () => {
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("content-type"), "image/png");
   assert.ok(Number(response.headers.get("content-length")) > 100_000);
+});
+
+test("protects connectivity controls with the Settings PIN", async () => {
+  assert.equal((await fetch(`${baseUrl}/api/v1/connectivity/status`)).status, 401);
+  const status = await fetch(`${baseUrl}/api/v1/connectivity/status`, { headers: { "x-nexus-settings-pin": "123456" } }).then((response) => response.json());
+  assert.equal(status.data.wifi.mode, "local");
+  assert.equal((await fetch(`${baseUrl}/api/v1/connectivity/wifi/networks`)).status, 401);
+
+  const networks = await fetch(`${baseUrl}/api/v1/connectivity/wifi/networks`, { headers: { "x-nexus-settings-pin": "123456" } }).then((response) => response.json());
+  assert.equal(networks.data[0].ssid, "Table WiFi");
+
+  const switched = await fetch(`${baseUrl}/api/v1/connectivity/wifi/mode`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-nexus-settings-pin": "123456" },
+    body: JSON.stringify({ mode: "local" }),
+  });
+  assert.equal(switched.status, 202);
+  assert.deepEqual(connectivityActions.at(-1), ["wifi", { mode: "local" }]);
+});
+
+test("serves the connectivity Settings page", async () => {
+  const response = await fetch(`${baseUrl}/settings/`);
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /Bluetooth visibility/);
+});
+
+test("temporarily locks connectivity controls after repeated bad PINs", async () => {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const response = await fetch(`${baseUrl}/api/v1/connectivity/status`, { headers: { "x-nexus-settings-pin": "wrong" } });
+    assert.equal(response.status, 401);
+  }
+  const blocked = await fetch(`${baseUrl}/api/v1/connectivity/status`, { headers: { "x-nexus-settings-pin": "123456" } });
+  assert.equal(blocked.status, 429);
 });
 
 test("creates, lists, updates, and deletes a campaign", async () => {

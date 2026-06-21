@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#090b12">
+    <title>Settings • SubLim3 Nexus</title>
+    <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
+    <link rel="stylesheet" href="/assets/styles.css?v=0.5.0">
+    <link rel="stylesheet" href="/assets/settings.css?v=0.5.0">
+    <script type="module" src="/assets/settings.js?v=0.5.0"></script>
+  </head>
+  <body>
+    <main class="settings-main">
+      <header class="settings-header">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true"><img src="/assets/nexus-logo.png" alt=""></span>
+          <span><strong>SubLim3</strong><small>NEXUS SETTINGS</small></span>
+        </a>
+        <a class="back-link" href="/">← Command center</a>
+      </header>
+
+      <section class="settings-intro">
+        <p class="eyebrow">CORE CONFIGURATION</p>
+        <h1>Connectivity</h1>
+        <p>Control how the table reaches Nexus Core. Mode changes may disconnect this browser while the radio switches networks.</p>
+      </section>
+
+      <div id="settings-alert" class="settings-alert" role="status">Reading Nexus connectivity…</div>
+
+      <section class="settings-grid">
+        <article class="settings-card status-panel">
+          <div class="settings-title"><div><p class="eyebrow">CURRENT STATE</p><h2>Network status</h2></div><span id="mode-badge" class="count-badge">Loading</span></div>
+          <dl class="settings-status">
+            <div><dt>Wi-Fi mode</dt><dd id="wifi-mode">—</dd></div>
+            <div><dt>Network</dt><dd id="wifi-ssid">—</dd></div>
+            <div><dt>IP address</dt><dd id="wifi-address">—</dd></div>
+            <div><dt>Bluetooth</dt><dd id="bluetooth-state">—</dd></div>
+          </dl>
+        </article>
+
+        <article class="settings-card unlock-panel">
+          <p class="eyebrow">ADMIN ACCESS</p><h2>Unlock controls</h2>
+          <p class="settings-copy">Enter the six-digit Settings PIN printed by the Pi installer.</p>
+          <form id="pin-form"><label>Settings PIN<input id="settings-pin" inputmode="numeric" autocomplete="off" maxlength="12" required placeholder="000000"></label><button class="primary-button" type="submit">Unlock</button></form>
+        </article>
+
+        <article class="settings-card local-panel locked-control">
+          <p class="eyebrow">DIRECT CONNECTION</p><h2>Local Wi-Fi</h2>
+          <p class="settings-copy">Broadcast the Nexus access point. Connect directly, then return to <strong>http://sublim3-nexus.local:3000</strong>.</p>
+          <button id="local-mode" class="primary-button" type="button">Switch to Local Mode</button>
+        </article>
+
+        <article class="settings-card home-panel locked-control">
+          <p class="eyebrow">EXISTING NETWORK</p><h2>Home Wi-Fi</h2>
+          <p class="settings-copy">Scan for a network, enter its password, and move Nexus onto that LAN.</p>
+          <form id="home-form">
+            <label>Network<div class="input-action"><input id="home-ssid" list="wifi-networks" required maxlength="32" placeholder="Choose or type an SSID"><datalist id="wifi-networks"></datalist><button id="scan-wifi" class="secondary-button" type="button">Scan</button></div></label>
+            <label>Password<input id="home-password" type="password" autocomplete="new-password" maxlength="64" placeholder="Wi-Fi password"></label>
+            <button class="primary-button" type="submit">Connect to Home Wi-Fi</button>
+          </form>
+        </article>
+
+        <article class="settings-card bluetooth-panel locked-control">
+          <p class="eyebrow">AUDIO DISCOVERY</p><h2>Bluetooth visibility</h2>
+          <p class="settings-copy">Make Nexus visible and pairable. Bluetooth audio profiles will be added with the music engine.</p>
+          <label class="toggle-row"><span>Visible to nearby devices</span><input id="bluetooth-visible" type="checkbox" role="switch"></label>
+          <div id="bluetooth-devices" class="device-list">No connected devices</div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

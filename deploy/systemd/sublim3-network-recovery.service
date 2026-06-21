@@ -1,0 +1,15 @@
+[Unit]
+Description=SubLim3 Nexus network recovery
+After=NetworkManager.service
+Wants=NetworkManager.service
+Before=sublim3-nexus.service
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 10
+ExecStart=/usr/local/libexec/sublim3-nexus-connectivity ensure-connected
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+

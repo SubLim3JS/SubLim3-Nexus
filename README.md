@@ -711,6 +711,8 @@ sudo ./scripts/install.sh
 
 The installer creates a restricted `nexus` service account, stores runtime data under `/var/lib/sublim3-nexus`, and enables Nexus Core at boot. Runtime settings can be changed in `/etc/default/sublim3-nexus`.
 
+The installer also configures the Network Settings helper, generates a Settings PIN and Local Wi-Fi password, and prints both values. Open `/settings/` to switch between the Nexus hotspot and Home Wi-Fi or toggle Bluetooth visibility. Re-run the installer after pulling a release that changes system services.
+
 ```bash
 systemctl status sublim3-nexus
 journalctl -u sublim3-nexus -f

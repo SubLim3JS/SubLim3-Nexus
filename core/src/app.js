@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readJson, sendJson } from "./http.js";
@@ -26,14 +26,32 @@ function validateCampaign(input, { requireId = true } = {}) {
   return errors;
 }
 
+function requireSettingsAccess(request, settingsPin, guard) {
+  if (!settingsPin) throw Object.assign(new Error("Settings PIN is not configured"), { statusCode: 503 });
+  if (guard.blockedUntil > Date.now()) throw Object.assign(new Error("Too many failed PIN attempts; try again shortly"), { statusCode: 429 });
+  const supplied = request.headers["x-nexus-settings-pin"];
+  const expectedBuffer = Buffer.from(settingsPin);
+  const suppliedBuffer = Buffer.from(typeof supplied === "string" ? supplied : "");
+  if (expectedBuffer.length !== suppliedBuffer.length || !timingSafeEqual(expectedBuffer, suppliedBuffer)) {
+    guard.failures += 1;
+    if (guard.failures >= 5) { guard.blockedUntil = Date.now() + 60_000; guard.failures = 0; }
+    throw Object.assign(new Error("Valid Settings PIN required"), { statusCode: 401 });
+  }
+  guard.failures = 0;
+  guard.blockedUntil = 0;
+}
+
 export function createApp({
   campaignStore,
   sessionStore,
+  connectivity,
+  settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "0.4.0",
+  version = "0.5.0",
   startedAt = new Date(),
 }) {
+  const settingsGuard = { failures: 0, blockedUntil: 0 };
   return async function app(request, response) {
     const requestId = randomUUID();
     response.setHeader("x-request-id", requestId);
@@ -57,6 +75,30 @@ export function createApp({
           version,
           uptime_seconds: Math.floor((Date.now() - startedAt.getTime()) / 1000),
         });
+      }
+
+      if (connectivity && request.method === "GET" && url.pathname === `${API_PREFIX}/connectivity/status`) {
+        requireSettingsAccess(request, settingsPin, settingsGuard);
+        return sendJson(response, 200, { data: await connectivity.status() });
+      }
+
+      if (connectivity && request.method === "GET" && url.pathname === `${API_PREFIX}/connectivity/wifi/networks`) {
+        requireSettingsAccess(request, settingsPin, settingsGuard);
+        return sendJson(response, 200, { data: await connectivity.scanWifi() });
+      }
+
+      if (connectivity && request.method === "POST" && url.pathname === `${API_PREFIX}/connectivity/wifi/mode`) {
+        requireSettingsAccess(request, settingsPin, settingsGuard);
+        await connectivity.switchWifi(await readJson(request));
+        return sendJson(response, 202, { success: true, message: "Connectivity change accepted" });
+      }
+
+      if (connectivity && request.method === "POST" && url.pathname === `${API_PREFIX}/connectivity/bluetooth/visibility`) {
+        requireSettingsAccess(request, settingsPin, settingsGuard);
+        const input = await readJson(request);
+        if (typeof input.visible !== "boolean") return sendJson(response, 422, { error: "validation_failed", details: ["visible must be boolean"] });
+        await connectivity.setBluetoothVisible(input.visible);
+        return sendJson(response, 200, { success: true, visible: input.visible });
       }
 
       if (url.pathname === `${API_PREFIX}/campaigns`) {
@@ -147,7 +189,7 @@ export function createApp({
       if (request.method === "GET" && await serveStatic(url.pathname, response, publicDirectory)) return;
       return sendJson(response, 404, { error: "not_found" });
     } catch (error) {
-      console.error(`[${requestId}]`, error);
+      if (!error.statusCode || error.statusCode >= 500) console.error(`[${requestId}]`, error);
       return sendJson(response, error.statusCode ?? 500, {
         error: error.statusCode ? "bad_request" : "internal_server_error",
         message: error.statusCode ? error.message : undefined,
