@@ -6,6 +6,7 @@ const FILES = new Map([
   ["/index.html", ["index.html", "text/html; charset=utf-8"]],
   ["/assets/styles.css", ["assets/styles.css", "text/css; charset=utf-8"]],
   ["/assets/app.js", ["assets/app.js", "text/javascript; charset=utf-8"]],
+  ["/assets/nexus-logo.png", ["assets/nexus-logo.png", "image/png"]],
 ]);
 
 export async function serveStatic(pathname, response, publicDirectory) {

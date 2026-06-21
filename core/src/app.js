@@ -24,7 +24,7 @@ export function createApp({
   campaignStore,
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "0.2.0",
+  version = "0.2.1",
   startedAt = new Date(),
 }) {
   return async function app(request, response) {

@@ -63,6 +63,13 @@ test("serves the dashboard with secure response headers", async () => {
   assert.match(await response.text(), /The table is ready/);
 });
 
+test("serves the Nexus logo asset", async () => {
+  const response = await fetch(`${baseUrl}/assets/nexus-logo.png`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "image/png");
+  assert.ok(Number(response.headers.get("content-length")) > 100_000);
+});
+
 test("creates, lists, updates, and deletes a campaign", async () => {
   const created = await fetch(`${baseUrl}/api/v1/campaigns`, {
     method: "POST",
