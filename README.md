@@ -698,6 +698,8 @@ npm test
 
 The first working slice includes the system status endpoint, campaign CRUD, portable JSON storage, request validation, and API integration tests. See [the architecture notes](docs/architecture.md) for current boundaries and next steps.
 
+Open the local dashboard at `http://<nexus-host>:3000/`. It provides live Core health, host storage and memory details, and campaign management without requiring internet access.
+
 ### Install on Raspberry Pi
 
 Clone the repository to `/opt/sublim3-nexus`, then install the managed service:

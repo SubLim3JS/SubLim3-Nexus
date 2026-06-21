@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { readJson, sendJson } from "./http.js";
+import { serveStatic } from "./static.js";
 
 const API_PREFIX = "/api/v1";
+const defaultPublicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
 
 function campaignIdFrom(pathname) {
   const match = pathname.match(/^\/api\/v1\/campaigns\/([^/]+)$/);
@@ -16,7 +20,13 @@ function validateCampaign(input, { requireId = true } = {}) {
   return errors;
 }
 
-export function createApp({ campaignStore, version = "0.1.0", startedAt = new Date() }) {
+export function createApp({
+  campaignStore,
+  getSystemInfo = async () => ({}),
+  publicDirectory = defaultPublicDirectory,
+  version = "0.2.0",
+  startedAt = new Date(),
+}) {
   return async function app(request, response) {
     const requestId = randomUUID();
     response.setHeader("x-request-id", requestId);
@@ -27,6 +37,15 @@ export function createApp({ campaignStore, version = "0.1.0", startedAt = new Da
       if (request.method === "GET" && url.pathname === `${API_PREFIX}/system/status`) {
         return sendJson(response, 200, {
           status: "ok",
+          service: "nexus-core",
+          version,
+          uptime_seconds: Math.floor((Date.now() - startedAt.getTime()) / 1000),
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === `${API_PREFIX}/system/info`) {
+        return sendJson(response, 200, {
+          ...await getSystemInfo(),
           service: "nexus-core",
           version,
           uptime_seconds: Math.floor((Date.now() - startedAt.getTime()) / 1000),
@@ -97,6 +116,7 @@ export function createApp({ campaignStore, version = "0.1.0", startedAt = new Da
         return sendJson(response, 405, { error: "method_not_allowed" });
       }
 
+      if (request.method === "GET" && await serveStatic(url.pathname, response, publicDirectory)) return;
       return sendJson(response, 404, { error: "not_found" });
     } catch (error) {
       console.error(`[${requestId}]`, error);
@@ -107,4 +127,3 @@ export function createApp({ campaignStore, version = "0.1.0", startedAt = new Da
     }
   };
 }
-

@@ -14,7 +14,18 @@ let temporaryDirectory;
 before(async () => {
   temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "nexus-test-"));
   const store = new JsonStore(path.join(temporaryDirectory, "campaigns"));
-  server = createServer(createApp({ campaignStore: store, startedAt: new Date() }));
+  server = createServer(createApp({
+    campaignStore: store,
+    startedAt: new Date(),
+    getSystemInfo: async () => ({
+      hostname: "nexus-test",
+      platform: "test",
+      architecture: "arm64",
+      node_version: "v20.0.0",
+      memory: { total_bytes: 1024, free_bytes: 512 },
+      storage: { total_bytes: 2048, free_bytes: 1024 },
+    }),
+  }));
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   baseUrl = `http://127.0.0.1:${address.port}`;
@@ -31,6 +42,25 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
+});
+
+test("reports system information", async () => {
+  const response = await fetch(`${baseUrl}/api/v1/system/info`);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.hostname, "nexus-test");
+  assert.equal(body.architecture, "arm64");
+  assert.equal(body.storage.free_bytes, 1024);
+  assert.equal(body.service, "nexus-core");
+});
+
+test("serves the dashboard with secure response headers", async () => {
+  const response = await fetch(baseUrl);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type"), /text\/html/);
+  assert.match(response.headers.get("content-security-policy"), /default-src 'self'/);
+  assert.equal(response.headers.get("cache-control"), "no-cache");
+  assert.match(await response.text(), /The table is ready/);
 });
 
 test("creates, lists, updates, and deletes a campaign", async () => {
@@ -66,4 +96,3 @@ test("rejects invalid campaign input", async () => {
   });
   assert.equal(response.status, 422);
 });
-

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#090b12">
+    <title>SubLim3 Nexus</title>
+    <link rel="stylesheet" href="/assets/styles.css?v=0.2.0">
+    <script type="module" src="/assets/app.js?v=0.2.0"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="/" aria-label="SubLim3 Nexus home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 48 48" role="img"><path d="M24 3 42 13v22L24 45 6 35V13L24 3Zm0 8-11 6v14l11 6 11-6V17l-11-6Zm0 7 6 3.5v7L24 32l-6-3.5v-7L24 18Z"/></svg>
+          </span>
+          <span><strong>SubLim3</strong><small>NEXUS CORE</small></span>
+        </a>
+
+        <nav aria-label="Primary navigation">
+          <a class="nav-item active" href="#overview"><span class="nav-icon">⌂</span>Overview</a>
+          <a class="nav-item" href="#campaigns"><span class="nav-icon">◈</span>Campaigns</a>
+          <span class="nav-item muted"><span class="nav-icon">♙</span>Characters <em>Soon</em></span>
+          <span class="nav-item muted"><span class="nav-icon">⌁</span>Companions <em>Soon</em></span>
+          <span class="nav-item muted"><span class="nav-icon">♫</span>Audio <em>Soon</em></span>
+        </nav>
+
+        <div class="sidebar-status">
+          <span class="pulse-dot"></span>
+          <div><strong>Nexus online</strong><small id="sidebar-hostname">Connecting…</small></div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">COMMAND CENTER</p>
+            <h1 id="greeting">Welcome, Game Master.</h1>
+          </div>
+          <div class="topbar-meta">
+            <span class="live-badge"><i></i>Live</span>
+            <span id="clock">--:--</span>
+          </div>
+        </header>
+
+        <section id="overview" class="hero-grid" aria-labelledby="overview-title">
+          <article class="hero-card">
+            <div class="hero-copy">
+              <p class="eyebrow">NEXUS CORE</p>
+              <h2 id="overview-title">The table is ready.</h2>
+              <p>Your offline-first command center is online and listening. Build a campaign to begin shaping the next adventure.</p>
+              <a class="primary-button" href="#campaigns">Create campaign <span>→</span></a>
+            </div>
+            <div class="core-orbit" aria-hidden="true">
+              <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+              <div class="core-glyph"><span>N</span></div>
+            </div>
+          </article>
+
+          <article class="status-card">
+            <div class="card-heading"><span>Core health</span><span class="healthy">Healthy</span></div>
+            <div class="health-score"><strong>100</strong><span>%</span></div>
+            <div class="meter"><i style="width:100%"></i></div>
+            <dl class="mini-stats">
+              <div><dt>Version</dt><dd id="version">—</dd></div>
+              <div><dt>Uptime</dt><dd id="uptime">—</dd></div>
+              <div><dt>Runtime</dt><dd id="runtime">—</dd></div>
+            </dl>
+          </article>
+        </section>
+
+        <section class="metric-grid" aria-label="System metrics">
+          <article class="metric-card"><span class="metric-icon violet">▰</span><div><p>Storage available</p><strong id="storage-free">—</strong><small id="storage-total">Loading system data</small></div></article>
+          <article class="metric-card"><span class="metric-icon cyan">◌</span><div><p>Memory available</p><strong id="memory-free">—</strong><small id="memory-total">Loading system data</small></div></article>
+          <article class="metric-card"><span class="metric-icon amber">⌁</span><div><p>Core address</p><strong id="hostname">—</strong><small id="platform">Local network</small></div></article>
+        </section>
+
+        <section id="campaigns" class="campaign-section" aria-labelledby="campaign-heading">
+          <div class="section-heading">
+            <div><p class="eyebrow">WORLD LIBRARY</p><h2 id="campaign-heading">Campaigns</h2></div>
+            <span id="campaign-count" class="count-badge">0 campaigns</span>
+          </div>
+
+          <div class="campaign-layout">
+            <div id="campaign-list" class="campaign-list" aria-live="polite">
+              <div class="empty-state">
+                <span class="empty-glyph">◇</span>
+                <h3>No campaigns—yet.</h3>
+                <p>Create your first world. The Nexus will keep it ready for the table.</p>
+              </div>
+            </div>
+
+            <form id="campaign-form" class="campaign-form">
+              <div><p class="eyebrow">NEW ADVENTURE</p><h3>Open a new world</h3></div>
+              <label>Campaign name<input id="campaign-name" name="name" required maxlength="80" placeholder="The Ashen Crown"></label>
+              <label>Game system<select id="system-id" name="system_id"><option value="custom">Custom RPG</option><option value="dnd5e">D&amp;D 5e</option><option value="pathfinder2e">Pathfinder 2e</option><option value="coc7e">Call of Cthulhu 7e</option></select></label>
+              <label>Campaign ID<input id="campaign-id" name="campaign_id" required pattern="[a-z0-9][a-z0-9_-]*[a-z0-9]|[a-z0-9]" placeholder="ashen_crown"></label>
+              <button class="primary-button submit-button" type="submit">Create campaign <span>→</span></button>
+              <p id="form-message" class="form-message" role="status"></p>
+            </form>
+          </div>
+        </section>
+
+        <footer><span>SUBLIM3 NEXUS</span><span>Local-first • No cloud required</span></footer>
+      </main>
+    </div>
+  </body>
+</html>
