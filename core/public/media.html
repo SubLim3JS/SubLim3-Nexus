@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#090b12">
+    <title>Media Player • SubLim3 Nexus</title>
+    <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
+    <link rel="stylesheet" href="/assets/styles.css?v=0.6.0">
+    <link rel="stylesheet" href="/assets/media.css?v=0.6.0">
+    <script type="module" src="/assets/media.js?v=0.6.0"></script>
+  </head>
+  <body>
+    <main class="media-main">
+      <header class="media-header">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true"><img src="/assets/nexus-logo.png" alt=""></span>
+          <span><strong>SubLim3</strong><small>NEXUS MEDIA</small></span>
+        </a>
+        <div class="media-header-actions"><span class="preview-badge"><i></i>Browser preview</span><a class="back-link" href="/">← Command center</a></div>
+      </header>
+
+      <section class="media-intro">
+        <div><p class="eyebrow">TABLE AUDIO</p><h1>Soundscapes</h1><p>Layer atmosphere into every scene. This proof of concept generates its audio locally—no internet, downloads, or licensed tracks required.</p></div>
+        <div class="output-card"><span>Output</span><strong>This browser</strong><small>Pi and Bluetooth routing comes next</small></div>
+      </section>
+
+      <section class="player-grid">
+        <article id="now-playing" class="now-playing">
+          <div class="album-art">
+            <img src="/assets/nexus-logo.png" alt="SubLim3 Nexus">
+            <div class="visualizer" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+          </div>
+          <div class="track-copy"><p class="eyebrow">NOW PLAYING</p><h2 id="track-title">Lantern &amp; Oak</h2><p id="track-subtitle">Warm tavern drone • Seamless ambience</p></div>
+          <div class="timeline"><span id="elapsed">0:00</span><div class="progress"><i id="progress-bar"></i></div><span id="duration">4:00</span></div>
+          <div class="transport" aria-label="Playback controls">
+            <button id="previous-track" type="button" aria-label="Previous track">‹</button>
+            <button id="play-track" class="play-button" type="button" aria-label="Play">▶</button>
+            <button id="stop-track" type="button" aria-label="Stop">■</button>
+            <button id="next-track" type="button" aria-label="Next track">›</button>
+          </div>
+          <label class="volume-control"><span>Volume</span><input id="master-volume" type="range" min="0" max="100" value="55"><output id="volume-value">55%</output></label>
+        </article>
+
+        <aside class="queue-panel">
+          <div class="panel-heading"><div><p class="eyebrow">SCENE QUEUE</p><h2>Ambience</h2></div><span>3 tracks</span></div>
+          <button class="queue-track active" type="button" data-track="0"><span class="track-number">01</span><span><strong>Lantern &amp; Oak</strong><small>Tavern • Warm • Social</small></span><em>4:00</em></button>
+          <button class="queue-track" type="button" data-track="1"><span class="track-number">02</span><span><strong>Understone Hollow</strong><small>Cavern • Distant • Uneasy</small></span><em>5:20</em></button>
+          <button class="queue-track" type="button" data-track="2"><span class="track-number">03</span><span><strong>Initiative Rising</strong><small>Battle • Pulse • Urgent</small></span><em>3:30</em></button>
+          <div class="queue-note"><span>◇</span><p><strong>RFID ready</strong><small>Future cards can launch tracks and full scenes through the same media API.</small></p></div>
+        </aside>
+      </section>
+
+      <section class="sfx-section">
+        <div class="section-heading"><div><p class="eyebrow">QUICK TRIGGERS</p><h2>Sound effects</h2></div><span class="count-badge">Procedural demo</span></div>
+        <div class="sfx-grid">
+          <button type="button" data-sfx="thunder"><span>ϟ</span><strong>Thunder</strong><small>Low rolling impact</small></button>
+          <button type="button" data-sfx="door"><span>⌑</span><strong>Ancient Door</strong><small>Stone and timber</small></button>
+          <button type="button" data-sfx="blade"><span>✦</span><strong>Blade Clash</strong><small>Metallic strike</small></button>
+          <button type="button" data-sfx="magic"><span>◉</span><strong>Arcane Pulse</strong><small>Resonant energy</small></button>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
+

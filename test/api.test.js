@@ -104,6 +104,15 @@ test("serves the connectivity Settings page", async () => {
   assert.match(await response.text(), /Bluetooth visibility/);
 });
 
+test("serves the offline media player demo", async () => {
+  const response = await fetch(`${baseUrl}/media/`);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type"), /text\/html/);
+  const page = await response.text();
+  assert.match(page, /Soundscapes/);
+  assert.match(page, /Browser preview/);
+});
+
 test("temporarily locks connectivity controls after repeated bad PINs", async () => {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const response = await fetch(`${baseUrl}/api/v1/connectivity/status`, { headers: { "x-nexus-settings-pin": "wrong" } });

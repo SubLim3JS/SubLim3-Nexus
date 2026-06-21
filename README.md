@@ -53,6 +53,10 @@ Responsibilities:
 * Provide REST APIs
 * Serve local dashboard pages
 
+The proof-of-concept media player is available at `/media/`. It generates three
+looping soundscapes and four one-shot effects locally in the browser, so the demo
+works offline and does not require bundled or licensed audio files.
+
 Initial development may use Raspberry Pi hardware.
 
 Long-term production hardware may use either:

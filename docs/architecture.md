@@ -45,6 +45,8 @@ Nexus Core serves its responsive command dashboard from `/`. The dashboard uses 
 
 The Settings page at `/settings/` uses a six-digit installer-generated PIN for connectivity mutations. Nexus Core remains unprivileged; a root-owned helper exposes only validated NetworkManager and BlueZ actions. Failed home Wi-Fi connections restore the Nexus hotspot, and a boot recovery service starts Local Mode whenever no Wi-Fi connection is available.
 
+The media proof of concept at `/media/` is browser-first and fully offline. Its procedural Web Audio soundscapes and effects play through the device viewing the page. Raspberry Pi audio output, Bluetooth routing, persistent libraries, playlists, and RFID triggers remain later media-service boundaries.
+
 ## Next boundaries
 
 Character, companion, game-system, RFID, and audio modules should use the same store interface during the JSON phase. A future SQLite adapter can then replace JSON persistence without changing HTTP routes or companion clients.
