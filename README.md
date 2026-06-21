@@ -698,6 +698,22 @@ npm test
 
 The first working slice includes the system status endpoint, campaign CRUD, portable JSON storage, request validation, and API integration tests. See [the architecture notes](docs/architecture.md) for current boundaries and next steps.
 
+### Install on Raspberry Pi
+
+Clone the repository to `/opt/sublim3-nexus`, then install the managed service:
+
+```bash
+cd /opt/sublim3-nexus
+sudo ./scripts/install.sh
+```
+
+The installer creates a restricted `nexus` service account, stores runtime data under `/var/lib/sublim3-nexus`, and enables Nexus Core at boot. Runtime settings can be changed in `/etc/default/sublim3-nexus`.
+
+```bash
+systemctl status sublim3-nexus
+journalctl -u sublim3-nexus -f
+```
+
 Current priority:
 
 1. Finalize architecture

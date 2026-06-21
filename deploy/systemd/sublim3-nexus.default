@@ -1,0 +1,6 @@
+# Nexus Core runtime configuration
+NODE_ENV=production
+HOST=0.0.0.0
+PORT=3000
+NEXUS_DATA_DIR=/var/lib/sublim3-nexus
+

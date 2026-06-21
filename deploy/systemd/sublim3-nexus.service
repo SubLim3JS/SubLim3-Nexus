@@ -1,0 +1,24 @@
+[Unit]
+Description=SubLim3 Nexus Core
+Documentation=https://github.com/SubLim3JS/SubLim3-Nexus
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nexus
+Group=nexus
+WorkingDirectory=/opt/sublim3-nexus
+EnvironmentFile=-/etc/default/sublim3-nexus
+ExecStart=/usr/bin/node /opt/sublim3-nexus/core/src/server.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/sublim3-nexus
+
+[Install]
+WantedBy=multi-user.target
+
