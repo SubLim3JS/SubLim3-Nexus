@@ -9,4 +9,3 @@
 .toggle-row { display:flex!important; flex-direction:row; justify-content:space-between; align-items:center; padding:16px; border:1px solid var(--line); border-radius:10px; }.toggle-row input { width:42px; height:22px; accent-color:var(--green); }.device-list { margin-top:14px; color:var(--muted); font-size:11px; }
 @media(max-width:760px){.settings-main{padding:24px 20px 50px}.settings-grid{grid-template-columns:1fr}.status-panel{grid-column:auto}.settings-status{grid-template-columns:1fr 1fr}.settings-header .brand{padding:0}.back-link{font-size:10px}}
 @media(max-width:460px){.settings-status{grid-template-columns:1fr}.settings-header{align-items:flex-start;gap:20px}.back-link{text-align:right}}
-
