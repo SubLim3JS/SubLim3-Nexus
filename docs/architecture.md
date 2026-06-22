@@ -22,6 +22,11 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 | --- | --- | --- |
 | `GET` | `/api/v1/system/status` | Health and version information |
 | `GET` | `/api/v1/system/info` | Host, runtime, memory, and storage information |
+| `GET` | `/api/v1/systems` | List installed game-system templates |
+| `POST` | `/api/v1/systems` | Install a game-system template (Admin) |
+| `GET` | `/api/v1/systems/{system_id}` | Read a character-sheet and companion contract |
+| `PUT` | `/api/v1/systems/{system_id}` | Replace a game-system template (Admin) |
+| `DELETE` | `/api/v1/systems/{system_id}` | Delete an unused custom template (Admin) |
 | `GET` | `/api/v1/campaigns` | List campaigns |
 | `POST` | `/api/v1/campaigns` | Create a campaign |
 | `GET` | `/api/v1/campaigns/{campaign_id}` | Read a campaign |
@@ -61,6 +66,10 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 ## Browser-first session model
 
 The GM dashboard and player views share one system-neutral session record per campaign. Game Mode publishes scene information. Battle Mode adds ordered combatants, initiative, round, turn, health, and condition state. The GM console builds and revises encounters during play, edits initiative order, navigates turns in either direction, and applies damage, healing, or conditions. The Admin dashboard exposes the same state as a read-only overview; its only session mutation is an explicit emergency reset. Server-sent events push each saved change to scoped Player clients, with polling retained as a fallback. Player sessions can read only their paired character and campaign table state.
+
+## Template model
+
+Game systems are versioned records stored separately from character values. A template defines typed fields, tracked resources, suggested conditions, page bindings, and abstract actions. Campaigns reference one installed `system_id`; character creation applies that template's defaults and snapshots its `system_id` and `template_version`. Companion pages bind only to stable field/resource IDs, keeping future cube firmware free of D&D-specific logic. Built-in templates are seeded on first startup, cannot be deleted, and custom templates cannot be deleted while a campaign references them.
 
 ## Local dashboard
 

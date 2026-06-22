@@ -73,6 +73,12 @@ backward through turns, reset the round, and apply damage, healing, or condition
 Player views receive those changes immediately and highlight the active character's
 turn, while retaining a polling fallback for local-network interruptions.
 
+Version 1.2 adds the first template contract. Installed game systems define typed
+character fields, resources, condition vocabularies, companion pages, and actions.
+Campaigns bind to one installed system; new characters receive its defaults and
+record the template version that shaped them. Custom RPG and D&D 5e ship as the
+first built-in templates, while the Admin dashboard exposes the installed library.
+
 Initial development may use Raspberry Pi hardware.
 
 Long-term production hardware may use either:
@@ -188,10 +194,21 @@ The system should use a generic RPG data model.
   "system_id": "dnd5e",
   "name": "Dungeons & Dragons 5e",
   "version": "1.0",
-  "resources": [],
-  "conditions": [],
-  "pages": [],
-  "actions": []
+  "character_sheet": {
+    "fields": [
+      { "field_id": "defense", "label": "Armor Class", "type": "number" }
+    ],
+    "resources": [
+      { "resource_id": "health", "label": "Hit Points", "default_current": 10, "default_maximum": 10 }
+    ],
+    "conditions": ["Poisoned", "Prone"],
+    "pages": [
+      { "page_id": "status", "title": "Status", "bindings": ["health", "defense", "conditions"] }
+    ],
+    "actions": [
+      { "action_id": "damage", "label": "Damage", "kind": "decrement", "target": "health" }
+    ]
+  }
 }
 ```
 
@@ -263,7 +280,7 @@ The system should use a generic RPG data model.
     {
       "page_id": "health",
       "title": "Health",
-      "fields": [
+      "bindings": [
         "hp",
         "temp_hp"
       ]
@@ -271,14 +288,14 @@ The system should use a generic RPG data model.
     {
       "page_id": "conditions",
       "title": "Conditions",
-      "fields": [
+      "bindings": [
         "conditions"
       ]
     },
     {
       "page_id": "resources",
       "title": "Resources",
-      "fields": [
+      "bindings": [
         "spell_slot_1",
         "spell_slot_2",
         "spell_slot_3"
@@ -641,11 +658,10 @@ sublim3-nexus/
 
 ### Phase 3 - RPG Template System
 
-* Add game system templates
-* Add D&D 5e template
+* Game system and character-sheet template contract complete
+* Built-in Custom RPG and D&D 5e templates complete
 * Add custom template editor
-* Add conditions
-* Add initiative
+* Expand system-specific condition and action tooling
 
 ### Phase 4 - Table Features
 

@@ -30,13 +30,15 @@ export function validateCharacter(input, { requireId = true } = {}) {
   return errors;
 }
 
-export function normalizeCharacter(campaignId, input, existing = null) {
+export function normalizeCharacter(campaignId, input, existing = null, system = null) {
   const now = new Date().toISOString();
   const resources = Object.fromEntries(Object.entries(input.resources ?? {}).slice(0, 12).map(([id, value]) => [id, normalizeResource(id, value)]));
   const fields = Object.fromEntries(Object.entries(input.fields ?? {}).slice(0, 20).map(([key, value]) => [key, typeof value === "number" || typeof value === "boolean" ? value : String(value ?? "").trim().slice(0, 120)]));
   return {
     character_id: existing?.character_id ?? input.character_id,
     campaign_id: campaignId,
+    system_id: system?.system_id ?? existing?.system_id ?? null,
+    template_version: system?.version ?? existing?.template_version ?? null,
     player_name: String(input.player_name ?? "").trim().slice(0, 80),
     character_name: String(input.character_name).trim().slice(0, 80),
     fields,

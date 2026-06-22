@@ -6,6 +6,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { createApp } from "../core/src/app.js";
 import { JsonStore } from "../core/src/storage/json-store.js";
+import { BUILT_IN_GAME_SYSTEMS } from "../core/src/game-system.js";
 
 let baseUrl;
 let server;
@@ -17,10 +18,13 @@ before(async () => {
   const store = new JsonStore(path.join(temporaryDirectory, "campaigns"));
   const sessionStore = new JsonStore(path.join(temporaryDirectory, "sessions"));
   const characterStore = new JsonStore(path.join(temporaryDirectory, "characters"));
+  const systemStore = new JsonStore(path.join(temporaryDirectory, "systems"));
+  for (const system of BUILT_IN_GAME_SYSTEMS) await systemStore.put(system.system_id, system);
   server = createServer(createApp({
     campaignStore: store,
     sessionStore,
     characterStore,
+    systemStore,
     settingsPin: "123456",
     connectivity: {
       status: async () => ({ supported: true, wifi: { mode: "local", ssid: "SubLim3-Nexus", addresses: ["10.42.0.1/24"] }, bluetooth: { available: true, visible: false, connected_devices: [] } }),
@@ -54,6 +58,7 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
+  assert.equal(body.version, "1.2.0");
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
@@ -116,6 +121,66 @@ test("serves the offline media player demo", async () => {
   const page = await response.text();
   assert.match(page, /Soundscapes/);
   assert.match(page, /Browser preview/);
+});
+
+test("manages versioned game-system and character-sheet templates", async () => {
+  const builtIns = await fetch(`${baseUrl}/api/v1/systems`).then((response) => response.json());
+  assert.deepEqual(builtIns.data.map((system) => system.system_id).sort(), ["custom", "dnd5e"]);
+  assert.equal(builtIns.data.find((system) => system.system_id === "dnd5e").character_sheet.pages[0].page_id, "status");
+  const unknownCampaign = await fetch(`${baseUrl}/api/v1/campaigns`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ campaign_id: "unknown_system", name: "Unknown", system_id: "missing" }),
+  });
+  assert.equal(unknownCampaign.status, 422);
+
+  const created = await fetch(`${baseUrl}/api/v1/systems`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      system_id: "starward",
+      name: "Starward",
+      version: "0.1",
+      description: "A compact science-fantasy template.",
+      character_sheet: {
+        fields: [{ field_id: "rank", label: "Rank", type: "number", default_value: 2 }],
+        resources: [{ resource_id: "resolve", label: "Resolve", default_current: 3, default_maximum: 5 }],
+        conditions: ["Exposed"],
+        pages: [{ page_id: "status", title: "Status", bindings: ["resolve", "rank", "unknown"] }],
+        actions: [{ action_id: "spend_resolve", label: "Spend Resolve", kind: "decrement", target: "resolve" }],
+      },
+    }),
+  });
+  assert.equal(created.status, 201);
+  const system = (await created.json()).data;
+  assert.deepEqual(system.character_sheet.pages[0].bindings, ["resolve", "rank"]);
+
+  await fetch(`${baseUrl}/api/v1/campaigns`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ campaign_id: "starward_test", name: "Starward Test", system_id: "starward" }),
+  });
+  const character = await fetch(`${baseUrl}/api/v1/campaigns/starward_test/characters`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ character_id: "nova", character_name: "Nova" }),
+  }).then((response) => response.json());
+  assert.equal(character.data.system_id, "starward");
+  assert.equal(character.data.template_version, "0.1");
+  assert.equal(character.data.fields.rank, 2);
+  assert.equal(character.data.resources.resolve.maximum, 5);
+  assert.equal((await fetch(`${baseUrl}/api/v1/systems/starward`, { method: "DELETE" })).status, 409);
+  await fetch(`${baseUrl}/api/v1/campaigns/starward_test/characters/nova`, { method: "DELETE" });
+  await fetch(`${baseUrl}/api/v1/campaigns/starward_test`, { method: "DELETE" });
+  assert.equal((await fetch(`${baseUrl}/api/v1/systems/starward`, { method: "DELETE" })).status, 204);
+
+  const scratch = await fetch(`${baseUrl}/api/v1/systems`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ system_id: "scratch", name: "Scratch", character_sheet: {} }),
+  });
+  assert.equal(scratch.status, 201);
+  assert.equal((await fetch(`${baseUrl}/api/v1/systems/scratch`, { method: "DELETE" })).status, 204);
 });
 
 test("creates, reads, updates, lists, and deletes campaign characters", async () => {

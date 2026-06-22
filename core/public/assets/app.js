@@ -3,6 +3,8 @@ let authToken = localStorage.getItem("nexus-admin-token") ?? "";
 let currentAdminSessionId = "";
 let currentGmPin = "";
 let gmPinRevealed = false;
+let gameSystems = new Map();
+let editingCharacterRecord = null;
 
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes)) return "—";
@@ -101,6 +103,23 @@ async function loadCampaigns() {
   await loadCharacters();
 }
 
+async function loadGameSystems() {
+  const { data } = await request("/api/v1/systems");
+  gameSystems = new Map(data.map((system) => [system.system_id, system]));
+  const selector = $("#system-id");
+  const selected = selector.value;
+  selector.replaceChildren(...data.map((system) => new Option(`${system.name} • v${system.version}`, system.system_id)));
+  selector.value = gameSystems.has(selected) ? selected : gameSystems.has("custom") ? "custom" : data[0]?.system_id ?? "";
+  $("#system-count").textContent = `${data.length} ${data.length === 1 ? "system" : "systems"}`;
+  $("#system-list").replaceChildren(...data.map((system) => {
+    const card=document.createElement("article"),head=document.createElement("div"),copy=document.createElement("div"),badge=document.createElement("span"),title=document.createElement("h3"),description=document.createElement("p"),stats=document.createElement("dl");
+    card.className="system-card";head.className="system-card-head";badge.className="role-badge";badge.textContent=system.built_in?"Built in":"Custom";title.textContent=system.name;description.textContent=system.description||"No template description.";
+    const values=[["Version",system.version],["Fields",system.character_sheet.fields.length],["Resources",system.character_sheet.resources.length],["Cube pages",system.character_sheet.pages.length]];
+    for(const [label,value] of values){const wrapper=document.createElement("div"),term=document.createElement("dt"),definition=document.createElement("dd");term.textContent=label;definition.textContent=value;wrapper.append(term,definition);stats.append(wrapper);}
+    copy.append(title,description);head.append(copy,badge);card.append(head,stats);return card;
+  }));
+}
+
 let editingCharacterId = null;
 
 function characterEmpty(title, copy) {
@@ -137,6 +156,7 @@ function resourceLine(resource) {
 
 function resetCharacterForm() {
   editingCharacterId = null;
+  editingCharacterRecord = null;
   $("#character-form").reset();
   $("#character-level").value = "1";
   $("#health-current").value = "10";
@@ -150,6 +170,7 @@ function resetCharacterForm() {
 
 function editCharacter(character) {
   editingCharacterId = character.character_id;
+  editingCharacterRecord = character;
   $("#character-name").value = character.character_name;
   $("#player-name").value = character.player_name;
   $("#character-role").value = character.fields?.role ?? "";
@@ -222,10 +243,16 @@ async function loadCharacters() {
   const campaignId = $("#character-campaign").value;
   const list = $("#character-list");
   if (!campaignId) {
+    $("#character-template-summary").textContent = "Select a campaign to load its character-sheet template.";
     $("#character-count").textContent = "0 characters";
     list.replaceChildren(characterEmpty("Select a campaign", "Choose a world to manage its party."));
     return;
   }
+  const campaign = (await request(`/api/v1/campaigns/${encodeURIComponent(campaignId)}`)).data;
+  const system = gameSystems.get(campaign.system_id);
+  $("#character-template-summary").textContent = system
+    ? `${system.name} v${system.version} • ${system.character_sheet.fields.length} fields • ${system.character_sheet.resources.length} resources • ${system.character_sheet.pages.length} companion pages`
+    : `Template ${campaign.system_id} is unavailable.`;
   const { data } = await request(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/characters`);
   $("#character-count").textContent = `${data.length} ${data.length === 1 ? "character" : "characters"}`;
   list.replaceChildren(...(data.length ? data.map(characterCard) : [characterEmpty("No characters—yet.", "Add the first hero, rival, or investigator to this campaign.")]));
@@ -246,13 +273,14 @@ $("#character-form").addEventListener("submit", async (event) => {
   const message = $("#character-message");
   if (!campaignId) { message.textContent = "Select a campaign first."; message.className = "form-message error"; return; }
   const resourceLabel = $("#resource-label").value.trim();
-  const resources = { health: { label: "Health", current: Number($("#health-current").value), maximum: Number($("#health-maximum").value) } };
+  const resources = { ...(editingCharacterRecord?.resources ?? {}), health: { label: "Health", current: Number($("#health-current").value), maximum: Number($("#health-maximum").value) } };
   if (resourceLabel) resources.secondary = { label: resourceLabel, ...parseResourceValues($("#resource-values").value) };
+  else delete resources.secondary;
   const payload = {
     character_id: $("#character-id").value,
     character_name: $("#character-name").value,
     player_name: $("#player-name").value,
-    fields: { role: $("#character-role").value, level: Number($("#character-level").value) || 0, defense: $("#character-defense").value },
+    fields: { ...(editingCharacterRecord?.fields ?? {}), role: $("#character-role").value, level: Number($("#character-level").value) || 0, defense: $("#character-defense").value },
     resources,
     conditions: $("#character-conditions").value.split(",").map((condition) => condition.trim()).filter(Boolean),
     public_notes: $("#character-notes").value,
@@ -399,6 +427,7 @@ async function openAdminApp() {
   currentAdminSessionId = data.session_id;
   $("#admin-gate").hidden = true;
   $("#admin-app").hidden = false;
+  await loadGameSystems();
   await Promise.all([loadSystemInfo(), loadCampaigns(), loadAccessPanel()]);
 }
 

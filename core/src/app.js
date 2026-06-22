@@ -5,6 +5,7 @@ import { readJson, sendJson } from "./http.js";
 import { serveStatic } from "./static.js";
 import { addCombatant, advanceTurn, emptySession, endBattle, normalizeSession, previousTurn, removeCombatant, reorderCombatants, resetRound, resetSession, updateCombatant } from "./session.js";
 import { normalizeCharacter, validateCharacter } from "./character.js";
+import { applyGameSystemDefaults, normalizeGameSystem, validateGameSystem } from "./game-system.js";
 
 const API_PREFIX = "/api/v1";
 const defaultPublicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
@@ -37,6 +38,11 @@ function characterRouteFrom(pathname) {
   return match ? { campaignId: decodeURIComponent(match[1]), characterId: match[2] ? decodeURIComponent(match[2]) : null } : null;
 }
 
+function systemRouteFrom(pathname) {
+  const match = pathname.match(/^\/api\/v1\/systems(?:\/([^/]+))?$/);
+  return match ? { systemId: match[1] ? decodeURIComponent(match[1]) : null } : null;
+}
+
 function requireSettingsAccess(request, settingsPin, guard) {
   if (!settingsPin) throw Object.assign(new Error("Settings PIN is not configured"), { statusCode: 503 });
   if (guard.blockedUntil > Date.now()) throw Object.assign(new Error("Too many failed PIN attempts; try again shortly"), { statusCode: 429 });
@@ -56,13 +62,14 @@ export function createApp({
   campaignStore,
   sessionStore,
   characterStore,
+  systemStore = null,
   access,
   liveEvents,
   connectivity,
   settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "1.1.0",
+  version = "1.2.0",
   startedAt = new Date(),
 }) {
   const settingsGuard = { failures: 0, blockedUntil: 0 };
@@ -175,6 +182,49 @@ export function createApp({
         return sendJson(response, 200, { success: true, visible: input.visible });
       }
 
+      const systemRoute = systemStore ? systemRouteFrom(url.pathname) : null;
+      if (systemRoute) {
+        if (!systemRoute.systemId && request.method === "GET") {
+          if (access) await access.authorize(request, { roles: ["admin", "gm", "player"] });
+          return sendJson(response, 200, { data: await systemStore.list() });
+        }
+        if (!systemRoute.systemId && request.method === "POST") {
+          if (access) await access.authorize(request, { roles: ["admin"] });
+          const input = await readJson(request);
+          const errors = validateGameSystem(input);
+          if (errors.length) return sendJson(response, 422, { error: "validation_failed", details: errors });
+          if (await systemStore.get(input.system_id)) return sendJson(response, 409, { error: "system_exists" });
+          const system = normalizeGameSystem(input);
+          await systemStore.put(system.system_id, system);
+          return sendJson(response, 201, { data: system });
+        }
+        if (systemRoute.systemId) {
+          const existing = await systemStore.get(systemRoute.systemId);
+          if (!existing) return sendJson(response, 404, { error: "system_not_found" });
+          if (request.method === "GET") {
+            if (access) await access.authorize(request, { roles: ["admin", "gm", "player"] });
+            return sendJson(response, 200, { data: existing });
+          }
+          if (request.method === "PUT") {
+            if (access) await access.authorize(request, { roles: ["admin"] });
+            const input = await readJson(request);
+            const errors = validateGameSystem(input, { requireId: false });
+            if (errors.length) return sendJson(response, 422, { error: "validation_failed", details: errors });
+            const system = normalizeGameSystem(input, existing);
+            await systemStore.put(existing.system_id, system);
+            return sendJson(response, 200, { data: system });
+          }
+          if (request.method === "DELETE") {
+            if (access) await access.authorize(request, { roles: ["admin"] });
+            if (existing.built_in) return sendJson(response, 409, { error: "built_in_system" });
+            if ((await campaignStore.list()).some((campaign) => campaign.system_id === existing.system_id)) return sendJson(response, 409, { error: "system_in_use" });
+            await systemStore.delete(existing.system_id);
+            return sendJson(response, 204, null);
+          }
+        }
+        return sendJson(response, 405, { error: "method_not_allowed" });
+      }
+
       if (url.pathname === `${API_PREFIX}/campaigns`) {
         if (access) await access.authorize(request, { roles: ["admin"] });
         if (request.method === "GET") {
@@ -185,6 +235,7 @@ export function createApp({
           const input = await readJson(request);
           const errors = validateCampaign(input);
           if (errors.length) return sendJson(response, 422, { error: "validation_failed", details: errors });
+          if (systemStore && !await systemStore.get(input.system_id)) return sendJson(response, 422, { error: "validation_failed", details: ["system_id does not match an installed game system"] });
           if (await campaignStore.get(input.campaign_id)) {
             return sendJson(response, 409, { error: "campaign_exists" });
           }
@@ -221,7 +272,8 @@ export function createApp({
           const errors = validateCharacter(input);
           if (errors.length) return sendJson(response, 422, { error: "validation_failed", details: errors });
           if (await characterStore.get(input.character_id)) return sendJson(response, 409, { error: "character_exists" });
-          const character = normalizeCharacter(characterRoute.campaignId, input);
+          const system = systemStore ? await systemStore.get(campaign.system_id) : null;
+          const character = normalizeCharacter(characterRoute.campaignId, applyGameSystemDefaults(input, system), null, system);
           await characterStore.put(character.character_id, character);
           return sendJson(response, 201, { data: character });
         }
@@ -238,7 +290,8 @@ export function createApp({
             const input = await readJson(request);
             const errors = validateCharacter(input, { requireId: false });
             if (errors.length) return sendJson(response, 422, { error: "validation_failed", details: errors });
-            const character = normalizeCharacter(characterRoute.campaignId, input, existing);
+            const system = systemStore ? await systemStore.get(campaign.system_id) : null;
+            const character = normalizeCharacter(characterRoute.campaignId, applyGameSystemDefaults(input, system), existing, system);
             await characterStore.put(existing.character_id, character);
             return sendJson(response, 200, { data: character });
           }
@@ -361,6 +414,7 @@ export function createApp({
           const input = await readJson(request);
           const errors = validateCampaign(input, { requireId: false });
           if (errors.length) return sendJson(response, 422, { error: "validation_failed", details: errors });
+          if (systemStore && !await systemStore.get(input.system_id)) return sendJson(response, 422, { error: "validation_failed", details: ["system_id does not match an installed game system"] });
           const campaign = {
             ...existing,
             name: input.name.trim(),

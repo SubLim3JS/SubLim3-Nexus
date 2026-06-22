@@ -12,6 +12,8 @@ Admin and GM devices pair with installer-generated PINs. Their bearer tokens are
 
 The Admin Access & Pairing panel lists active devices, their role scopes, and expiration dates. It can revoke a client or rotate the GM PIN; rotation immediately revokes all existing GM sessions.
 
+The Admin template library lists installed game systems and their character-field, resource, and companion-page counts. Campaign creation selects from this library rather than a hard-coded game list. The first slice is read-only in the browser; custom template authoring will build on the versioned `/api/v1/systems` contract.
+
 The Player flow intentionally asks only for a campaign and character. That selection creates a character-scoped read-only session; it is an isolation boundary for the simple local-table experience, not proof of a player's real-world identity. A campaign can add a player PIN later if a game requires stronger privacy.
 
 Live encounter changes are delivered with a campaign-scoped server-event stream. Player clients automatically fall back to periodic refreshes if a stream is interrupted, so play continues through brief local-network disruptions.
