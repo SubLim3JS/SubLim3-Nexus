@@ -39,6 +39,11 @@ if ! id "${SERVICE_USER}" >/dev/null 2>&1; then
 fi
 
 install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 0750 "${DATA_DIR}"
+# Older installs may contain store directories created before the service user was
+# introduced. Reconcile the entire data tree so Nexus Core can persist records.
+chown -R "${SERVICE_USER}:${SERVICE_USER}" "${DATA_DIR}"
+find "${DATA_DIR}" -type d -exec chmod 0750 {} +
+find "${DATA_DIR}" -type f -exec chmod 0640 {} +
 install -d -o root -g root -m 0755 /usr/local/libexec
 install -o root -g root -m 0755 "${REPOSITORY_ROOT}/scripts/connectivity-helper.sh" "${CONNECTIVITY_HELPER}"
 install -o root -g root -m 0644 \
