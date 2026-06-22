@@ -64,10 +64,12 @@ scene information, and battle turn state without requiring a cloud connection.
 Role-specific entry points are available at `/admin/`, `/gm/`, and `/player/`.
 Admin and GM devices pair with installer-generated PINs; Player devices select a
 campaign and character and receive a read-only character-scoped session.
-The Admin dashboard can inspect and revoke paired clients or rotate the GM PIN.
+The Admin dashboard can inspect and revoke paired clients, rotate the GM PIN, and
+monitor a read-only Live Session Overview with an emergency full-session reset.
 
 The GM console now includes a live encounter builder: select campaign characters,
-add NPCs, order initiative, advance turns, and apply damage, healing, or conditions.
+add or remove combatants during play, edit and reorder initiative, move forward or
+backward through turns, reset the round, and apply damage, healing, or conditions.
 Player views receive those changes immediately and highlight the active character's
 turn, while retaining a polling fallback for local-network interruptions.
 

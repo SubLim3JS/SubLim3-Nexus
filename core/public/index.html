@@ -163,18 +163,17 @@
         </section>
 
         <section id="session" class="session-section" aria-labelledby="session-heading">
-          <div class="section-heading"><div><p class="eyebrow">LIVE TABLE</p><h2 id="session-heading">GM Session Console</h2></div><span id="battle-status" class="count-badge">Game mode</span></div>
-          <form id="session-form" class="session-console">
+          <div class="section-heading"><div><p class="eyebrow">ADMIN ONLY</p><h2 id="session-heading">Live Session Overview</h2></div><span id="battle-status" class="count-badge">Game mode</span></div>
+          <div class="session-console session-overview">
             <div class="session-fields">
               <label>Campaign<select id="session-campaign" required><option value="">Select a campaign</option></select></label>
-              <label>Mode<select id="session-mode"><option value="game">Game</option><option value="battle">Battle</option></select></label>
-              <label>Public scene title<input id="scene-title" placeholder="The Broken Gate"></label>
-              <label class="wide">Public scene description<textarea id="scene-description" rows="3" placeholder="What every player can currently see…"></textarea></label>
-              <label class="wide">Combatants <small>One per line: Name, initiative</small><textarea id="combatants" rows="5" placeholder="Sir Garrick, 18&#10;Goblin Scout, 12"></textarea></label>
+              <div class="overview-field"><span>Mode</span><strong id="session-mode-display">No session selected</strong></div>
+              <div class="overview-field wide"><span>Public scene</span><strong id="scene-title-display">—</strong><p id="scene-description-display">Select a campaign to inspect its live state.</p></div>
+              <div class="overview-field wide"><span>Initiative</span><ol id="combatant-overview" class="combatant-overview"><li>No active combatants.</li></ol></div>
             </div>
-            <div class="session-actions"><button class="primary-button" type="submit">Publish session <span>→</span></button><button id="next-turn" class="secondary-button" type="button">Next turn</button><p id="session-message" class="form-message" role="status"></p></div>
+            <div class="session-actions"><p>Emergency controls clear the public scene and active encounter for every connected client.</p><button id="reset-session" class="secondary-button danger-button" type="button" disabled>Reset Session</button><p id="session-message" class="form-message" role="status"></p></div>
             <div id="turn-display" class="turn-display"><span>Current turn</span><strong>Not in battle</strong><small>Round 0</small></div>
-          </form>
+          </div>
         </section>
 
         <footer><span>SUBLIM3 NEXUS</span><span>Local-first • No cloud required</span></footer>

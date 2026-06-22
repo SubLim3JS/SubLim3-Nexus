@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readJson, sendJson } from "./http.js";
 import { serveStatic } from "./static.js";
-import { advanceTurn, emptySession, endBattle, normalizeSession, updateCombatant } from "./session.js";
+import { addCombatant, advanceTurn, emptySession, endBattle, normalizeSession, previousTurn, removeCombatant, reorderCombatants, resetRound, resetSession, updateCombatant } from "./session.js";
 import { normalizeCharacter, validateCharacter } from "./character.js";
 
 const API_PREFIX = "/api/v1";
@@ -15,7 +15,7 @@ function campaignIdFrom(pathname) {
 }
 
 function sessionRouteFrom(pathname) {
-  const match = pathname.match(/^\/api\/v1\/campaigns\/([^/]+)\/(session|battle\/next|battle\/end|events)$/);
+  const match = pathname.match(/^\/api\/v1\/campaigns\/([^/]+)\/(session|session\/reset|battle\/next|battle\/previous|battle\/round\/reset|battle\/reorder|battle\/end|events)$/);
   return match ? { campaignId: decodeURIComponent(match[1]), action: match[2] } : null;
 }
 
@@ -28,8 +28,8 @@ function validateCampaign(input, { requireId = true } = {}) {
 }
 
 function combatantRouteFrom(pathname) {
-  const match = pathname.match(/^\/api\/v1\/campaigns\/([^/]+)\/battle\/combatants\/([^/]+)$/);
-  return match ? { campaignId: decodeURIComponent(match[1]), combatantId: decodeURIComponent(match[2]) } : null;
+  const match = pathname.match(/^\/api\/v1\/campaigns\/([^/]+)\/battle\/combatants(?:\/([^/]+))?$/);
+  return match ? { campaignId: decodeURIComponent(match[1]), combatantId: match[2] ? decodeURIComponent(match[2]) : null } : null;
 }
 
 function characterRouteFrom(pathname) {
@@ -62,7 +62,7 @@ export function createApp({
   settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "1.0.0",
+  version = "1.1.0",
   startedAt = new Date(),
 }) {
   const settingsGuard = { failures: 0, blockedUntil: 0 };
@@ -274,9 +274,38 @@ export function createApp({
           liveEvents?.publish(sessionRoute.campaignId, session);
           return sendJson(response, 200, { data: session });
         }
+        if (sessionRoute.action === "session/reset" && request.method === "POST") {
+          if (access) await access.authorize(request, { roles: ["admin"] });
+          const session = resetSession(sessionRoute.campaignId);
+          await sessionStore.put(sessionRoute.campaignId, session);
+          liveEvents?.publish(sessionRoute.campaignId, session);
+          return sendJson(response, 200, { data: session });
+        }
         if (sessionRoute.action === "battle/next" && request.method === "POST") {
           if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: sessionRoute.campaignId });
           const session = advanceTurn(await sessionStore.get(sessionRoute.campaignId) ?? emptySession(sessionRoute.campaignId));
+          await sessionStore.put(sessionRoute.campaignId, session);
+          liveEvents?.publish(sessionRoute.campaignId, session);
+          return sendJson(response, 200, { data: session });
+        }
+        if (sessionRoute.action === "battle/previous" && request.method === "POST") {
+          if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: sessionRoute.campaignId });
+          const session = previousTurn(await sessionStore.get(sessionRoute.campaignId) ?? emptySession(sessionRoute.campaignId));
+          await sessionStore.put(sessionRoute.campaignId, session);
+          liveEvents?.publish(sessionRoute.campaignId, session);
+          return sendJson(response, 200, { data: session });
+        }
+        if (sessionRoute.action === "battle/round/reset" && request.method === "POST") {
+          if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: sessionRoute.campaignId });
+          const session = resetRound(await sessionStore.get(sessionRoute.campaignId) ?? emptySession(sessionRoute.campaignId));
+          await sessionStore.put(sessionRoute.campaignId, session);
+          liveEvents?.publish(sessionRoute.campaignId, session);
+          return sendJson(response, 200, { data: session });
+        }
+        if (sessionRoute.action === "battle/reorder" && request.method === "POST") {
+          if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: sessionRoute.campaignId });
+          const input = await readJson(request);
+          const session = reorderCombatants(await sessionStore.get(sessionRoute.campaignId) ?? emptySession(sessionRoute.campaignId), input?.combatant_ids);
           await sessionStore.put(sessionRoute.campaignId, session);
           liveEvents?.publish(sessionRoute.campaignId, session);
           return sendJson(response, 200, { data: session });
@@ -294,11 +323,15 @@ export function createApp({
       const combatantRoute = sessionStore ? combatantRouteFrom(url.pathname) : null;
       if (combatantRoute) {
         if (!await campaignStore.get(combatantRoute.campaignId)) return sendJson(response, 404, { error: "campaign_not_found" });
-        if (request.method !== "PATCH") return sendJson(response, 405, { error: "method_not_allowed" });
         if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: combatantRoute.campaignId });
-        const session = updateCombatant(await sessionStore.get(combatantRoute.campaignId) ?? emptySession(combatantRoute.campaignId), combatantRoute.combatantId, await readJson(request));
+        const existingSession = await sessionStore.get(combatantRoute.campaignId) ?? emptySession(combatantRoute.campaignId);
+        let session;
+        if (!combatantRoute.combatantId && request.method === "POST") session = addCombatant(existingSession, await readJson(request));
+        else if (combatantRoute.combatantId && request.method === "DELETE") session = removeCombatant(existingSession, combatantRoute.combatantId);
+        else if (combatantRoute.combatantId && request.method === "PATCH") session = updateCombatant(existingSession, combatantRoute.combatantId, await readJson(request));
+        else return sendJson(response, 405, { error: "method_not_allowed" });
         const combatant = session.battle.combatants.find((item) => item.combatant_id === combatantRoute.combatantId);
-        if (combatant?.character_id && characterStore) {
+        if (request.method === "PATCH" && combatant?.character_id && characterStore) {
           const character = await characterStore.get(combatant.character_id);
           if (character?.campaign_id === combatantRoute.campaignId) {
             const resources = { ...character.resources };

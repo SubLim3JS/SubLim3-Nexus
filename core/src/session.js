@@ -1,5 +1,15 @@
 const MODES = new Set(["game", "battle"]);
 
+function sessionError(message, statusCode) {
+  return Object.assign(new Error(message), { statusCode });
+}
+
+function requireActiveBattle(session) {
+  if (session.mode !== "battle" || session.battle.combatants.length === 0) {
+    throw sessionError("battle mode requires at least one combatant", 409);
+  }
+}
+
 export function emptySession(campaignId) {
   return {
     campaign_id: campaignId,
@@ -87,7 +97,13 @@ export function updateCombatant(session, combatantId, input) {
     const conditions = input.conditions === undefined
       ? combatant.conditions
       : [...new Set((Array.isArray(input.conditions) ? input.conditions : []).map((condition) => String(condition).trim()).filter(Boolean))].slice(0, 20);
-    updatedCombatant = { ...combatant, health, conditions, defeated: health ? health.current <= 0 : Boolean(input.defeated ?? combatant.defeated) };
+    updatedCombatant = {
+      ...combatant,
+      initiative: Number.isFinite(Number(input.initiative)) ? Number(input.initiative) : combatant.initiative,
+      health,
+      conditions,
+      defeated: health ? health.current <= 0 : Boolean(input.defeated ?? combatant.defeated),
+    };
     return updatedCombatant;
   });
   if (!updatedCombatant) {
@@ -102,12 +118,53 @@ export function endBattle(session) {
   return { ...session, mode: "game", battle: { round: 0, turn_index: 0, combatants: [] }, updated_at: new Date().toISOString() };
 }
 
-export function advanceTurn(session) {
-  if (session.mode !== "battle" || session.battle.combatants.length === 0) {
-    const error = new Error("battle mode requires at least one combatant");
-    error.statusCode = 409;
-    throw error;
+export function resetSession(campaignId) {
+  return { ...emptySession(campaignId), updated_at: new Date().toISOString() };
+}
+
+export function addCombatant(session, input) {
+  requireActiveBattle(session);
+  const activeId = session.battle.combatants[session.battle.turn_index]?.combatant_id;
+  const normalized = normalizeSession(session.campaign_id, {
+    ...session,
+    battle: { ...session.battle, combatants: [...session.battle.combatants, input] },
+  });
+  const turnIndex = Math.max(0, normalized.battle.combatants.findIndex((combatant) => combatant.combatant_id === activeId));
+  return { ...normalized, battle: { ...normalized.battle, round: session.battle.round, turn_index: turnIndex } };
+}
+
+export function removeCombatant(session, combatantId) {
+  requireActiveBattle(session);
+  if (!session.battle.combatants.some((combatant) => combatant.combatant_id === combatantId)) throw sessionError("combatant not found", 404);
+  const activeId = session.battle.combatants[session.battle.turn_index]?.combatant_id;
+  const combatants = session.battle.combatants.filter((combatant) => combatant.combatant_id !== combatantId);
+  if (!combatants.length) return endBattle(session);
+  const activeIndex = combatants.findIndex((combatant) => combatant.combatant_id === activeId);
+  return {
+    ...session,
+    battle: { ...session.battle, combatants, turn_index: activeIndex >= 0 ? activeIndex : Math.min(session.battle.turn_index, combatants.length - 1) },
+    updated_at: new Date().toISOString(),
+  };
+}
+
+export function reorderCombatants(session, combatantIds) {
+  requireActiveBattle(session);
+  if (!Array.isArray(combatantIds) || combatantIds.length !== session.battle.combatants.length || new Set(combatantIds).size !== combatantIds.length) {
+    throw sessionError("combatant_ids must include every combatant exactly once", 422);
   }
+  const byId = new Map(session.battle.combatants.map((combatant) => [combatant.combatant_id, combatant]));
+  if (combatantIds.some((id) => !byId.has(id))) throw sessionError("combatant_ids contains an unknown combatant", 422);
+  const activeId = session.battle.combatants[session.battle.turn_index]?.combatant_id;
+  const combatants = combatantIds.map((id) => byId.get(id));
+  return {
+    ...session,
+    battle: { ...session.battle, combatants, turn_index: combatants.findIndex((combatant) => combatant.combatant_id === activeId) },
+    updated_at: new Date().toISOString(),
+  };
+}
+
+export function advanceTurn(session) {
+  requireActiveBattle(session);
   const nextIndex = (session.battle.turn_index + 1) % session.battle.combatants.length;
   return {
     ...session,
@@ -118,4 +175,24 @@ export function advanceTurn(session) {
     },
     updated_at: new Date().toISOString(),
   };
+}
+
+
+export function previousTurn(session) {
+  requireActiveBattle(session);
+  const previousIndex = session.battle.turn_index === 0 ? session.battle.combatants.length - 1 : session.battle.turn_index - 1;
+  return {
+    ...session,
+    battle: {
+      ...session.battle,
+      turn_index: previousIndex,
+      round: session.battle.turn_index === 0 ? Math.max(1, session.battle.round - 1) : session.battle.round,
+    },
+    updated_at: new Date().toISOString(),
+  };
+}
+
+export function resetRound(session) {
+  requireActiveBattle(session);
+  return { ...session, battle: { ...session.battle, round: 1, turn_index: 0 }, updated_at: new Date().toISOString() };
 }

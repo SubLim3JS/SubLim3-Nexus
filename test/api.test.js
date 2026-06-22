@@ -252,6 +252,38 @@ test("runs a system-neutral battle session", async () => {
   assert.equal(wrapped.data.battle.turn_index, 0);
   assert.equal(wrapped.data.battle.round, 2);
 
+  const previous = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/battle/previous`, { method: "POST" }).then((response) => response.json());
+  assert.equal(previous.data.battle.turn_index, 1);
+  assert.equal(previous.data.battle.round, 1);
+  const resetRoundResult = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/battle/round/reset`, { method: "POST" }).then((response) => response.json());
+  assert.equal(resetRoundResult.data.battle.turn_index, 0);
+  assert.equal(resetRoundResult.data.battle.round, 1);
+
+  const edited = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/battle/combatants/hero`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ initiative: 5 }),
+  }).then((response) => response.json());
+  assert.equal(edited.data.battle.combatants[0].initiative, 5);
+  const reordered = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/battle/reorder`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ combatant_ids: ["goblin", "hero"] }),
+  }).then((response) => response.json());
+  assert.equal(reordered.data.battle.combatants[0].combatant_id, "goblin");
+  assert.equal(reordered.data.battle.combatants[reordered.data.battle.turn_index].combatant_id, "hero");
+
+  const added = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/battle/combatants`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ combatant_id: "ogre", name: "Ogre", initiative: 30 }),
+  }).then((response) => response.json());
+  assert.equal(added.data.battle.combatants[0].combatant_id, "ogre");
+  assert.equal(added.data.battle.combatants[added.data.battle.turn_index].combatant_id, "hero");
+  const removedCombatant = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/battle/combatants/goblin`, { method: "DELETE" }).then((response) => response.json());
+  assert.deepEqual(removedCombatant.data.battle.combatants.map((combatant) => combatant.combatant_id), ["ogre", "hero"]);
+  assert.equal(removedCombatant.data.battle.combatants[removedCombatant.data.battle.turn_index].combatant_id, "hero");
+
   await fetch(`${baseUrl}/api/v1/campaigns/battle_test/characters`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -275,4 +307,7 @@ test("runs a system-neutral battle session", async () => {
   const ended = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/battle/end`, { method: "POST" }).then((response) => response.json());
   assert.equal(ended.data.mode, "game");
   assert.equal(ended.data.battle.combatants.length, 0);
+  const reset = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/session/reset`, { method: "POST" }).then((response) => response.json());
+  assert.equal(reset.data.scene.title, "");
+  assert.equal(reset.data.battle.round, 0);
 });

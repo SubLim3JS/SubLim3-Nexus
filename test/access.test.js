@@ -62,6 +62,7 @@ test("scopes GM access to one campaign and permits table mutations", async () =>
   assert.equal((await fetch(`${baseUrl}/api/v1/auth/pairing`, { headers: bearer(gm.body.token) })).status, 403);
   const publish = await fetch(`${baseUrl}/api/v1/campaigns/green_realm/session`, { method: "PUT", headers: { ...bearer(gm.body.token), "content-type": "application/json" }, body: JSON.stringify({ mode: "game", scene: { title: "Gate", description: "Open" } }) });
   assert.equal(publish.status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/green_realm/session/reset`, { method: "POST", headers: bearer(gm.body.token) })).status, 403);
 });
 
 test("lets Admin view sessions and rotate the GM PIN", async () => {
@@ -70,6 +71,9 @@ test("lets Admin view sessions and rotate the GM PIN", async () => {
   assert.equal(pairing.data.gm_pin, "222222");
   const sessions = await fetch(`${baseUrl}/api/v1/auth/sessions`, { headers: bearer(admin.body.token) }).then((response) => response.json());
   assert.ok(sessions.data.some((session) => session.device_name === "GM tablet"));
+  const reset = await fetch(`${baseUrl}/api/v1/campaigns/green_realm/session/reset`, { method: "POST", headers: bearer(admin.body.token) });
+  assert.equal(reset.status, 200);
+  assert.equal((await reset.json()).data.scene.title, "");
 
   const rotated = await fetch(`${baseUrl}/api/v1/auth/gm-pin/rotate`, { method: "POST", headers: bearer(admin.body.token) });
   assert.equal(rotated.status, 200);

@@ -29,10 +29,16 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 | `DELETE` | `/api/v1/campaigns/{campaign_id}` | Delete a campaign |
 | `GET` | `/api/v1/campaigns/{campaign_id}/session` | Read shared Game/Battle state |
 | `PUT` | `/api/v1/campaigns/{campaign_id}/session` | Publish scene and battle state |
+| `POST` | `/api/v1/campaigns/{campaign_id}/session/reset` | Emergency reset all session state (Admin) |
 | `GET` | `/api/v1/campaigns/{campaign_id}/events` | Stream live session updates |
 | `POST` | `/api/v1/campaigns/{campaign_id}/battle/next` | Advance the active turn |
+| `POST` | `/api/v1/campaigns/{campaign_id}/battle/previous` | Return to the previous turn |
+| `POST` | `/api/v1/campaigns/{campaign_id}/battle/round/reset` | Reset to round one and the first turn |
+| `POST` | `/api/v1/campaigns/{campaign_id}/battle/reorder` | Set the complete initiative order |
 | `POST` | `/api/v1/campaigns/{campaign_id}/battle/end` | End the encounter and clear initiative |
-| `PATCH` | `/api/v1/campaigns/{campaign_id}/battle/combatants/{combatant_id}` | Apply health and condition changes |
+| `POST` | `/api/v1/campaigns/{campaign_id}/battle/combatants` | Add a combatant during an encounter |
+| `PATCH` | `/api/v1/campaigns/{campaign_id}/battle/combatants/{combatant_id}` | Edit initiative, health, and conditions |
+| `DELETE` | `/api/v1/campaigns/{campaign_id}/battle/combatants/{combatant_id}` | Remove a combatant during an encounter |
 | `GET` | `/api/v1/connectivity/status` | Read Wi-Fi and Bluetooth state |
 | `GET` | `/api/v1/connectivity/wifi/networks` | Scan Wi-Fi networks (Admin) |
 | `POST` | `/api/v1/connectivity/wifi/mode` | Switch Local/Home mode (Admin) |
@@ -54,7 +60,7 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 
 ## Browser-first session model
 
-The GM dashboard and player views share one system-neutral session record per campaign. Game Mode publishes scene information. Battle Mode adds ordered combatants, initiative, round, turn, health, and condition state. The GM console builds encounters from campaign characters and NPCs, advances turns, and applies damage, healing, or conditions. Server-sent events push each saved change to scoped Player clients, with polling retained as a fallback. Player sessions can read only their paired character and campaign table state.
+The GM dashboard and player views share one system-neutral session record per campaign. Game Mode publishes scene information. Battle Mode adds ordered combatants, initiative, round, turn, health, and condition state. The GM console builds and revises encounters during play, edits initiative order, navigates turns in either direction, and applies damage, healing, or conditions. The Admin dashboard exposes the same state as a read-only overview; its only session mutation is an explicit emergency reset. Server-sent events push each saved change to scoped Player clients, with polling retained as a fallback. Player sessions can read only their paired character and campaign table state.
 
 ## Local dashboard
 

@@ -272,11 +272,21 @@ $("#character-form").addEventListener("submit", async (event) => {
   finally { button.disabled = false; }
 });
 
-function renderSession(session) { const active=session.battle.combatants[session.battle.turn_index]; $("#battle-status").textContent=session.mode==="battle"?`Battle • Round ${session.battle.round}`:"Game mode"; $("#turn-display strong").textContent=active?.name??"Not in battle"; $("#turn-display small").textContent=`Round ${session.battle.round}`; }
-async function loadSession() { const id=$("#session-campaign").value; if(!id)return; const {data}=await request(`/api/v1/campaigns/${id}/session`); $("#session-mode").value=data.mode; $("#scene-title").value=data.scene.title; $("#scene-description").value=data.scene.description; $("#combatants").value=data.battle.combatants.map(c=>`${c.name}, ${c.initiative}`).join("\n"); renderSession(data); }
+function renderSession(session) {
+  const active=session.battle.combatants[session.battle.turn_index];
+  $("#battle-status").textContent=session.mode==="battle"?`Battle • Round ${session.battle.round}`:"Game mode";
+  $("#session-mode-display").textContent=session.mode==="battle"?"Battle":"Game";
+  $("#scene-title-display").textContent=session.scene.title||"No public scene";
+  $("#scene-description-display").textContent=session.scene.description||"No public description.";
+  $("#turn-display strong").textContent=active?.name??"Not in battle";
+  $("#turn-display small").textContent=`Round ${session.battle.round}`;
+  const rows=session.battle.combatants.map((combatant,index)=>{const row=document.createElement("li");const name=document.createElement("strong"),initiative=document.createElement("span");if(index===session.battle.turn_index)row.className="active";name.textContent=combatant.name;initiative.textContent=`Initiative ${combatant.initiative}`;row.append(name,initiative);return row;});
+  if(!rows.length){const row=document.createElement("li");row.textContent="No active combatants.";rows.push(row);}
+  $("#combatant-overview").replaceChildren(...rows);
+}
+async function loadSession() { const id=$("#session-campaign").value; $("#reset-session").disabled=!id; if(!id)return; const {data}=await request(`/api/v1/campaigns/${encodeURIComponent(id)}/session`); renderSession(data); }
 $("#session-campaign").addEventListener("change",loadSession);
-$("#session-form").addEventListener("submit",async(event)=>{event.preventDefault();const id=$("#session-campaign").value;if(!id)return;const combatants=$("#combatants").value.split("\n").filter(Boolean).map((line,index)=>{const [name,initiative]=line.split(",");return{combatant_id:`combatant_${index+1}`,name:name.trim(),initiative:Number(initiative)||0};});const {data}=await request(`/api/v1/campaigns/${id}/session`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({mode:$("#session-mode").value,scene:{title:$("#scene-title").value,description:$("#scene-description").value},battle:{combatants}})});renderSession(data);$("#session-message").textContent="Session published.";});
-$("#next-turn").addEventListener("click",async()=>{const id=$("#session-campaign").value;if(!id)return;const {data}=await request(`/api/v1/campaigns/${id}/battle/next`,{method:"POST"});renderSession(data);});
+$("#reset-session").addEventListener("click",async()=>{const id=$("#session-campaign").value;if(!id||!window.confirm("Reset this session? This immediately clears the public scene, encounter, initiative, round, and current turn for every connected client."))return;const button=$("#reset-session"),message=$("#session-message");button.disabled=true;try{const{data}=await request(`/api/v1/campaigns/${encodeURIComponent(id)}/session/reset`,{method:"POST"});renderSession(data);message.textContent="Session reset.";message.className="form-message success";}catch(error){message.textContent=error.message;message.className="form-message error";}finally{button.disabled=false;}});
 
 function showMessage(message, type = "") {
   const element = $("#form-message");
