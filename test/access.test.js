@@ -8,6 +8,8 @@ import { AccessService } from "../core/src/access.js";
 import { createApp } from "../core/src/app.js";
 import { JsonStore } from "../core/src/storage/json-store.js";
 import { BUILT_IN_GAME_SYSTEMS } from "../core/src/game-system.js";
+import { AudioService } from "../core/src/audio.js";
+import { AudioFileService } from "../core/src/audio-files.js";
 
 let baseUrl;
 let server;
@@ -28,13 +30,20 @@ before(async () => {
   const characterStore = new JsonStore(path.join(temporaryDirectory, "characters"));
   const accessSessionStore = new JsonStore(path.join(temporaryDirectory, "access-sessions"));
   const systemStore = new JsonStore(path.join(temporaryDirectory, "systems"));
+  const accessAudioLibraryStore = new JsonStore(path.join(temporaryDirectory, "audio", "library"));
+  const audio = new AudioService({
+    libraryStore: accessAudioLibraryStore,
+    stateStore: new JsonStore(path.join(temporaryDirectory, "audio", "state")),
+    files: new AudioFileService({ rootDirectory: path.join(temporaryDirectory, "audio", "files"), libraryStore: accessAudioLibraryStore }),
+  });
+  await audio.initialize();
   for (const system of BUILT_IN_GAME_SYSTEMS) await systemStore.put(system.system_id, system);
   await campaignStore.put("green_realm", { campaign_id: "green_realm", name: "Green Realm", system_id: "custom" });
   await campaignStore.put("red_realm", { campaign_id: "red_realm", name: "Red Realm", system_id: "custom" });
   await characterStore.put("nyra", { character_id: "nyra", campaign_id: "green_realm", character_name: "Nyra", player_name: "Jordan", fields: {}, resources: {}, conditions: [], public_notes: "", created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
   await characterStore.put("orin", { character_id: "orin", campaign_id: "green_realm", character_name: "Orin", player_name: "Sam", fields: {}, resources: {}, conditions: [], public_notes: "", created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
   const access = new AccessService({ sessionStore: accessSessionStore, adminPin: "111111", gmPin: "222222", persistGmPin: async (pin) => { persistedGmPin = pin; } });
-  server = createServer(createApp({ campaignStore, sessionStore, characterStore, systemStore, access }));
+  server = createServer(createApp({ campaignStore, sessionStore, characterStore, systemStore, access, audio }));
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
@@ -65,6 +74,11 @@ test("scopes GM access to one campaign and permits table mutations", async () =>
   assert.equal((await fetch(`${baseUrl}/api/v1/auth/pairing`, { headers: bearer(gm.body.token) })).status, 403);
   assert.equal((await fetch(`${baseUrl}/api/v1/systems`, { headers: bearer(gm.body.token) })).status, 200);
   assert.equal((await fetch(`${baseUrl}/api/v1/systems`, { method: "POST", headers: { ...bearer(gm.body.token), "content-type": "application/json" }, body: JSON.stringify({ system_id: "forbidden", name: "Forbidden" }) })).status, 403);
+  assert.equal((await fetch(`${baseUrl}/api/v1/audio/play`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ item_id: "lantern-and-oak" }) })).status, 401);
+  assert.equal((await fetch(`${baseUrl}/api/v1/audio/play`, { method: "POST", headers: { ...bearer(gm.body.token), "content-type": "application/json" }, body: JSON.stringify({ item_id: "lantern-and-oak" }) })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/v1/audio/folders`)).status, 401);
+  assert.equal((await fetch(`${baseUrl}/api/v1/audio/folders`, { headers: bearer(gm.body.token) })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/v1/audio/usb/play`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).status, 401);
   const publish = await fetch(`${baseUrl}/api/v1/campaigns/green_realm/session`, { method: "PUT", headers: { ...bearer(gm.body.token), "content-type": "application/json" }, body: JSON.stringify({ mode: "game", scene: { title: "Gate", description: "Open" } }) });
   assert.equal(publish.status, 200);
   assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/green_realm/session/reset`, { method: "POST", headers: bearer(gm.body.token) })).status, 403);

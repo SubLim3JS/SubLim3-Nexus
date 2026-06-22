@@ -8,7 +8,10 @@ import { CommandRunner } from "./platform/command-runner.js";
 import { ConnectivityService } from "./platform/connectivity.js";
 import { AccessService } from "./access.js";
 import { LiveEvents } from "./live-events.js";
-import { BUILT_IN_GAME_SYSTEMS } from "./game-system.js";
+import { applyGameSystemDefaults, BUILT_IN_GAME_SYSTEMS } from "./game-system.js";
+import { normalizeCharacter } from "./character.js";
+import { AudioService } from "./audio.js";
+import { AudioFileService } from "./audio-files.js";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const dataDirectory = process.env.NEXUS_DATA_DIR ?? path.resolve(directory, "../data");
@@ -25,8 +28,37 @@ const sessionStore = new JsonStore(path.join(dataDirectory, "sessions"));
 const characterStore = new JsonStore(path.join(dataDirectory, "characters"));
 const systemStore = new JsonStore(path.join(dataDirectory, "systems"));
 const accessSessionStore = new JsonStore(path.join(dataDirectory, "access-sessions"));
-await Promise.all([campaignStore.initialize(), sessionStore.initialize(), characterStore.initialize(), systemStore.initialize(), accessSessionStore.initialize()]);
-for (const system of BUILT_IN_GAME_SYSTEMS) if (!await systemStore.get(system.system_id)) await systemStore.put(system.system_id, system);
+const audioLibraryStore = new JsonStore(path.join(dataDirectory, "audio", "library"));
+const audioStateStore = new JsonStore(path.join(dataDirectory, "audio", "state"));
+await Promise.all([campaignStore.initialize(), sessionStore.initialize(), characterStore.initialize(), systemStore.initialize(), accessSessionStore.initialize(), audioLibraryStore.initialize(), audioStateStore.initialize()]);
+const usbRoots = process.env.NEXUS_USB_IMPORT_ROOTS
+  ? process.env.NEXUS_USB_IMPORT_ROOTS.split(path.delimiter).filter(Boolean)
+  : process.platform === "linux" ? ["/media", "/mnt"] : [];
+const audioFiles = new AudioFileService({ rootDirectory: path.join(dataDirectory, "audio", "files"), libraryStore: audioLibraryStore, usbRoots });
+const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: audioStateStore, files: audioFiles });
+await audio.initialize();
+for (const system of BUILT_IN_GAME_SYSTEMS) {
+  const existing = await systemStore.get(system.system_id);
+  if (!existing || (existing.built_in && existing.version !== system.version)) await systemStore.put(system.system_id, system);
+}
+for (const character of await characterStore.list()) {
+  const campaign = await campaignStore.get(character.campaign_id);
+  const system = campaign ? await systemStore.get(campaign.system_id) : null;
+  const missingTracker = system?.character_sheet.trackers?.some((tracker) => !character.trackers?.[tracker.tracker_id]);
+  if (missingTracker) await characterStore.put(character.character_id, normalizeCharacter(character.campaign_id, applyGameSystemDefaults(character, system), character, system));
+}
+for (const session of await sessionStore.list()) {
+  if (session.mode !== "battle" || !session.battle?.combatants?.length) continue;
+  let changed = false;
+  const combatants = await Promise.all(session.battle.combatants.map(async (combatant) => {
+    if (!combatant.character_id || Object.keys(combatant.trackers ?? {}).length) return combatant;
+    const character = await characterStore.get(combatant.character_id);
+    if (!character || !Object.keys(character.trackers ?? {}).length) return combatant;
+    changed = true;
+    return { ...combatant, trackers: character.trackers };
+  }));
+  if (changed) await sessionStore.put(session.campaign_id, { ...session, battle: { ...session.battle, combatants } });
+}
 const access = new AccessService({
   sessionStore: accessSessionStore,
   adminPin: process.env.NEXUS_ADMIN_PIN ?? process.env.NEXUS_SETTINGS_PIN ?? "",
@@ -42,6 +74,7 @@ const server = createServer(createApp({
   systemStore,
   access,
   liveEvents,
+  audio,
   connectivity,
   getSystemInfo: () => collectSystemInfo(dataDirectory),
 }));

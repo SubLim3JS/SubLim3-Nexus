@@ -39,6 +39,20 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 | `POST` | `/api/v1/campaigns/{campaign_id}/battle/next` | Advance the active turn |
 | `POST` | `/api/v1/campaigns/{campaign_id}/battle/previous` | Return to the previous turn |
 | `POST` | `/api/v1/campaigns/{campaign_id}/battle/round/reset` | Reset to round one and the first turn |
+| `GET` | `/api/v1/audio/library` | List persistent ambience and effect definitions |
+| `GET` | `/api/v1/audio/status` | Read the global playback state and active item |
+| `POST` | `/api/v1/audio/play` | Play an ambience item (Admin or GM) |
+| `POST` | `/api/v1/audio/pause` | Pause global playback (Admin or GM) |
+| `POST` | `/api/v1/audio/stop` | Stop global playback (Admin or GM) |
+| `POST` | `/api/v1/audio/volume` | Set global volume from 0–100 (Admin or GM) |
+| `POST` | `/api/v1/audio/effects/{item_id}/trigger` | Trigger a one-shot effect event (Admin or GM) |
+| `GET/POST` | `/api/v1/audio/folders` | List or create managed audio folders (Admin or GM) |
+| `POST` | `/api/v1/audio/files/upload` | Stream an audio upload into a managed folder (Admin or GM) |
+| `PUT` | `/api/v1/audio/files/{item_id}` | Move a managed audio file between folders (Admin or GM) |
+| `GET` | `/api/v1/audio/files/{item_id}/content` | Stream audio content with byte-range support |
+| `GET` | `/api/v1/audio/usb` | Scan configured USB mount roots for supported audio (Admin or GM) |
+| `POST` | `/api/v1/audio/usb/play` | Play directly from an allowlisted USB file without importing (Admin or GM) |
+| `POST` | `/api/v1/audio/import` | Copy a validated USB audio file into the managed library (Admin or GM) |
 | `POST` | `/api/v1/campaigns/{campaign_id}/battle/reorder` | Set the complete initiative order |
 | `POST` | `/api/v1/campaigns/{campaign_id}/battle/end` | End the encounter and clear initiative |
 | `POST` | `/api/v1/campaigns/{campaign_id}/battle/combatants` | Add a combatant during an encounter |
@@ -69,7 +83,9 @@ The GM dashboard and player views share one system-neutral session record per ca
 
 ## Template model
 
-Game systems are versioned records stored separately from character values. A template defines typed fields, tracked resources, suggested conditions, page bindings, and abstract actions. Campaigns reference one installed `system_id`; character creation applies that template's defaults and snapshots its `system_id` and `template_version`. Companion pages bind only to stable field/resource IDs, keeping future cube firmware free of D&D-specific logic. Built-in templates are seeded on first startup, cannot be deleted, and custom templates cannot be deleted while a campaign references them.
+Game systems are versioned records stored separately from character values. A template defines typed fields, tracked resources, success/failure trackers, suggested conditions, page bindings, and abstract actions. Campaigns reference one installed `system_id`; character creation applies that template's defaults and snapshots its `system_id` and `template_version`. Companion pages bind only to stable field/resource/tracker IDs, keeping future cube firmware free of D&D-specific logic. Built-in templates are seeded on first startup, cannot be deleted, and custom templates cannot be deleted while a campaign references them.
+
+Tracker definitions carry their thresholds, critical-result behavior, visibility condition, and resource-reset rule. Concrete progress lives on the character and is copied into battle state, where the existing combatant patch route applies actions and synchronizes the result back to the character. D&D 5e's `death_saves` tracker appears at zero HP, counts natural 1 as two failures, restores one HP on natural 20, and resets when HP becomes positive. Startup migration adds new built-in trackers to existing characters and active encounters without replacing their other values.
 
 ## Local dashboard
 
@@ -77,7 +93,7 @@ Nexus Core serves its responsive command dashboard from `/`. The dashboard uses 
 
 The Settings page at `/settings/` uses a six-digit installer-generated PIN for connectivity mutations. Nexus Core remains unprivileged; a root-owned helper exposes only validated NetworkManager and BlueZ actions. Failed home Wi-Fi connections restore the Nexus hotspot, and a boot recovery service starts Local Mode whenever no Wi-Fi connection is available.
 
-The media proof of concept at `/media/` is browser-first and fully offline. Its procedural Web Audio soundscapes and effects play through the device viewing the page. Raspberry Pi audio output, Bluetooth routing, persistent libraries, playlists, and RFID triggers remain later media-service boundaries.
+The media surface at `/media/` is browser-first and fully offline. Nexus Core owns a persistent audio library, real folder hierarchy, global transport state, volume, and one-shot effect events through `/api/v1/audio`; Admin and GM sessions can upload audio, create folders, reorganize files, import supported files from allowlisted USB mount roots, or play from USB without copying. Direct USB items are transient and remain distinct from the managed library. Status, library metadata, and range-enabled audio content remain locally readable so playback drivers can stream without embedding access tokens in media URLs. The browser is the first playback driver and handles managed files, transient USB files, and built-in procedural soundscapes. Raspberry Pi/ALSA output, Bluetooth routing, playlists, and RFID bindings remain later driver and media-service boundaries.
 
 Character records are system-neutral: game-specific values live in flexible `fields` and `resources` objects while conditions and public notes have stable shared shapes. The GM manages campaign rosters on the dashboard. `/player/` combines one character with the campaign's live session, highlights that character's active turn, and provides the first phone/tablet view and the contract future companion hardware will consume.
 

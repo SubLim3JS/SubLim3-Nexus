@@ -1,23 +1,46 @@
 const $ = (selector) => document.querySelector(selector);
-const tracks = [
-  { title: "Lantern & Oak", subtitle: "Warm tavern drone • Seamless ambience", duration: 240, frequencies: [110, 164.81, 220], wave: "sine", cutoff: 720, noise: 0.018, pulse: 0 },
-  { title: "Understone Hollow", subtitle: "Deep cavern resonance • Seamless ambience", duration: 320, frequencies: [55, 82.41, 123.47], wave: "sine", cutoff: 260, noise: 0.032, pulse: 0 },
-  { title: "Initiative Rising", subtitle: "Rhythmic battle tension • Seamless ambience", duration: 210, frequencies: [65.41, 98, 130.81], wave: "sawtooth", cutoff: 520, noise: 0.012, pulse: 0.68 },
-];
-
+const authToken = localStorage.getItem("nexus-admin-token") ?? localStorage.getItem("nexus-gm-token") ?? "";
+const tracks = [];
+let libraryItems = [];
+let folders = [""];
 let audioContext;
+let fileAudio;
 let masterGain;
 let trackBus;
 let activeNodes = [];
 let pulseTimer;
 let currentTrack = 0;
 let isPlaying = false;
-let elapsedBeforePlay = 0;
-let startedAt = 0;
+let renderedItemId = null;
+let serverStatus = null;
+let statusReceivedAt = 0;
+let lastEffectEventId = null;
+let firstStatus = true;
+let volumeTimer;
 
 function formatTime(seconds) {
+  if (seconds === null || seconds === undefined || !Number.isFinite(Number(seconds))) return "--:--";
   const whole = Math.max(0, Math.floor(seconds));
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
+}
+
+function message(text = "", type = "") {
+  $("#media-message").textContent = text;
+  $("#media-message").className = `media-message ${type}`.trim();
+}
+
+function libraryMessage(text = "", type = "") {
+  $("#library-message").textContent = text;
+  $("#library-message").className = `library-message ${type}`.trim();
+}
+
+async function api(path, options = {}) {
+  const headers = new Headers(options.headers);
+  if (authToken) headers.set("authorization", `Bearer ${authToken}`);
+  const response = await fetch(path, { ...options, headers });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(response.status === 401 ? "Pair this browser as Admin or GM to control table audio." : body.message ?? body.details?.join(", ") ?? body.error ?? "Audio request failed");
+  return body.data;
 }
 
 async function ensureAudio() {
@@ -38,8 +61,18 @@ async function ensureAudio() {
 function stopNodes() {
   clearInterval(pulseTimer);
   pulseTimer = undefined;
-  for (const node of activeNodes) { try { node.stop(); } catch { /* Node may already be stopped. */ } try { node.disconnect(); } catch { /* Ignore disconnected nodes. */ } }
+  for (const node of activeNodes) {
+    try { node.stop(); } catch { /* Node may already be stopped. */ }
+    try { node.disconnect(); } catch { /* Ignore disconnected nodes. */ }
+  }
   activeNodes = [];
+  if (fileAudio) {
+    fileAudio.pause();
+    fileAudio.removeAttribute("src");
+    fileAudio.load();
+    fileAudio = null;
+  }
+  renderedItemId = null;
 }
 
 function addOscillator(frequency, wave, gainValue, destination = trackBus) {
@@ -58,15 +91,19 @@ function addNoise(track) {
   const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 2, audioContext.sampleRate);
   const channel = buffer.getChannelData(0);
   let last = 0;
-  for (let index = 0; index < channel.length; index += 1) { const white = Math.random() * 2 - 1; last = last * 0.985 + white * 0.015; channel[index] = last; }
+  for (let index = 0; index < channel.length; index += 1) {
+    const white = Math.random() * 2 - 1;
+    last = last * 0.985 + white * 0.015;
+    channel[index] = last;
+  }
   const source = audioContext.createBufferSource();
   const filter = audioContext.createBiquadFilter();
   const gain = audioContext.createGain();
   source.buffer = buffer;
   source.loop = true;
   filter.type = "lowpass";
-  filter.frequency.value = track.cutoff;
-  gain.gain.value = track.noise;
+  filter.frequency.value = track.synthesis.cutoff;
+  gain.gain.value = track.synthesis.noise;
   source.connect(filter).connect(gain).connect(trackBus);
   source.start();
   activeNodes.push(source, filter, gain);
@@ -89,8 +126,9 @@ function playBattlePulse() {
 
 function buildTrack(track) {
   stopNodes();
-  track.frequencies.forEach((frequency, index) => {
-    const gain = addOscillator(frequency, track.wave, track.wave === "sawtooth" ? 0.012 : 0.032 / (index + 1));
+  const synthesis = track.synthesis;
+  synthesis.frequencies.forEach((frequency, index) => {
+    const gain = addOscillator(frequency, synthesis.wave, synthesis.wave === "sawtooth" ? 0.012 : 0.032 / (index + 1));
     const lfo = audioContext.createOscillator();
     const lfoGain = audioContext.createGain();
     lfo.frequency.value = 0.035 + index * 0.017;
@@ -100,14 +138,132 @@ function buildTrack(track) {
     activeNodes.push(lfo, lfoGain);
   });
   addNoise(track);
-  if (track.pulse) { playBattlePulse(); pulseTimer = setInterval(playBattlePulse, track.pulse * 1000); }
+  if (synthesis.pulse) {
+    playBattlePulse();
+    pulseTimer = setInterval(playBattlePulse, synthesis.pulse * 1000);
+  }
+  renderedItemId = track.item_id;
+}
+
+function renderLibrary() {
+  $("#track-count").textContent = `${tracks.length} tracks`;
+  $("#queue-list").replaceChildren(...tracks.map((track, index) => {
+    const button = document.createElement("button");
+    button.className = "queue-track";
+    button.type = "button";
+    button.dataset.track = String(index);
+    const number = document.createElement("span");
+    number.className = "track-number";
+    number.textContent = String(index + 1).padStart(2, "0");
+    const copy = document.createElement("span");
+    const strong = document.createElement("strong");
+    strong.textContent = track.name;
+    const small = document.createElement("small");
+    small.textContent = track.folder_path || track.tags.join(" • ") || "Library root";
+    copy.append(strong, small);
+    const duration = document.createElement("em");
+    duration.textContent = formatTime(track.duration_seconds);
+    button.append(number, copy, duration);
+    button.addEventListener("click", () => playTrack(index));
+    return button;
+  }));
+}
+
+function folderName(folder) {
+  return folder || "Library root";
+}
+
+function folderOptions(selected = "") {
+  return folders.map((folder) => {
+    const option = document.createElement("option");
+    option.value = folder;
+    option.textContent = folderName(folder);
+    option.selected = folder === selected;
+    return option;
+  });
+}
+
+function renderFolders() {
+  const current = folders.includes($("#library-folder").value) ? $("#library-folder").value : "";
+  $("#library-folder").replaceChildren(...folderOptions(current));
+  renderManagedFiles();
+}
+
+function renderManagedFiles() {
+  const currentFolder = $("#library-folder").value;
+  const files = libraryItems.filter((item) => item.source?.type === "file" && (item.folder_path ?? "") === currentFolder);
+  $("#file-count").textContent = `${libraryItems.filter((item) => item.source?.type === "file").length} files`;
+  if (!files.length) {
+    const empty = document.createElement("p");
+    empty.className = "library-empty";
+    empty.textContent = `No audio files in ${folderName(currentFolder)}.`;
+    $("#managed-files").replaceChildren(empty);
+    return;
+  }
+  $("#managed-files").replaceChildren(...files.map((item) => {
+    const row = document.createElement("div");
+    row.className = "managed-file";
+    const copy = document.createElement("span");
+    const name = document.createElement("strong");
+    name.textContent = item.name;
+    const details = document.createElement("small");
+    details.textContent = `${item.source.original_filename} • ${Math.max(1, Math.round(item.source.size_bytes / 1024))} KB`;
+    copy.append(name, details);
+    const target = document.createElement("select");
+    target.setAttribute("aria-label", `Move ${item.name} to folder`);
+    target.append(...folderOptions(item.folder_path ?? ""));
+    const move = document.createElement("button");
+    move.type = "button";
+    move.textContent = "Move";
+    move.addEventListener("click", () => moveFile(item.item_id, target.value));
+    row.append(copy, target, move);
+    return row;
+  }));
+}
+
+function renderUsbFiles(files) {
+  $("#usb-results").hidden = false;
+  $("#usb-count").textContent = `${files.length} found`;
+  if (!files.length) {
+    const empty = document.createElement("p");
+    empty.className = "library-empty";
+    empty.textContent = "No supported audio files were found in the configured USB mount roots.";
+    $("#usb-files").replaceChildren(empty);
+    return;
+  }
+  $("#usb-files").replaceChildren(...files.map((file) => {
+    const row = document.createElement("div");
+    row.className = "usb-file";
+    const copy = document.createElement("span");
+    const name = document.createElement("strong");
+    name.textContent = file.name;
+    const location = document.createElement("small");
+    location.textContent = file.location;
+    copy.append(name, location);
+    const destination = document.createElement("span");
+    destination.textContent = folderName($("#library-folder").value);
+    const actions = document.createElement("span");
+    actions.className = "usb-actions";
+    const play = document.createElement("button");
+    play.type = "button";
+    play.textContent = "Play from USB";
+    play.addEventListener("click", () => playFromUsb(file.source_path));
+    const importButton = document.createElement("button");
+    importButton.type = "button";
+    importButton.textContent = "Import to library";
+    importButton.addEventListener("click", () => importUsb(file.source_path));
+    actions.append(play, importButton);
+    row.append(copy, destination, actions);
+    return row;
+  }));
 }
 
 function renderTrack() {
   const track = tracks[currentTrack];
-  $("#track-title").textContent = track.title;
-  $("#track-subtitle").textContent = track.subtitle;
-  $("#duration").textContent = formatTime(track.duration);
+  if (!track) return;
+  $("#track-title").textContent = track.name;
+  $("#track-subtitle").textContent = `${track.description} • ${track.source?.type === "file" ? folderName(track.folder_path) : track.loop ? "Seamless ambience" : "One shot"}`;
+  $("#duration").textContent = formatTime(track.duration_seconds);
   document.querySelectorAll(".queue-track").forEach((button) => button.classList.toggle("active", Number(button.dataset.track) === currentTrack));
 }
 
@@ -117,43 +273,86 @@ function renderPlayback() {
   $("#play-track").setAttribute("aria-label", isPlaying ? "Pause" : "Play");
 }
 
-async function startTrack(index = currentTrack) {
-  await ensureAudio();
-  currentTrack = (index + tracks.length) % tracks.length;
-  buildTrack(tracks[currentTrack]);
-  elapsedBeforePlay = 0;
-  startedAt = audioContext.currentTime;
-  isPlaying = true;
-  trackBus.gain.setTargetAtTime(1, audioContext.currentTime, 0.04);
+async function renderAudioState(status, allowAudio = false) {
+  let activeIndex = tracks.findIndex((track) => track.item_id === status.item_id);
+  if (activeIndex < 0 && status.item?.source?.type === "usb") {
+    tracks.push({ ...status.item, transient: true });
+    activeIndex = tracks.length - 1;
+    renderLibrary();
+  }
+  if (activeIndex >= 0) currentTrack = activeIndex;
+  isPlaying = status.state === "playing";
+  $("#master-volume").value = String(status.volume);
+  $("#volume-value").textContent = `${status.volume}%`;
+  $("#output-name").textContent = status.output?.name ?? "Browser renderer";
+  if (masterGain && audioContext) masterGain.gain.setTargetAtTime(status.volume / 100, audioContext.currentTime, 0.025);
   renderTrack();
   renderPlayback();
+
+  if (status.state === "stopped") {
+    stopNodes();
+  } else if (["file", "usb"].includes(status.item?.source?.type) && (allowAudio || fileAudio || audioContext)) {
+    if (renderedItemId !== status.item_id) {
+      stopNodes();
+      const contentUrl = status.item.source.type === "usb"
+        ? `/api/v1/audio/usb/${encodeURIComponent(status.item_id)}/content`
+        : `/api/v1/audio/files/${encodeURIComponent(status.item_id)}/content`;
+      fileAudio = new Audio(contentUrl);
+      fileAudio.loop = Boolean(status.item.loop);
+      fileAudio.volume = status.volume / 100;
+      const loadedFile = fileAudio;
+      const desiredPosition = status.position_seconds;
+      fileAudio.addEventListener("loadedmetadata", () => {
+        if (desiredPosition) loadedFile.currentTime = desiredPosition;
+        if (Number.isFinite(loadedFile.duration)) {
+          const track = tracks.find((candidate) => candidate.item_id === status.item_id);
+          if (track) track.duration_seconds = loadedFile.duration;
+          renderTrack();
+        }
+      });
+      renderedItemId = status.item_id;
+    }
+    fileAudio.volume = status.volume / 100;
+    if (status.state === "playing") fileAudio.play().catch(() => message("Playback is active. Tap its queue item once to enable audio in this browser."));
+    else fileAudio.pause();
+  } else if (status.item?.synthesis && (allowAudio || audioContext)) {
+    try {
+      await ensureAudio();
+      if (renderedItemId !== status.item_id) buildTrack(status.item);
+      trackBus.gain.setTargetAtTime(status.state === "playing" ? 1 : 0.0001, audioContext.currentTime, 0.04);
+    } catch {
+      message("Playback is active. Tap its queue item once to enable audio in this browser.");
+    }
+  }
 }
 
-async function togglePlayback() {
+async function applyStatus(status, { allowAudio = false } = {}) {
+  serverStatus = status;
+  statusReceivedAt = performance.now();
+  const effectEventId = status.last_effect?.event_id ?? null;
+  if (!firstStatus && effectEventId && effectEventId !== lastEffectEventId && (allowAudio || audioContext)) {
+    try { await playEffect(status.last_effect.item_id); } catch { message("Tap a sound effect once to enable audio in this browser."); }
+  }
+  lastEffectEventId = effectEventId;
+  firstStatus = false;
+  await renderAudioState(status, allowAudio);
+}
+
+async function control(path, body = {}) {
   try {
     await ensureAudio();
-    if (activeNodes.length === 0) return startTrack();
-    if (isPlaying) {
-      elapsedBeforePlay += audioContext.currentTime - startedAt;
-      trackBus.gain.setTargetAtTime(0.0001, audioContext.currentTime, 0.035);
-      isPlaying = false;
-    } else {
-      startedAt = audioContext.currentTime;
-      trackBus.gain.setTargetAtTime(1, audioContext.currentTime, 0.04);
-      isPlaying = true;
-    }
-    renderPlayback();
-  } catch (error) { $("#track-subtitle").textContent = error.message; }
+    const status = await api(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    message("Nexus Core synced.", "success");
+    await applyStatus(status, { allowAudio: true });
+  } catch (error) {
+    message(error.message, "error");
+  }
 }
 
-function stopPlayback() {
-  stopNodes();
-  if (trackBus && audioContext) trackBus.gain.setValueAtTime(0, audioContext.currentTime);
-  isPlaying = false;
-  elapsedBeforePlay = 0;
-  $("#progress-bar").style.width = "0%";
-  $("#elapsed").textContent = "0:00";
-  renderPlayback();
+function playTrack(index) {
+  currentTrack = (index + tracks.length) % tracks.length;
+  renderTrack();
+  return control("/api/v1/audio/play", { item_id: tracks[currentTrack].item_id });
 }
 
 function playNoiseBurst({ duration, cutoff, gainValue }) {
@@ -176,35 +375,143 @@ async function playEffect(name) {
   await ensureAudio();
   const now = audioContext.currentTime;
   const tone = (type, from, to, duration, volume) => {
-    const oscillator = audioContext.createOscillator(); const gain = audioContext.createGain();
-    oscillator.type = type; oscillator.frequency.setValueAtTime(from, now); oscillator.frequency.exponentialRampToValueAtTime(to, now + duration);
-    gain.gain.setValueAtTime(volume, now); gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    oscillator.connect(gain).connect(masterGain); oscillator.start(now); oscillator.stop(now + duration);
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(from, now);
+    oscillator.frequency.exponentialRampToValueAtTime(to, now + duration);
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    oscillator.connect(gain).connect(masterGain);
+    oscillator.start(now);
+    oscillator.stop(now + duration);
   };
   if (name === "thunder") { tone("sine", 78, 28, 1.8, 0.38); playNoiseBurst({ duration: 2, cutoff: 180, gainValue: 0.32 }); }
-  if (name === "door") { tone("sawtooth", 105, 42, 0.9, 0.16); playNoiseBurst({ duration: 0.7, cutoff: 420, gainValue: 0.12 }); }
-  if (name === "blade") { tone("square", 1200, 340, 0.28, 0.12); playNoiseBurst({ duration: 0.18, cutoff: 4200, gainValue: 0.09 }); }
-  if (name === "magic") { tone("sine", 330, 990, 1.15, 0.16); tone("triangle", 495, 1480, 0.95, 0.07); }
+  if (name === "ancient-door") { tone("sawtooth", 105, 42, 0.9, 0.16); playNoiseBurst({ duration: 0.7, cutoff: 420, gainValue: 0.12 }); }
+  if (name === "blade-clash") { tone("square", 1200, 340, 0.28, 0.12); playNoiseBurst({ duration: 0.18, cutoff: 4200, gainValue: 0.09 }); }
+  if (name === "arcane-pulse") { tone("sine", 330, 990, 1.15, 0.16); tone("triangle", 495, 1480, 0.95, 0.07); }
 }
 
 function updateProgress() {
   const track = tracks[currentTrack];
-  let elapsed = elapsedBeforePlay;
-  if (isPlaying && audioContext) elapsed += audioContext.currentTime - startedAt;
-  if (elapsed >= track.duration) { elapsed %= track.duration; elapsedBeforePlay = elapsed; startedAt = audioContext?.currentTime ?? 0; }
-  $("#elapsed").textContent = formatTime(elapsed);
-  $("#progress-bar").style.width = `${(elapsed / track.duration) * 100}%`;
+  if (track && serverStatus) {
+    let elapsed = serverStatus.position_seconds;
+    if (serverStatus.state === "playing") elapsed += (performance.now() - statusReceivedAt) / 1000;
+    if (track.duration_seconds && track.loop) elapsed %= track.duration_seconds;
+    else if (track.duration_seconds) elapsed = Math.min(elapsed, track.duration_seconds);
+    $("#elapsed").textContent = formatTime(elapsed);
+    $("#progress-bar").style.width = track.duration_seconds ? `${(elapsed / track.duration_seconds) * 100}%` : "0%";
+  }
   requestAnimationFrame(updateProgress);
 }
 
-$("#play-track").addEventListener("click", togglePlayback);
-$("#stop-track").addEventListener("click", stopPlayback);
-$("#previous-track").addEventListener("click", () => isPlaying ? startTrack(currentTrack - 1) : (currentTrack = (currentTrack - 1 + tracks.length) % tracks.length, renderTrack()));
-$("#next-track").addEventListener("click", () => isPlaying ? startTrack(currentTrack + 1) : (currentTrack = (currentTrack + 1) % tracks.length, renderTrack()));
-document.querySelectorAll(".queue-track").forEach((button) => button.addEventListener("click", () => startTrack(Number(button.dataset.track))));
-document.querySelectorAll("[data-sfx]").forEach((button) => button.addEventListener("click", () => playEffect(button.dataset.sfx)));
-$("#master-volume").addEventListener("input", (event) => { const volume = Number(event.target.value); $("#volume-value").textContent = `${volume}%`; if (masterGain && audioContext) masterGain.gain.setTargetAtTime(volume / 100, audioContext.currentTime, 0.025); });
+$("#play-track").addEventListener("click", () => isPlaying ? control("/api/v1/audio/pause") : playTrack(currentTrack));
+$("#stop-track").addEventListener("click", () => control("/api/v1/audio/stop"));
+$("#previous-track").addEventListener("click", () => playTrack(currentTrack - 1));
+$("#next-track").addEventListener("click", () => playTrack(currentTrack + 1));
+document.querySelectorAll("[data-sfx]").forEach((button) => button.addEventListener("click", () => control(`/api/v1/audio/effects/${encodeURIComponent(button.dataset.sfx)}/trigger`)));
+$("#master-volume").addEventListener("input", (event) => {
+  const volume = Number(event.target.value);
+  $("#volume-value").textContent = `${volume}%`;
+  if (masterGain && audioContext) masterGain.gain.setTargetAtTime(volume / 100, audioContext.currentTime, 0.025);
+  if (fileAudio) fileAudio.volume = volume / 100;
+  clearTimeout(volumeTimer);
+  volumeTimer = setTimeout(() => control("/api/v1/audio/volume", { volume }), 120);
+});
 
-renderTrack();
+async function reloadLibrary() {
+  libraryItems = await api("/api/v1/audio/library");
+  tracks.splice(0, tracks.length, ...libraryItems.filter((item) => item.kind === "ambience"));
+  renderLibrary();
+  renderTrack();
+  renderManagedFiles();
+}
+
+async function reloadFolders() {
+  folders = await api("/api/v1/audio/folders");
+  renderFolders();
+}
+
+async function moveFile(itemId, folderPath) {
+  try {
+    await api(`/api/v1/audio/files/${encodeURIComponent(itemId)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ folder_path: folderPath }) });
+    await reloadLibrary();
+    libraryMessage("Audio file moved.", "success");
+  } catch (error) { libraryMessage(error.message, "error"); }
+}
+
+async function importUsb(sourcePath) {
+  try {
+    await api("/api/v1/audio/import", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source_path: sourcePath, folder_path: $("#library-folder").value, kind: "ambience" }) });
+    await reloadLibrary();
+    libraryMessage("USB audio imported.", "success");
+  } catch (error) { libraryMessage(error.message, "error"); }
+}
+
+async function playFromUsb(sourcePath) {
+  try {
+    await ensureAudio();
+    const status = await api("/api/v1/audio/usb/play", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source_path: sourcePath }) });
+    await applyStatus(status, { allowAudio: true });
+    libraryMessage(`Playing ${status.item.name} directly from USB.`, "success");
+  } catch (error) { libraryMessage(error.message, "error"); }
+}
+
+$("#library-folder").addEventListener("change", renderManagedFiles);
+$("#folder-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const name = $("#folder-name").value.trim();
+  if (!name) return libraryMessage("Enter a folder name.", "error");
+  try {
+    const created = await api("/api/v1/audio/folders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ parent_path: $("#library-folder").value, name }) });
+    await reloadFolders();
+    $("#library-folder").value = created.folder_path;
+    $("#folder-name").value = "";
+    renderManagedFiles();
+    libraryMessage(`Created ${created.folder_path}.`, "success");
+  } catch (error) { libraryMessage(error.message, "error"); }
+});
+$("#upload-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const files = [...$("#audio-upload").files];
+  if (!files.length) return libraryMessage("Choose one or more audio files.", "error");
+  try {
+    for (const file of files) {
+      libraryMessage(`Uploading ${file.name}…`);
+      const query = new URLSearchParams({ filename: file.name, folder: $("#library-folder").value, kind: "ambience" });
+      await api(`/api/v1/audio/files/upload?${query}`, { method: "POST", headers: { "content-type": file.type || "application/octet-stream" }, body: file });
+    }
+    $("#audio-upload").value = "";
+    await reloadLibrary();
+    libraryMessage(`${files.length} audio file${files.length === 1 ? "" : "s"} uploaded.`, "success");
+  } catch (error) { libraryMessage(error.message, "error"); }
+});
+$("#scan-usb").addEventListener("click", async () => {
+  try {
+    libraryMessage("Scanning configured USB mounts…");
+    const files = await api("/api/v1/audio/usb");
+    renderUsbFiles(files);
+    libraryMessage(files.length ? "USB scan complete." : "No USB audio found.");
+  } catch (error) { libraryMessage(error.message, "error"); }
+});
+
+async function refresh() {
+  try { await applyStatus(await api("/api/v1/audio/status")); }
+  catch (error) { message(error.message, "error"); }
+}
+
+async function initialize() {
+  try {
+    await reloadLibrary();
+    try { await reloadFolders(); }
+    catch (error) { libraryMessage(error.message, "error"); }
+    await refresh();
+    setInterval(refresh, 1000);
+  } catch (error) {
+    message(error.message, "error");
+  }
+}
+
 renderPlayback();
 requestAnimationFrame(updateProgress);
+initialize();

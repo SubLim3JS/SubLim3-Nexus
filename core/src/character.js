@@ -34,6 +34,14 @@ export function normalizeCharacter(campaignId, input, existing = null, system = 
   const now = new Date().toISOString();
   const resources = Object.fromEntries(Object.entries(input.resources ?? {}).slice(0, 12).map(([id, value]) => [id, normalizeResource(id, value)]));
   const fields = Object.fromEntries(Object.entries(input.fields ?? {}).slice(0, 20).map(([key, value]) => [key, typeof value === "number" || typeof value === "boolean" ? value : String(value ?? "").trim().slice(0, 120)]));
+  const trackers = Object.fromEntries(Object.entries(input.trackers ?? {}).slice(0, 10).map(([id, value]) => {
+    const tracker = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const successTarget = Math.max(1, Number(tracker.success_target) || 3);
+    const failureTarget = Math.max(1, Number(tracker.failure_target) || 3);
+    const successes = Math.max(0, Math.min(successTarget, Number(tracker.successes) || 0));
+    const failures = Math.max(0, Math.min(failureTarget, Number(tracker.failures) || 0));
+    return [id, { ...tracker, tracker_id: id, successes, failures, status: failures >= failureTarget ? "dead" : successes >= successTarget ? "stabilized" : tracker.status === "revived" ? "revived" : "active" }];
+  }));
   return {
     character_id: existing?.character_id ?? input.character_id,
     campaign_id: campaignId,
@@ -43,6 +51,7 @@ export function normalizeCharacter(campaignId, input, existing = null, system = 
     character_name: String(input.character_name).trim().slice(0, 80),
     fields,
     resources,
+    trackers,
     conditions: [...new Set((input.conditions ?? []).map((condition) => String(condition).trim()).filter(Boolean))].slice(0, 20),
     public_notes: String(input.public_notes ?? "").trim().slice(0, 2000),
     created_at: existing?.created_at ?? now,

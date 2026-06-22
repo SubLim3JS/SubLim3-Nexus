@@ -282,6 +282,7 @@ $("#character-form").addEventListener("submit", async (event) => {
     player_name: $("#player-name").value,
     fields: { ...(editingCharacterRecord?.fields ?? {}), role: $("#character-role").value, level: Number($("#character-level").value) || 0, defense: $("#character-defense").value },
     resources,
+    trackers: editingCharacterRecord?.trackers ?? {},
     conditions: $("#character-conditions").value.split(",").map((condition) => condition.trim()).filter(Boolean),
     public_notes: $("#character-notes").value,
   };

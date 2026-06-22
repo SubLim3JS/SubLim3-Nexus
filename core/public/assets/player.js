@@ -31,6 +31,10 @@ function resourceRow(resource) {
   return row;
 }
 
+function comparisonMatches(left,operator,right) { if(operator==="lt")return left<right;if(operator==="eq")return left===right;if(operator==="gte")return left>=right;if(operator==="gt")return left>right;return left<=right; }
+
+function playerTrackerCard(tracker) { const card=document.createElement("div"),head=document.createElement("div"),label=document.createElement("strong"),status=document.createElement("span"),marks=document.createElement("div"),successes=document.createElement("span"),failures=document.createElement("span");card.className=`player-tracker ${tracker.status}`;head.className="player-tracker-head";label.textContent=tracker.label;status.textContent=tracker.status;successes.textContent=`Success ${"●".repeat(tracker.successes)}${"○".repeat(Math.max(0,tracker.success_target-tracker.successes))}`;failures.textContent=`Failure ${"●".repeat(tracker.failures)}${"○".repeat(Math.max(0,tracker.failure_target-tracker.failures))}`;marks.className="player-tracker-marks";marks.append(successes,failures);head.append(label,status);card.append(head,marks);return card; }
+
 function render(character, campaign, session) {
   document.title = `${character.character_name} • SubLim3 Nexus`;
   $("#campaign-name").textContent = campaign.name.toUpperCase();
@@ -40,6 +44,8 @@ function render(character, campaign, session) {
   $("#defense-value").textContent = `Defense ${character.fields?.defense || "—"}`;
   const resources = Object.values(character.resources ?? {});
   $("#resource-list").replaceChildren(...(resources.length ? resources.map(resourceRow) : [resourceRow({ label: "No resources", current: 0, maximum: 0 })]));
+  const trackers=Object.values(character.trackers??{}).filter((tracker)=>{if(!tracker.visible_when)return true;const resource=character.resources?.[tracker.visible_when.resource_id];return resource&&comparisonMatches(Number(resource.current),tracker.visible_when.operator,Number(tracker.visible_when.value));});
+  $("#tracker-list").replaceChildren(...trackers.map(playerTrackerCard));
   const conditions = (character.conditions ?? []).map((condition) => { const chip = document.createElement("span"); chip.textContent = condition; return chip; });
   if (!conditions.length) { const clear = document.createElement("span"); clear.className = "clear"; clear.textContent = "No active conditions"; conditions.push(clear); }
   $("#condition-list").replaceChildren(...conditions);

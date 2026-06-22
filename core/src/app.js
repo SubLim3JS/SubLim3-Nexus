@@ -43,6 +43,36 @@ function systemRouteFrom(pathname) {
   return match ? { systemId: match[1] ? decodeURIComponent(match[1]) : null } : null;
 }
 
+function streamAudio(request, response, opened, contentType) {
+  const range = request.headers.range?.match(/^bytes=(\d*)-(\d*)$/);
+  let start = 0;
+  let end = opened.size - 1;
+  if (range) {
+    if (!range[1] && range[2]) {
+      const suffixLength = Number(range[2]);
+      start = Math.max(0, opened.size - suffixLength);
+    } else {
+      start = range[1] ? Number(range[1]) : 0;
+      end = range[2] ? Number(range[2]) : end;
+    }
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start || start >= opened.size) {
+      response.writeHead(416, { "content-range": `bytes */${opened.size}` });
+      response.end();
+      return;
+    }
+    end = Math.min(end, opened.size - 1);
+  }
+  response.writeHead(range ? 206 : 200, {
+    "content-type": contentType,
+    "content-length": end - start + 1,
+    "accept-ranges": "bytes",
+    ...(range ? { "content-range": `bytes ${start}-${end}/${opened.size}` } : {}),
+    "cache-control": "no-cache",
+    "x-content-type-options": "nosniff",
+  });
+  opened.stream({ start, end }).on("error", () => response.destroy()).pipe(response);
+}
+
 function requireSettingsAccess(request, settingsPin, guard) {
   if (!settingsPin) throw Object.assign(new Error("Settings PIN is not configured"), { statusCode: 503 });
   if (guard.blockedUntil > Date.now()) throw Object.assign(new Error("Too many failed PIN attempts; try again shortly"), { statusCode: 429 });
@@ -65,11 +95,12 @@ export function createApp({
   systemStore = null,
   access,
   liveEvents,
+  audio,
   connectivity,
   settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "1.2.1",
+  version = "1.3.0",
   startedAt = new Date(),
 }) {
   const settingsGuard = { failures: 0, blockedUntil: 0 };
@@ -96,6 +127,97 @@ export function createApp({
           version,
           uptime_seconds: Math.floor((Date.now() - startedAt.getTime()) / 1000),
         });
+      }
+
+      if (audio && request.method === "GET" && url.pathname === `${API_PREFIX}/audio/library`) {
+        const kind = url.searchParams.get("kind");
+        if (kind && !["ambience", "effect"].includes(kind)) return sendJson(response, 422, { error: "validation_failed", details: ["kind must be ambience or effect"] });
+        return sendJson(response, 200, { data: await audio.library(kind) });
+      }
+
+      if (audio && request.method === "GET" && url.pathname === `${API_PREFIX}/audio/status`) {
+        return sendJson(response, 200, { data: await audio.status() });
+      }
+
+      const audioContent = audio?.files && request.method === "GET" ? url.pathname.match(/^\/api\/v1\/audio\/files\/([^/]+)\/content$/) : null;
+      if (audioContent) {
+        const opened = await audio.files.open(decodeURIComponent(audioContent[1]));
+        streamAudio(request, response, opened, opened.item.source.content_type);
+        return;
+      }
+
+      const usbContent = audio?.files && request.method === "GET" ? url.pathname.match(/^\/api\/v1\/audio\/usb\/([^/]+)\/content$/) : null;
+      if (usbContent) {
+        const status = await audio.status();
+        if (status.item_id !== decodeURIComponent(usbContent[1]) || status.item?.source?.type !== "usb") return sendJson(response, 404, { error: "usb_playback_not_found" });
+        const opened = await audio.files.openUsb(status.item.source.source_path);
+        streamAudio(request, response, opened, opened.contentType);
+        return;
+      }
+
+      if (audio?.files && request.method === "GET" && url.pathname === `${API_PREFIX}/audio/folders`) {
+        if (access) await access.authorize(request, { roles: ["admin", "gm"] });
+        return sendJson(response, 200, { data: await audio.files.folders() });
+      }
+
+      if (audio?.files && request.method === "GET" && url.pathname === `${API_PREFIX}/audio/usb`) {
+        if (access) await access.authorize(request, { roles: ["admin", "gm"] });
+        return sendJson(response, 200, { data: await audio.files.usbFiles() });
+      }
+
+      if (audio?.files && request.method === "POST" && url.pathname === `${API_PREFIX}/audio/files/upload`) {
+        if (access) await access.authorize(request, { roles: ["admin", "gm"] });
+        const filename = url.searchParams.get("filename");
+        if (!filename) return sendJson(response, 422, { error: "validation_failed", details: ["filename is required"] });
+        const item = await audio.files.saveUpload({
+          stream: request,
+          filename,
+          folderPath: url.searchParams.get("folder") ?? "",
+          kind: url.searchParams.get("kind") ?? "ambience",
+          contentType: request.headers["content-type"],
+        });
+        return sendJson(response, 201, { data: item });
+      }
+
+      if (audio?.files && request.method === "POST" && url.pathname === `${API_PREFIX}/audio/folders`) {
+        if (access) await access.authorize(request, { roles: ["admin", "gm"] });
+        const input = await readJson(request);
+        return sendJson(response, 201, { data: await audio.files.createFolder(input?.parent_path, input?.name) });
+      }
+
+      if (audio?.files && request.method === "POST" && url.pathname === `${API_PREFIX}/audio/import`) {
+        if (access) await access.authorize(request, { roles: ["admin", "gm"] });
+        const input = await readJson(request);
+        return sendJson(response, 201, { data: await audio.files.importUsb({ sourcePath: input?.source_path, folderPath: input?.folder_path, kind: input?.kind }) });
+      }
+
+      if (audio?.files && request.method === "POST" && url.pathname === `${API_PREFIX}/audio/usb/play`) {
+        if (access) await access.authorize(request, { roles: ["admin", "gm"] });
+        const input = await readJson(request);
+        return sendJson(response, 200, { data: await audio.playUsb(input?.source_path) });
+      }
+
+      const audioFile = audio?.files && request.method === "PUT" ? url.pathname.match(/^\/api\/v1\/audio\/files\/([^/]+)$/) : null;
+      if (audioFile) {
+        if (access) await access.authorize(request, { roles: ["admin", "gm"] });
+        const input = await readJson(request);
+        return sendJson(response, 200, { data: await audio.files.move(decodeURIComponent(audioFile[1]), input?.folder_path) });
+      }
+
+      if (audio && request.method === "POST" && url.pathname.startsWith(`${API_PREFIX}/audio/`)) {
+        if (access) await access.authorize(request, { roles: ["admin", "gm"] });
+        const input = await readJson(request);
+        let status;
+        if (url.pathname === `${API_PREFIX}/audio/play` || url.pathname === `${API_PREFIX}/audio/ambiance`) status = await audio.play(input?.item_id);
+        else if (url.pathname === `${API_PREFIX}/audio/pause`) status = await audio.pause();
+        else if (url.pathname === `${API_PREFIX}/audio/stop`) status = await audio.stop();
+        else if (url.pathname === `${API_PREFIX}/audio/volume`) status = await audio.setVolume(input?.volume);
+        else {
+          const effectMatch = url.pathname.match(/^\/api\/v1\/audio\/effects\/([^/]+)\/trigger$/);
+          if (!effectMatch) return sendJson(response, 404, { error: "not_found" });
+          status = await audio.triggerEffect(decodeURIComponent(effectMatch[1]));
+        }
+        return sendJson(response, 200, { data: status });
       }
 
       if (access && request.method === "POST" && url.pathname === `${API_PREFIX}/auth/pair`) {
@@ -291,7 +413,7 @@ export function createApp({
             const errors = validateCharacter(input, { requireId: false });
             if (errors.length) return sendJson(response, 422, { error: "validation_failed", details: errors });
             const system = systemStore ? await systemStore.get(campaign.system_id) : null;
-            const character = normalizeCharacter(characterRoute.campaignId, applyGameSystemDefaults(input, system), existing, system);
+            const character = normalizeCharacter(characterRoute.campaignId, applyGameSystemDefaults({ ...input, trackers: input.trackers ?? existing.trackers }, system), existing, system);
             await characterStore.put(existing.character_id, character);
             return sendJson(response, 200, { data: character });
           }
@@ -389,7 +511,7 @@ export function createApp({
           if (character?.campaign_id === combatantRoute.campaignId) {
             const resources = { ...character.resources };
             if (combatant.health) resources.health = { ...(resources.health ?? {}), label: resources.health?.label ?? "Health", current: combatant.health.current, maximum: combatant.health.maximum };
-            await characterStore.put(character.character_id, { ...character, resources, conditions: combatant.conditions, updated_at: new Date().toISOString() });
+            await characterStore.put(character.character_id, { ...character, resources, conditions: combatant.conditions, trackers: combatant.trackers, updated_at: new Date().toISOString() });
           }
         }
         await sessionStore.put(combatantRoute.campaignId, session);

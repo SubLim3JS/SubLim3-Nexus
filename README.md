@@ -53,9 +53,11 @@ Responsibilities:
 * Provide REST APIs
 * Serve local dashboard pages
 
-The proof-of-concept media player is available at `/media/`. It generates three
-looping soundscapes and four one-shot effects locally in the browser, so the demo
-works offline and does not require bundled or licensed audio files.
+The media player is available at `/media/`. Nexus Core persists its folder-based
+library and global playback state. Paired Admin and GM browsers can upload audio,
+create and organize folders, or import supported files from configured USB mount
+roots. The first browser playback driver streams managed files and also provides
+three procedural soundscapes and four one-shot effects as offline starter content.
 
 The dashboard also manages system-neutral campaign characters. Each character has
 a shareable local player view that combines live resources, conditions, GM notes,
@@ -78,6 +80,13 @@ character fields, resources, condition vocabularies, companion pages, and action
 Campaigns bind to one installed system; new characters receive its defaults and
 record the template version that shaped them. Custom RPG and D&D 5e ship as the
 first built-in templates, while the Admin dashboard exposes the installed library.
+
+Version 1.3 adds reusable success/failure trackers and uses the first one for D&D
+5e death saves. At zero HP, the GM can record successes, failures, natural 1s,
+natural 20s, or reset the tracker. Three successes stabilize, three failures mark
+the character dead, a natural 20 restores one HP, and healing clears the tracker.
+Players see the live read-only result, and existing D&D characters are migrated
+when Nexus Core starts.
 
 Initial development may use Raspberry Pi hardware.
 
@@ -200,6 +209,9 @@ The system should use a generic RPG data model.
     ],
     "resources": [
       { "resource_id": "health", "label": "Hit Points", "default_current": 10, "default_maximum": 10 }
+    ],
+    "trackers": [
+      { "tracker_id": "death_saves", "label": "Death Saves", "success_target": 3, "failure_target": 3 }
     ],
     "conditions": ["Poisoned", "Prone"],
     "pages": [
@@ -395,11 +407,21 @@ POST /api/v1/campaigns/{campaign_id}/initiative/next
 
 ```text
 GET  /api/v1/audio/status
+GET  /api/v1/audio/library
 POST /api/v1/audio/play
 POST /api/v1/audio/pause
 POST /api/v1/audio/stop
 POST /api/v1/audio/volume
 POST /api/v1/audio/ambiance
+POST /api/v1/audio/effects/{item_id}/trigger
+GET  /api/v1/audio/folders
+POST /api/v1/audio/folders
+POST /api/v1/audio/files/upload
+PUT  /api/v1/audio/files/{item_id}
+GET  /api/v1/audio/files/{item_id}/content
+GET  /api/v1/audio/usb
+POST /api/v1/audio/usb/play
+POST /api/v1/audio/import
 ```
 
 ---
@@ -660,6 +682,7 @@ sublim3-nexus/
 
 * Game system and character-sheet template contract complete
 * Built-in Custom RPG and D&D 5e templates complete
+* Template-defined success/failure trackers and D&D death saves complete
 * Add custom template editor
 * Expand system-specific condition and action tooling
 

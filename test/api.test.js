@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -7,6 +7,8 @@ import { after, before, test } from "node:test";
 import { createApp } from "../core/src/app.js";
 import { JsonStore } from "../core/src/storage/json-store.js";
 import { BUILT_IN_GAME_SYSTEMS } from "../core/src/game-system.js";
+import { AudioService } from "../core/src/audio.js";
+import { AudioFileService } from "../core/src/audio-files.js";
 
 let baseUrl;
 let server;
@@ -19,12 +21,22 @@ before(async () => {
   const sessionStore = new JsonStore(path.join(temporaryDirectory, "sessions"));
   const characterStore = new JsonStore(path.join(temporaryDirectory, "characters"));
   const systemStore = new JsonStore(path.join(temporaryDirectory, "systems"));
+  const audioLibraryStore = new JsonStore(path.join(temporaryDirectory, "audio", "library"));
+  const audioStateStore = new JsonStore(path.join(temporaryDirectory, "audio", "state"));
+  const usbRoot = path.join(temporaryDirectory, "usb");
+  await mkdir(usbRoot, { recursive: true });
+  await writeFile(path.join(usbRoot, "usb-tone.wav"), Buffer.from("RIFFusb-audio"));
+  await writeFile(path.join(temporaryDirectory, "not-on-usb.mp3"), Buffer.from("outside"));
+  const audioFiles = new AudioFileService({ rootDirectory: path.join(temporaryDirectory, "audio", "files"), libraryStore: audioLibraryStore, usbRoots: [usbRoot] });
+  const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: audioStateStore, files: audioFiles });
+  await audio.initialize();
   for (const system of BUILT_IN_GAME_SYSTEMS) await systemStore.put(system.system_id, system);
   server = createServer(createApp({
     campaignStore: store,
     sessionStore,
     characterStore,
     systemStore,
+    audio,
     settingsPin: "123456",
     connectivity: {
       status: async () => ({ supported: true, wifi: { mode: "local", ssid: "SubLim3-Nexus", addresses: ["10.42.0.1/24"] }, bluetooth: { available: true, visible: false, connected_devices: [] } }),
@@ -58,7 +70,7 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
-  assert.equal(body.version, "1.2.1");
+  assert.equal(body.version, "1.3.0");
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
@@ -120,13 +132,134 @@ test("serves the offline media player demo", async () => {
   assert.match(response.headers.get("content-type"), /text\/html/);
   const page = await response.text();
   assert.match(page, /Soundscapes/);
-  assert.match(page, /Browser preview/);
+  assert.match(page, /Core synced/);
+});
+
+test("manages the persistent audio library and playback state", async () => {
+  const library = await fetch(`${baseUrl}/api/v1/audio/library`).then((response) => response.json());
+  assert.equal(library.data.filter((item) => item.kind === "ambience").length, 3);
+  assert.equal(library.data.filter((item) => item.kind === "effect").length, 4);
+
+  const played = await fetch(`${baseUrl}/api/v1/audio/play`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ item_id: "understone-hollow" }),
+  }).then((response) => response.json());
+  assert.equal(played.data.state, "playing");
+  assert.equal(played.data.item.name, "Understone Hollow");
+
+  const volume = await fetch(`${baseUrl}/api/v1/audio/volume`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ volume: 37 }),
+  }).then((response) => response.json());
+  assert.equal(volume.data.volume, 37);
+
+  const effect = await fetch(`${baseUrl}/api/v1/audio/effects/thunder/trigger`, { method: "POST" }).then((response) => response.json());
+  assert.equal(effect.data.last_effect.item_id, "thunder");
+  assert.ok(effect.data.last_effect.event_id);
+
+  const paused = await fetch(`${baseUrl}/api/v1/audio/pause`, { method: "POST" }).then((response) => response.json());
+  assert.equal(paused.data.state, "paused");
+  assert.ok(paused.data.position_seconds >= 0);
+  const stopped = await fetch(`${baseUrl}/api/v1/audio/stop`, { method: "POST" }).then((response) => response.json());
+  assert.equal(stopped.data.state, "stopped");
+  assert.equal(stopped.data.position_seconds, 0);
+
+  const missing = await fetch(`${baseUrl}/api/v1/audio/play`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ item_id: "missing" }),
+  });
+  assert.equal(missing.status, 404);
+});
+
+test("uploads, organizes, streams, and imports audio files", async () => {
+  const createdFolder = await fetch(`${baseUrl}/api/v1/audio/folders`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "Taverns" }),
+  }).then((response) => response.json());
+  assert.equal(createdFolder.data.folder_path, "Taverns");
+
+  const bytes = Buffer.from("RIFFbrowser-audio");
+  const uploadResponse = await fetch(`${baseUrl}/api/v1/audio/files/upload?filename=busy_inn.wav&folder=Taverns&kind=ambience`, {
+    method: "POST",
+    headers: { "content-type": "audio/wav" },
+    body: bytes,
+  });
+  assert.equal(uploadResponse.status, 201);
+  const uploaded = (await uploadResponse.json()).data;
+  assert.equal(uploaded.name, "busy inn");
+  assert.equal(uploaded.folder_path, "Taverns");
+  assert.equal(uploaded.source.size_bytes, bytes.length);
+
+  const streamed = await fetch(`${baseUrl}/api/v1/audio/files/${uploaded.item_id}/content`);
+  assert.equal(streamed.status, 200);
+  assert.equal(streamed.headers.get("accept-ranges"), "bytes");
+  assert.deepEqual(Buffer.from(await streamed.arrayBuffer()), bytes);
+  const ranged = await fetch(`${baseUrl}/api/v1/audio/files/${uploaded.item_id}/content`, { headers: { range: "bytes=0-3" } });
+  assert.equal(ranged.status, 206);
+  assert.equal(ranged.headers.get("content-range"), `bytes 0-3/${bytes.length}`);
+  assert.equal(Buffer.from(await ranged.arrayBuffer()).toString(), "RIFF");
+  const suffix = await fetch(`${baseUrl}/api/v1/audio/files/${uploaded.item_id}/content`, { headers: { range: "bytes=-5" } });
+  assert.equal(suffix.status, 206);
+  assert.deepEqual(Buffer.from(await suffix.arrayBuffer()), bytes.subarray(-5));
+
+  await fetch(`${baseUrl}/api/v1/audio/folders`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Battle" }) });
+  const moved = await fetch(`${baseUrl}/api/v1/audio/files/${uploaded.item_id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ folder_path: "Battle" }),
+  }).then((response) => response.json());
+  assert.equal(moved.data.folder_path, "Battle");
+
+  const usb = await fetch(`${baseUrl}/api/v1/audio/usb`).then((response) => response.json());
+  assert.equal(usb.data.length, 1);
+  assert.equal(usb.data[0].name, "usb-tone.wav");
+  const usbPlayback = await fetch(`${baseUrl}/api/v1/audio/usb/play`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ source_path: usb.data[0].source_path }),
+  }).then((response) => response.json());
+  assert.equal(usbPlayback.data.state, "playing");
+  assert.equal(usbPlayback.data.item.source.type, "usb");
+  const directUsb = await fetch(`${baseUrl}/api/v1/audio/usb/${usbPlayback.data.item_id}/content`);
+  assert.deepEqual(Buffer.from(await directUsb.arrayBuffer()), Buffer.from("RIFFusb-audio"));
+  const imported = await fetch(`${baseUrl}/api/v1/audio/import`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ source_path: usb.data[0].source_path, folder_path: "Taverns", kind: "ambience" }),
+  }).then((response) => response.json());
+  assert.equal(imported.data.folder_path, "Taverns");
+  assert.equal(imported.data.source.original_filename, "usb-tone.wav");
+
+  const outsideUsb = await fetch(`${baseUrl}/api/v1/audio/usb/play`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ source_path: path.join(temporaryDirectory, "not-on-usb.mp3") }),
+  });
+  assert.equal(outsideUsb.status, 403);
+  const stoppedUsb = await fetch(`${baseUrl}/api/v1/audio/stop`, { method: "POST" }).then((response) => response.json());
+  assert.equal(stoppedUsb.data.item_id, null);
+  assert.equal(stoppedUsb.data.item, null);
+
+  const traversal = await fetch(`${baseUrl}/api/v1/audio/folders`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "../escape" }),
+  });
+  assert.equal(traversal.status, 422);
 });
 
 test("manages versioned game-system and character-sheet templates", async () => {
   const builtIns = await fetch(`${baseUrl}/api/v1/systems`).then((response) => response.json());
   assert.deepEqual(builtIns.data.map((system) => system.system_id).sort(), ["custom", "dnd5e"]);
-  assert.equal(builtIns.data.find((system) => system.system_id === "dnd5e").character_sheet.pages[0].page_id, "status");
+  const dnd = builtIns.data.find((system) => system.system_id === "dnd5e");
+  assert.equal(dnd.version, "1.1");
+  assert.equal(dnd.character_sheet.pages[0].page_id, "status");
+  assert.equal(dnd.character_sheet.trackers[0].tracker_id, "death_saves");
+  assert.ok(dnd.character_sheet.pages[0].bindings.includes("death_saves"));
   const unknownCampaign = await fetch(`${baseUrl}/api/v1/campaigns`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -181,6 +314,54 @@ test("manages versioned game-system and character-sheet templates", async () => 
   });
   assert.equal(scratch.status, 201);
   assert.equal((await fetch(`${baseUrl}/api/v1/systems/scratch`, { method: "DELETE" })).status, 204);
+});
+
+test("runs template-defined D&D death saves and syncs the character", async () => {
+  await fetch(`${baseUrl}/api/v1/campaigns`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ campaign_id: "death_save_test", name: "Death Save Test", system_id: "dnd5e" }),
+  });
+  const character = await fetch(`${baseUrl}/api/v1/campaigns/death_save_test/characters`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ character_id: "fallen_hero", character_name: "Fallen Hero", resources: { health: { label: "Hit Points", current: 0, maximum: 10 } } }),
+  }).then((response) => response.json());
+  assert.equal(character.data.trackers.death_saves.success_target, 3);
+  assert.equal(character.data.trackers.death_saves.failures, 0);
+
+  await fetch(`${baseUrl}/api/v1/campaigns/death_save_test/session`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode: "battle", scene: {}, battle: { combatants: [{ combatant_id: "character_fallen_hero", character_id: "fallen_hero", source: "character", name: "Fallen Hero", initiative: 10, health: character.data.resources.health, trackers: character.data.trackers }] } }),
+  });
+  async function trackerAction(action) {
+    return fetch(`${baseUrl}/api/v1/campaigns/death_save_test/battle/combatants/character_fallen_hero`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tracker_action: { tracker_id: "death_saves", action } }),
+    }).then((response) => response.json());
+  }
+  await trackerAction("success"); await trackerAction("success");
+  const stabilized = await trackerAction("success");
+  assert.equal(stabilized.data.battle.combatants[0].trackers.death_saves.status, "stabilized");
+
+  await trackerAction("reset");
+  const naturalOne = await trackerAction("critical_failure");
+  assert.equal(naturalOne.data.battle.combatants[0].trackers.death_saves.failures, 2);
+  const dead = await trackerAction("failure");
+  assert.equal(dead.data.battle.combatants[0].trackers.death_saves.status, "dead");
+
+  await trackerAction("reset");
+  const naturalTwenty = await trackerAction("critical_success");
+  assert.equal(naturalTwenty.data.battle.combatants[0].health.current, 1);
+  assert.equal(naturalTwenty.data.battle.combatants[0].trackers.death_saves.successes, 0);
+  const synced = await fetch(`${baseUrl}/api/v1/campaigns/death_save_test/characters/fallen_hero`).then((response) => response.json());
+  assert.equal(synced.data.resources.health.current, 1);
+  assert.equal(synced.data.trackers.death_saves.status, "active");
+
+  await fetch(`${baseUrl}/api/v1/campaigns/death_save_test/characters/fallen_hero`, { method: "DELETE" });
+  await fetch(`${baseUrl}/api/v1/campaigns/death_save_test`, { method: "DELETE" });
 });
 
 test("creates, reads, updates, lists, and deletes campaign characters", async () => {

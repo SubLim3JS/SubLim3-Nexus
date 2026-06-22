@@ -17,13 +17,15 @@
           <span class="brand-mark" aria-hidden="true"><img src="/assets/nexus-logo.png" alt=""></span>
           <span><strong>SubLim3</strong><small>NEXUS MEDIA</small></span>
         </a>
-        <div class="media-header-actions"><span class="preview-badge"><i></i>Browser preview</span><a class="back-link" href="/">← Command center</a></div>
+        <div class="media-header-actions"><span class="preview-badge"><i></i>Core synced</span><a class="back-link" href="/">← Command center</a></div>
       </header>
 
       <section class="media-intro">
-        <div><p class="eyebrow">TABLE AUDIO</p><h1>Soundscapes</h1><p>Layer atmosphere into every scene. This proof of concept generates its audio locally—no internet, downloads, or licensed tracks required.</p></div>
-        <div class="output-card"><span>Output</span><strong>This browser</strong><small>Pi and Bluetooth routing comes next</small></div>
+        <div><p class="eyebrow">TABLE AUDIO</p><h1>Soundscapes</h1><p>Layer atmosphere into every scene. Nexus Core now owns the library, playback state, and controls while this browser provides the first audio renderer.</p></div>
+        <div class="output-card"><span>Output driver</span><strong id="output-name">Browser renderer</strong><small>Core-managed • Pi and Bluetooth drivers come next</small></div>
       </section>
+
+      <p id="media-message" class="media-message" role="status" aria-live="polite"></p>
 
       <section class="player-grid">
         <article id="now-playing" class="now-playing">
@@ -45,21 +47,34 @@
         </article>
 
         <aside class="queue-panel">
-          <div class="panel-heading"><div><p class="eyebrow">SCENE QUEUE</p><h2>Ambience</h2></div><span>3 tracks</span></div>
-          <button class="queue-track active" type="button" data-track="0"><span class="track-number">01</span><span><strong>Lantern &amp; Oak</strong><small>Tavern • Warm • Social</small></span><em>4:00</em></button>
-          <button class="queue-track" type="button" data-track="1"><span class="track-number">02</span><span><strong>Understone Hollow</strong><small>Cavern • Distant • Uneasy</small></span><em>5:20</em></button>
-          <button class="queue-track" type="button" data-track="2"><span class="track-number">03</span><span><strong>Initiative Rising</strong><small>Battle • Pulse • Urgent</small></span><em>3:30</em></button>
+          <div class="panel-heading"><div><p class="eyebrow">SCENE QUEUE</p><h2>Ambience</h2></div><span id="track-count">Loading…</span></div>
+          <div id="queue-list"></div>
           <div class="queue-note"><span>◇</span><p><strong>RFID ready</strong><small>Future cards can launch tracks and full scenes through the same media API.</small></p></div>
         </aside>
+      </section>
+
+      <section class="library-section">
+        <div class="section-heading"><div><p class="eyebrow">MEDIA LIBRARY</p><h2>Files &amp; folders</h2></div><span class="count-badge" id="file-count">0 files</span></div>
+        <div class="library-card">
+          <div class="library-toolbar">
+            <label><span>Current folder</span><select id="library-folder"><option value="">Library root</option></select></label>
+            <form id="folder-form"><label><span>New folder</span><input id="folder-name" type="text" maxlength="80" placeholder="Taverns"></label><button type="submit">Create folder</button></form>
+            <form id="upload-form"><label class="file-picker"><span>Add audio</span><input id="audio-upload" type="file" accept="audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.aac,.flac,.webm" multiple></label><button type="submit">Upload files</button></form>
+            <button id="scan-usb" type="button">Scan USB</button>
+          </div>
+          <p id="library-message" class="library-message" role="status" aria-live="polite">Create folders, upload from this device, or import from a mounted USB drive.</p>
+          <div id="managed-files" class="managed-files"></div>
+          <div id="usb-results" class="usb-results" hidden><div class="library-subheading"><strong>USB audio</strong><span id="usb-count"></span></div><div id="usb-files"></div></div>
+        </div>
       </section>
 
       <section class="sfx-section">
         <div class="section-heading"><div><p class="eyebrow">QUICK TRIGGERS</p><h2>Sound effects</h2></div><span class="count-badge">Procedural demo</span></div>
         <div class="sfx-grid">
           <button type="button" data-sfx="thunder"><span>ϟ</span><strong>Thunder</strong><small>Low rolling impact</small></button>
-          <button type="button" data-sfx="door"><span>⌑</span><strong>Ancient Door</strong><small>Stone and timber</small></button>
-          <button type="button" data-sfx="blade"><span>✦</span><strong>Blade Clash</strong><small>Metallic strike</small></button>
-          <button type="button" data-sfx="magic"><span>◉</span><strong>Arcane Pulse</strong><small>Resonant energy</small></button>
+          <button type="button" data-sfx="ancient-door"><span>⌑</span><strong>Ancient Door</strong><small>Stone and timber</small></button>
+          <button type="button" data-sfx="blade-clash"><span>✦</span><strong>Blade Clash</strong><small>Metallic strike</small></button>
+          <button type="button" data-sfx="arcane-pulse"><span>◉</span><strong>Arcane Pulse</strong><small>Resonant energy</small></button>
         </div>
       </section>
     </main>

@@ -10,6 +10,48 @@ function requireActiveBattle(session) {
   }
 }
 
+function normalizeTrackers(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+  return Object.fromEntries(Object.entries(input).slice(0, 10).map(([trackerId, value]) => {
+    const tracker = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const successTarget = Math.max(1, Number(tracker.success_target) || 3);
+    const failureTarget = Math.max(1, Number(tracker.failure_target) || 3);
+    const successes = Math.max(0, Math.min(successTarget, Number(tracker.successes) || 0));
+    const failures = Math.max(0, Math.min(failureTarget, Number(tracker.failures) || 0));
+    return [trackerId, {
+      ...tracker,
+      tracker_id: trackerId,
+      successes,
+      failures,
+      success_target: successTarget,
+      failure_target: failureTarget,
+      status: failures >= failureTarget ? "dead" : successes >= successTarget ? "stabilized" : "active",
+    }];
+  }));
+}
+
+function applyTrackerAction(trackers, input, health) {
+  if (!input || typeof input !== "object") return { trackers, health };
+  const tracker = trackers[input.tracker_id];
+  if (!tracker) throw sessionError("tracker not found", 404);
+  const action = String(input.action ?? "");
+  if (!["success", "failure", "critical_success", "critical_failure", "reset"].includes(action)) throw sessionError("invalid tracker action", 422);
+  let updated = { ...tracker };
+  let updatedHealth = health;
+  if (action === "reset") updated = { ...updated, successes: 0, failures: 0, status: "active" };
+  if (action === "success") updated.successes = Math.min(updated.success_target, updated.successes + 1);
+  if (action === "failure") updated.failures = Math.min(updated.failure_target, updated.failures + 1);
+  if (action === "critical_failure") updated.failures = Math.min(updated.failure_target, updated.failures + Math.max(1, Number(updated.critical_failure_count) || 1));
+  if (action === "critical_success") {
+    const restored = Math.max(0, Number(updated.critical_success_restores) || 0);
+    if (updatedHealth && restored > 0) updatedHealth = { ...updatedHealth, current: Math.min(updatedHealth.maximum, Math.max(updatedHealth.current, restored)) };
+    updated = { ...updated, successes: 0, failures: 0, status: "revived" };
+  } else if (updated.failures >= updated.failure_target) updated.status = "dead";
+  else if (updated.successes >= updated.success_target) updated.status = "stabilized";
+  else if (action !== "reset") updated.status = "active";
+  return { trackers: { ...trackers, [input.tracker_id]: updated }, health: updatedHealth };
+}
+
 export function emptySession(campaignId) {
   return {
     campaign_id: campaignId,
@@ -60,6 +102,7 @@ export function normalizeSession(campaignId, input) {
         return { current: Math.max(0, Math.min(maximum, current)), maximum };
       })() : null,
       conditions: Array.isArray(combatant.conditions) ? [...new Set(combatant.conditions.map((condition) => String(condition).trim()).filter(Boolean))].slice(0, 20) : [],
+      trackers: normalizeTrackers(combatant.trackers),
       defeated: Boolean(combatant.defeated) || Boolean(combatant.health && Number(combatant.health.current) <= 0),
     };
   }).sort((left, right) => right.initiative - left.initiative);
@@ -97,11 +140,15 @@ export function updateCombatant(session, combatantId, input) {
     const conditions = input.conditions === undefined
       ? combatant.conditions
       : [...new Set((Array.isArray(input.conditions) ? input.conditions : []).map((condition) => String(condition).trim()).filter(Boolean))].slice(0, 20);
+    let trackers = normalizeTrackers(combatant.trackers);
+    ({ trackers, health } = applyTrackerAction(trackers, input.tracker_action, health));
+    if (health?.current > 0) trackers = Object.fromEntries(Object.entries(trackers).map(([id, tracker]) => [id, tracker.reset_on_resource_positive && tracker.visible_when?.resource_id === "health" ? { ...tracker, successes: 0, failures: 0, status: "active" } : tracker]));
     updatedCombatant = {
       ...combatant,
       initiative: Number.isFinite(Number(input.initiative)) ? Number(input.initiative) : combatant.initiative,
       health,
       conditions,
+      trackers,
       defeated: health ? health.current <= 0 : Boolean(input.defeated ?? combatant.defeated),
     };
     return updatedCombatant;
