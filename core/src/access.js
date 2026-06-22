@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 
 const SESSION_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -17,15 +17,16 @@ function accessError(message, statusCode) {
 }
 
 export class AccessService {
-  constructor({ sessionStore, adminPin, gmPin, now = () => new Date() }) {
+  constructor({ sessionStore, adminPin, gmPin, persistGmPin = null, now = () => new Date() }) {
     this.sessionStore = sessionStore;
     this.adminPin = adminPin;
     this.gmPin = gmPin;
     this.now = now;
+    this.persistGmPin = persistGmPin;
     this.pairingGuard = { failures: 0, blockedUntil: 0 };
   }
 
-  async pair({ role, pin = "", campaignId = null, characterId = null }) {
+  async pair({ role, pin = "", campaignId = null, characterId = null, deviceName = "Browser" }) {
     if (!this.adminPin || !this.gmPin) throw accessError("Access PINs are not configured", 503);
     if (this.pairingGuard.blockedUntil > this.now().getTime()) throw accessError("Too many failed pairing attempts; try again shortly", 429);
     const invalidPin = (role === "admin" && !secureEqual(pin, this.adminPin)) || (role === "gm" && !secureEqual(pin, this.gmPin));
@@ -47,6 +48,7 @@ export class AccessService {
       role,
       campaign_id: campaignId,
       character_id: characterId,
+      device_name: String(deviceName || "Browser").trim().slice(0, 80),
       created_at: createdAt.toISOString(),
       expires_at: new Date(createdAt.getTime() + SESSION_LIFETIME_MS).toISOString(),
     };
@@ -89,5 +91,19 @@ export class AccessService {
 
   async revokeById(sessionId) {
     return this.sessionStore.delete(sessionId);
+  }
+
+  pairingInfo() {
+    return { gm_pin: this.gmPin };
+  }
+
+  async rotateGmPin() {
+    if (!this.persistGmPin) throw accessError("GM PIN rotation is unavailable on this platform", 503);
+    const gmPin = String(randomInt(100000, 1_000_000));
+    await this.persistGmPin(gmPin);
+    this.gmPin = gmPin;
+    const sessions = await this.list();
+    await Promise.all(sessions.filter((session) => session.role === "gm").map((session) => this.sessionStore.delete(session.session_id)));
+    return gmPin;
   }
 }

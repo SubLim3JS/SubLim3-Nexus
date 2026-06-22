@@ -27,6 +27,7 @@ const access = new AccessService({
   sessionStore: accessSessionStore,
   adminPin: process.env.NEXUS_ADMIN_PIN ?? process.env.NEXUS_SETTINGS_PIN ?? "",
   gmPin: process.env.NEXUS_GM_PIN ?? "",
+  persistGmPin: process.platform === "linux" ? (pin) => connectivity.runner.runPrivileged("gm-pin", [], `${pin}\n`) : null,
 });
 
 const server = createServer(createApp({

@@ -71,5 +71,13 @@ case "${1:-}" in
     bluetoothctl pairable "$2" >/dev/null
     bluetoothctl discoverable "$2" >/dev/null
     ;;
+  gm-pin)
+    [[ $# -eq 1 ]] || exit 2
+    IFS= read -r new_pin || true
+    [[ "${new_pin}" =~ ^[0-9]{6}$ ]] || { echo "GM PIN must be six digits." >&2; exit 2; }
+    if grep -q '^NEXUS_GM_PIN=' "${CONFIG_FILE}"; then sed -i "s/^NEXUS_GM_PIN=.*/NEXUS_GM_PIN=${new_pin}/" "${CONFIG_FILE}"; else printf 'NEXUS_GM_PIN=%s\n' "${new_pin}" >> "${CONFIG_FILE}"; fi
+    chown root:nexus "${CONFIG_FILE}"
+    chmod 0640 "${CONFIG_FILE}"
+    ;;
   *) echo "Unsupported connectivity action." >&2; exit 2 ;;
 esac

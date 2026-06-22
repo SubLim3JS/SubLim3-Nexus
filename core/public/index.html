@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#090b12">
     <title>SubLim3 Nexus</title>
     <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
-    <link rel="stylesheet" href="/assets/styles.css?v=0.8.0">
-    <script type="module" src="/assets/app.js?v=0.8.0"></script>
+    <link rel="stylesheet" href="/assets/styles.css?v=0.9.0">
+    <script type="module" src="/assets/app.js?v=0.9.0"></script>
   </head>
   <body>
     <section id="admin-gate" class="access-gate">
@@ -31,6 +31,7 @@
 
         <nav aria-label="Primary navigation">
           <a class="nav-item active" href="#overview"><span class="nav-icon">⌂</span>Overview</a>
+          <a class="nav-item" href="#access"><span class="nav-icon">◎</span>Access</a>
           <a class="nav-item" href="#campaigns"><span class="nav-icon">◈</span>Campaigns</a>
           <a class="nav-item" href="#characters"><span class="nav-icon">♙</span>Characters</a>
           <span class="nav-item muted"><span class="nav-icon">⌁</span>Companions <em>Soon</em></span>
@@ -87,6 +88,22 @@
           <article class="metric-card"><span class="metric-icon violet">▰</span><div><p>Storage available</p><strong id="storage-free">—</strong><small id="storage-total">Loading system data</small></div></article>
           <article class="metric-card"><span class="metric-icon cyan">◌</span><div><p>Memory available</p><strong id="memory-free">—</strong><small id="memory-total">Loading system data</small></div></article>
           <article class="metric-card"><span class="metric-icon amber">⌁</span><div><p>Core address</p><strong id="hostname">—</strong><small id="platform">Local network</small></div></article>
+        </section>
+
+        <section id="access" class="access-section" aria-labelledby="access-heading">
+          <div class="section-heading"><div><p class="eyebrow">ACCESS &amp; PAIRING</p><h2 id="access-heading">Connected clients</h2></div><span id="session-count" class="count-badge">0 sessions</span></div>
+          <div class="access-admin-grid">
+            <article class="pairing-card">
+              <div><p class="eyebrow">GM / DM PAIRING</p><h3>GM PIN</h3><p>Share this PIN with a Game Master. Rotating it immediately unpairs every GM device.</p></div>
+              <div class="gm-pin-display"><code id="gm-pin-display">••••••</code><button id="gm-pin-reveal" type="button">Reveal</button></div>
+              <button id="gm-pin-rotate" class="secondary-button" type="button">Rotate GM PIN &amp; revoke GMs</button>
+              <p id="access-message" class="form-message" role="status"></p>
+            </article>
+            <article class="sessions-card">
+              <div class="sessions-heading"><div><p class="eyebrow">PAIRED DEVICES</p><h3>Active sessions</h3></div><button id="refresh-sessions" type="button">Refresh</button></div>
+              <div id="access-session-list" class="access-session-list"></div>
+            </article>
+          </div>
         </section>
 
         <section id="campaigns" class="campaign-section" aria-labelledby="campaign-heading">

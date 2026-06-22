@@ -69,7 +69,7 @@ function startRefresh() {
 }
 
 async function pairPlayer() {
-  const body = await api("/api/v1/auth/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role: "player", campaign_id: campaignId, character_id: characterId }) }, false);
+  const body = await api("/api/v1/auth/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role: "player", campaign_id: campaignId, character_id: characterId, device_name: "Player browser" }) }, false);
   playerToken = body.token; localStorage.setItem("nexus-player-token", playerToken);
   await refresh(); startRefresh();
 }

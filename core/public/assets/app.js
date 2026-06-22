@@ -1,5 +1,8 @@
 const $ = (selector) => document.querySelector(selector);
 let authToken = localStorage.getItem("nexus-admin-token") ?? "";
+let currentAdminSessionId = "";
+let currentGmPin = "";
+let gmPinRevealed = false;
 
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes)) return "—";
@@ -319,22 +322,81 @@ function updateClock() {
   $("#greeting").textContent = `Good ${period}, Game Master.`;
 }
 
+function accessSessionRow(session) {
+  const row = document.createElement("article");
+  row.className = "access-session-row";
+  const identity = document.createElement("div");
+  const device = document.createElement("strong");
+  const role = document.createElement("small");
+  const scope = document.createElement("div");
+  const scopeLabel = document.createElement("span");
+  const expiry = document.createElement("small");
+  const revoke = document.createElement("button");
+  device.textContent = session.device_name || "Browser";
+  const roleBadge = document.createElement("span");
+  roleBadge.className = "role-badge";
+  roleBadge.textContent = session.role;
+  role.append(roleBadge);
+  scope.className = "access-session-scope";
+  scopeLabel.textContent = session.role === "admin" ? "All system access" : session.role === "gm" ? `Campaign: ${session.campaign_id}` : `Character: ${session.character_id}`;
+  expiry.textContent = `Expires ${new Intl.DateTimeFormat([], { dateStyle: "medium" }).format(new Date(session.expires_at))}`;
+  revoke.type = "button";
+  revoke.textContent = session.session_id === currentAdminSessionId ? "This browser" : "Revoke";
+  revoke.disabled = session.session_id === currentAdminSessionId;
+  if (!revoke.disabled) revoke.addEventListener("click", async () => {
+    if (!window.confirm(`Revoke access for ${session.device_name || session.role}?`)) return;
+    await request(`/api/v1/auth/sessions/${session.session_id}`, { method: "DELETE" });
+    await loadAccessPanel();
+  });
+  identity.append(device, role); scope.append(scopeLabel, expiry); row.append(identity, scope, revoke);
+  return row;
+}
+
+function renderGmPin() {
+  $("#gm-pin-display").textContent = gmPinRevealed ? currentGmPin : "••••••";
+  $("#gm-pin-reveal").textContent = gmPinRevealed ? "Hide" : "Reveal";
+}
+
+async function loadAccessPanel() {
+  const [{ data: pairing }, { data: sessions }] = await Promise.all([request("/api/v1/auth/pairing"), request("/api/v1/auth/sessions")]);
+  currentGmPin = pairing.gm_pin;
+  renderGmPin();
+  $("#session-count").textContent = `${sessions.length} ${sessions.length === 1 ? "session" : "sessions"}`;
+  const list = $("#access-session-list");
+  if (sessions.length) list.replaceChildren(...sessions.map(accessSessionRow));
+  else { const empty = document.createElement("p"); empty.className = "access-session-empty"; empty.textContent = "No paired clients."; list.replaceChildren(empty); }
+}
+
+$("#gm-pin-reveal").addEventListener("click", () => { gmPinRevealed = !gmPinRevealed; renderGmPin(); });
+$("#refresh-sessions").addEventListener("click", () => loadAccessPanel().catch((error) => { $("#access-message").textContent = error.message; }));
+$("#gm-pin-rotate").addEventListener("click", async () => {
+  if (!window.confirm("Rotate the GM PIN? Every paired GM device will be revoked and must enter the new PIN.")) return;
+  const message = $("#access-message");
+  try {
+    const { data } = await request("/api/v1/auth/gm-pin/rotate", { method: "POST" });
+    currentGmPin = data.gm_pin; gmPinRevealed = true; renderGmPin();
+    message.textContent = "GM PIN rotated. Existing GM devices were revoked."; message.className = "form-message success";
+    await loadAccessPanel(); gmPinRevealed = true; renderGmPin();
+  } catch (error) { message.textContent = error.message; message.className = "form-message error"; }
+});
+
 updateClock();
 setInterval(updateClock, 30_000);
 
 async function openAdminApp() {
   const { data } = await request("/api/v1/auth/me");
   if (data.role !== "admin") throw new Error("This browser is not paired for System Admin access.");
+  currentAdminSessionId = data.session_id;
   $("#admin-gate").hidden = true;
   $("#admin-app").hidden = false;
-  await Promise.all([loadSystemInfo(), loadCampaigns()]);
+  await Promise.all([loadSystemInfo(), loadCampaigns(), loadAccessPanel()]);
 }
 
 $("#admin-pair-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const message = $("#admin-pair-message");
   try {
-    const response = await fetch("/api/v1/auth/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role: "admin", pin: $("#admin-pin").value }) });
+    const response = await fetch("/api/v1/auth/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role: "admin", pin: $("#admin-pin").value, device_name: "System Admin browser" }) });
     const body = await response.json();
     if (!response.ok) throw new Error(body.message || body.error || "Pairing failed");
     authToken = body.token;

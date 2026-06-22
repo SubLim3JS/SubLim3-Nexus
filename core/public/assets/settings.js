@@ -24,7 +24,7 @@ async function loadStatus() { const { data } = await api("/api/v1/connectivity/s
 $("#pin-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
-    const response = await fetch("/api/v1/auth/pair", { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({ role:"admin", pin:$("#settings-pin").value.trim() }) });
+    const response = await fetch("/api/v1/auth/pair", { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({ role:"admin", pin:$("#settings-pin").value.trim(), device_name:"System Admin settings" }) });
     const body = await response.json();
     if (!response.ok) throw new Error(body.message || body.error || "Pairing failed");
     adminToken = body.token; localStorage.setItem("nexus-admin-token", adminToken);

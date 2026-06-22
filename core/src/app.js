@@ -56,7 +56,7 @@ export function createApp({
   settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "0.8.0",
+  version = "0.9.0",
   startedAt = new Date(),
 }) {
   const settingsGuard = { failures: 0, blockedUntil: 0 };
@@ -98,7 +98,7 @@ export function createApp({
           const character = characterId ? await characterStore.get(characterId) : null;
           if (!character || character.campaign_id !== campaignId) return sendJson(response, 404, { error: "character_not_found" });
         }
-        const paired = await access.pair({ role, pin: input.pin, campaignId, characterId });
+        const paired = await access.pair({ role, pin: input.pin, campaignId, characterId, deviceName: input.device_name });
         return sendJson(response, 201, { token: paired.token, data: paired.session });
       }
 
@@ -114,6 +114,16 @@ export function createApp({
       if (access && request.method === "GET" && url.pathname === `${API_PREFIX}/auth/sessions`) {
         await access.authorize(request, { roles: ["admin"] });
         return sendJson(response, 200, { data: await access.list() });
+      }
+
+      if (access && request.method === "GET" && url.pathname === `${API_PREFIX}/auth/pairing`) {
+        await access.authorize(request, { roles: ["admin"] });
+        return sendJson(response, 200, { data: access.pairingInfo() });
+      }
+
+      if (access && request.method === "POST" && url.pathname === `${API_PREFIX}/auth/gm-pin/rotate`) {
+        await access.authorize(request, { roles: ["admin"] });
+        return sendJson(response, 200, { data: { gm_pin: await access.rotateGmPin() } });
       }
 
       const revokeSession = access && request.method === "DELETE" ? url.pathname.match(/^\/api\/v1\/auth\/sessions\/([a-f0-9]{64})$/) : null;

@@ -3,6 +3,7 @@ export function sendJson(response, statusCode, body) {
   response.writeHead(statusCode, {
     "content-type": "application/json; charset=utf-8",
     "content-length": Buffer.byteLength(payload),
+    "cache-control": "no-store",
   });
   response.end(payload);
 }
@@ -31,4 +32,3 @@ export async function readJson(request) {
     throw error;
   }
 }
-

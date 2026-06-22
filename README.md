@@ -64,6 +64,7 @@ scene information, and battle turn state without requiring a cloud connection.
 Role-specific entry points are available at `/admin/`, `/gm/`, and `/player/`.
 Admin and GM devices pair with installer-generated PINs; Player devices select a
 campaign and character and receive a read-only character-scoped session.
+The Admin dashboard can inspect and revoke paired clients or rotate the GM PIN.
 
 Initial development may use Raspberry Pi hardware.
 

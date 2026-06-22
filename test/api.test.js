@@ -54,6 +54,7 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
+  assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
 test("reports system information", async () => {
@@ -72,7 +73,9 @@ test("serves the dashboard with secure response headers", async () => {
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.match(response.headers.get("content-security-policy"), /default-src 'self'/);
   assert.equal(response.headers.get("cache-control"), "no-cache");
-  assert.match(await response.text(), /The table is ready/);
+  const page = await response.text();
+  assert.match(page, /The table is ready/);
+  assert.match(page, /ACCESS &amp; PAIRING/);
 });
 
 test("serves the Nexus logo asset", async () => {

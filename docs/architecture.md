@@ -43,6 +43,9 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 | `GET` | `/api/v1/auth/me` | Read the current access scope |
 | `DELETE` | `/api/v1/auth/session` | Unpair the current client |
 | `GET` | `/api/v1/auth/sessions` | List active sessions (Admin) |
+| `DELETE` | `/api/v1/auth/sessions/{session_id}` | Revoke a paired client (Admin) |
+| `GET` | `/api/v1/auth/pairing` | Read GM pairing information (Admin) |
+| `POST` | `/api/v1/auth/gm-pin/rotate` | Rotate the GM PIN and revoke GM sessions (Admin) |
 | `GET` | `/api/v1/discovery/campaigns` | Public local campaign picker |
 | `GET` | `/api/v1/discovery/campaigns/{campaign_id}/characters` | Public local character picker |
 
@@ -61,6 +64,8 @@ The media proof of concept at `/media/` is browser-first and fully offline. Its 
 Character records are system-neutral: game-specific values live in flexible `fields` and `resources` objects while conditions and public notes have stable shared shapes. The GM manages campaign rosters on the dashboard. `/player/` combines one character with the campaign's published session and refreshes from Nexus Core every three seconds, providing the first phone/tablet view and the contract future companion hardware will consume.
 
 Production startup enables the access layer. Admin sessions have global control, GM sessions are restricted to one campaign, and Player sessions are read-only and restricted to one character. Access tokens are persisted only as SHA-256 hashes and expire after 90 days. Static pages, system health, and discovery summaries remain available before pairing. See `docs/client-surfaces.md` for the Android wrapper direction.
+
+The Admin dashboard exposes active client sessions and their scopes. Admin can revoke individual clients, reveal the current GM PIN, or rotate it. Rotation is persisted through the same root-owned allowlisted helper used for connectivity; Nexus Core never receives general root access. All existing GM sessions are revoked when the PIN changes.
 
 ## Next boundaries
 
