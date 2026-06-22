@@ -66,8 +66,12 @@ ensure_setting() {
 
 settings_pin="$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')"
 settings_pin="$((settings_pin % 900000 + 100000))"
+gm_pin="$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')"
+gm_pin="$((gm_pin % 900000 + 100000))"
 hotspot_password="Nexus-$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')"
 ensure_setting NEXUS_SETTINGS_PIN "${settings_pin}"
+ensure_setting NEXUS_ADMIN_PIN "${settings_pin}"
+ensure_setting NEXUS_GM_PIN "${gm_pin}"
 ensure_setting NEXUS_HOTSPOT_PASSWORD "${hotspot_password}"
 ensure_setting NEXUS_WIFI_INTERFACE wlan0
 ensure_setting NEXUS_HOTSPOT_CONNECTION sublim3-hotspot
@@ -91,6 +95,7 @@ systemctl restart "${SERVICE_NAME}"
 echo "SubLim3 Nexus Core is installed and running."
 echo "Status: systemctl status ${SERVICE_NAME}"
 echo "Logs:   journalctl -u ${SERVICE_NAME} -f"
-echo "Settings PIN: $(grep '^NEXUS_SETTINGS_PIN=' /etc/default/sublim3-nexus | cut -d= -f2-)"
+echo "Admin PIN:    $(grep '^NEXUS_ADMIN_PIN=' /etc/default/sublim3-nexus | cut -d= -f2-)"
+echo "GM PIN:       $(grep '^NEXUS_GM_PIN=' /etc/default/sublim3-nexus | cut -d= -f2-)"
 echo "Local Wi-Fi:  $(grep '^NEXUS_HOTSPOT_SSID=' /etc/default/sublim3-nexus | cut -d= -f2-)"
 echo "Wi-Fi key:    $(grep '^NEXUS_HOTSPOT_PASSWORD=' /etc/default/sublim3-nexus | cut -d= -f2-)"

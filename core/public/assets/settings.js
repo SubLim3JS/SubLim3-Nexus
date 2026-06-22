@@ -1,8 +1,8 @@
 const $ = (selector) => document.querySelector(selector);
-let settingsPin = sessionStorage.getItem("nexus-settings-pin") ?? "";
+let adminToken = localStorage.getItem("nexus-admin-token") ?? "";
 
 function alertMessage(message, type = "") { const alert = $("#settings-alert"); alert.textContent = message; alert.className = `settings-alert ${type}`; }
-function headers(json = false) { return { ...(json ? { "content-type": "application/json" } : {}), ...(settingsPin ? { "x-nexus-settings-pin": settingsPin } : {}) }; }
+function headers(json = false) { return { ...(json ? { "content-type": "application/json" } : {}), ...(adminToken ? { authorization: `Bearer ${adminToken}` } : {}) }; }
 async function api(path, options = {}) { const response = await fetch(path, options); const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.message || body.details?.join(". ") || body.error || "Request failed"); return body; }
 function lockControls(locked) { document.querySelectorAll(".locked-control").forEach((element) => element.classList.toggle("is-locked", locked)); }
 
@@ -22,9 +22,15 @@ function renderStatus(status) {
 async function loadStatus() { const { data } = await api("/api/v1/connectivity/status", { headers: headers() }); renderStatus(data); }
 
 $("#pin-form").addEventListener("submit", async (event) => {
-  event.preventDefault(); settingsPin = $("#settings-pin").value.trim();
-  try { await loadStatus(); sessionStorage.setItem("nexus-settings-pin", settingsPin); lockControls(false); alertMessage("Settings controls unlocked.", "success"); }
-  catch (error) { settingsPin = ""; lockControls(true); alertMessage(error.message, "error"); }
+  event.preventDefault();
+  try {
+    const response = await fetch("/api/v1/auth/pair", { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({ role:"admin", pin:$("#settings-pin").value.trim() }) });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.message || body.error || "Pairing failed");
+    adminToken = body.token; localStorage.setItem("nexus-admin-token", adminToken);
+    await loadStatus(); lockControls(false); alertMessage("Settings controls unlocked.", "success");
+  }
+  catch (error) { adminToken = ""; localStorage.removeItem("nexus-admin-token"); lockControls(true); alertMessage(error.message, "error"); }
 });
 
 $("#scan-wifi").addEventListener("click", async () => {
@@ -55,6 +61,6 @@ $("#bluetooth-visible").addEventListener("change", async (event) => {
   finally { event.target.disabled = false; }
 });
 
-lockControls(!settingsPin);
-if (settingsPin) { $("#settings-pin").value = settingsPin; loadStatus().then(() => lockControls(false)).catch(() => { settingsPin=""; sessionStorage.removeItem("nexus-settings-pin"); lockControls(true); alertMessage("Enter the Settings PIN to unlock connectivity controls."); }); }
-else alertMessage("Enter the Settings PIN to unlock connectivity controls.");
+lockControls(!adminToken);
+if (adminToken) { loadStatus().then(() => lockControls(false)).catch(() => { adminToken=""; localStorage.removeItem("nexus-admin-token"); lockControls(true); alertMessage("Enter the Admin PIN to unlock connectivity controls."); }); }
+else alertMessage("Enter the Admin PIN to unlock connectivity controls.");

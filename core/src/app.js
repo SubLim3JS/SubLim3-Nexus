@@ -51,11 +51,12 @@ export function createApp({
   campaignStore,
   sessionStore,
   characterStore,
+  access,
   connectivity,
   settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "0.7.0",
+  version = "0.8.0",
   startedAt = new Date(),
 }) {
   const settingsGuard = { failures: 0, blockedUntil: 0 };
@@ -84,24 +85,74 @@ export function createApp({
         });
       }
 
+      if (access && request.method === "POST" && url.pathname === `${API_PREFIX}/auth/pair`) {
+        const input = await readJson(request);
+        if (!input || typeof input !== "object") return sendJson(response, 422, { error: "validation_failed", details: ["pairing body must be an object"] });
+        const role = String(input.role ?? "");
+        const campaignId = input.campaign_id ? String(input.campaign_id) : null;
+        const characterId = input.character_id ? String(input.character_id) : null;
+        if (role === "gm" || role === "player") {
+          if (!campaignId || !await campaignStore.get(campaignId)) return sendJson(response, 404, { error: "campaign_not_found" });
+        }
+        if (role === "player") {
+          const character = characterId ? await characterStore.get(characterId) : null;
+          if (!character || character.campaign_id !== campaignId) return sendJson(response, 404, { error: "character_not_found" });
+        }
+        const paired = await access.pair({ role, pin: input.pin, campaignId, characterId });
+        return sendJson(response, 201, { token: paired.token, data: paired.session });
+      }
+
+      if (access && request.method === "GET" && url.pathname === `${API_PREFIX}/auth/me`) {
+        return sendJson(response, 200, { data: await access.authenticate(request) });
+      }
+
+      if (access && request.method === "DELETE" && url.pathname === `${API_PREFIX}/auth/session`) {
+        await access.revoke(request);
+        return sendJson(response, 204, null);
+      }
+
+      if (access && request.method === "GET" && url.pathname === `${API_PREFIX}/auth/sessions`) {
+        await access.authorize(request, { roles: ["admin"] });
+        return sendJson(response, 200, { data: await access.list() });
+      }
+
+      const revokeSession = access && request.method === "DELETE" ? url.pathname.match(/^\/api\/v1\/auth\/sessions\/([a-f0-9]{64})$/) : null;
+      if (revokeSession) {
+        await access.authorize(request, { roles: ["admin"] });
+        return (await access.revokeById(revokeSession[1])) ? sendJson(response, 204, null) : sendJson(response, 404, { error: "session_not_found" });
+      }
+
+      if (request.method === "GET" && url.pathname === `${API_PREFIX}/discovery/campaigns`) {
+        const campaigns = await campaignStore.list();
+        return sendJson(response, 200, { data: campaigns.map(({ campaign_id, name, system_id }) => ({ campaign_id, name, system_id })) });
+      }
+
+      const discoveryCharacters = request.method === "GET" ? url.pathname.match(/^\/api\/v1\/discovery\/campaigns\/([^/]+)\/characters$/) : null;
+      if (discoveryCharacters) {
+        const campaignId = decodeURIComponent(discoveryCharacters[1]);
+        if (!await campaignStore.get(campaignId)) return sendJson(response, 404, { error: "campaign_not_found" });
+        const characters = (await characterStore.list()).filter((item) => item.campaign_id === campaignId);
+        return sendJson(response, 200, { data: characters.map(({ character_id, character_name }) => ({ character_id, character_name })) });
+      }
+
       if (connectivity && request.method === "GET" && url.pathname === `${API_PREFIX}/connectivity/status`) {
-        requireSettingsAccess(request, settingsPin, settingsGuard);
+        if (access) await access.authorize(request, { roles: ["admin"] }); else requireSettingsAccess(request, settingsPin, settingsGuard);
         return sendJson(response, 200, { data: await connectivity.status() });
       }
 
       if (connectivity && request.method === "GET" && url.pathname === `${API_PREFIX}/connectivity/wifi/networks`) {
-        requireSettingsAccess(request, settingsPin, settingsGuard);
+        if (access) await access.authorize(request, { roles: ["admin"] }); else requireSettingsAccess(request, settingsPin, settingsGuard);
         return sendJson(response, 200, { data: await connectivity.scanWifi() });
       }
 
       if (connectivity && request.method === "POST" && url.pathname === `${API_PREFIX}/connectivity/wifi/mode`) {
-        requireSettingsAccess(request, settingsPin, settingsGuard);
+        if (access) await access.authorize(request, { roles: ["admin"] }); else requireSettingsAccess(request, settingsPin, settingsGuard);
         await connectivity.switchWifi(await readJson(request));
         return sendJson(response, 202, { success: true, message: "Connectivity change accepted" });
       }
 
       if (connectivity && request.method === "POST" && url.pathname === `${API_PREFIX}/connectivity/bluetooth/visibility`) {
-        requireSettingsAccess(request, settingsPin, settingsGuard);
+        if (access) await access.authorize(request, { roles: ["admin"] }); else requireSettingsAccess(request, settingsPin, settingsGuard);
         const input = await readJson(request);
         if (typeof input.visible !== "boolean") return sendJson(response, 422, { error: "validation_failed", details: ["visible must be boolean"] });
         await connectivity.setBluetoothVisible(input.visible);
@@ -109,6 +160,7 @@ export function createApp({
       }
 
       if (url.pathname === `${API_PREFIX}/campaigns`) {
+        if (access) await access.authorize(request, { roles: ["admin"] });
         if (request.method === "GET") {
           return sendJson(response, 200, { data: await campaignStore.list() });
         }
@@ -143,10 +195,12 @@ export function createApp({
         if (!campaign) return sendJson(response, 404, { error: "campaign_not_found" });
 
         if (!characterRoute.characterId && request.method === "GET") {
+          if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: characterRoute.campaignId });
           const characters = (await characterStore.list()).filter((item) => item.campaign_id === characterRoute.campaignId);
           return sendJson(response, 200, { data: characters });
         }
         if (!characterRoute.characterId && request.method === "POST") {
+          if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: characterRoute.campaignId });
           const input = await readJson(request);
           const errors = validateCharacter(input);
           if (errors.length) return sendJson(response, 422, { error: "validation_failed", details: errors });
@@ -159,8 +213,12 @@ export function createApp({
         if (characterRoute.characterId) {
           const existing = await characterStore.get(characterRoute.characterId);
           if (!existing || existing.campaign_id !== characterRoute.campaignId) return sendJson(response, 404, { error: "character_not_found" });
-          if (request.method === "GET") return sendJson(response, 200, { data: existing });
+          if (request.method === "GET") {
+            if (access) await access.authorize(request, { roles: ["admin", "gm", "player"], campaignId: characterRoute.campaignId, characterId: characterRoute.characterId });
+            return sendJson(response, 200, { data: existing });
+          }
           if (request.method === "PUT") {
+            if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: characterRoute.campaignId });
             const input = await readJson(request);
             const errors = validateCharacter(input, { requireId: false });
             if (errors.length) return sendJson(response, 422, { error: "validation_failed", details: errors });
@@ -169,6 +227,7 @@ export function createApp({
             return sendJson(response, 200, { data: character });
           }
           if (request.method === "DELETE") {
+            if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: characterRoute.campaignId });
             await characterStore.delete(existing.character_id);
             return sendJson(response, 204, null);
           }
@@ -182,14 +241,17 @@ export function createApp({
         if (!campaign) return sendJson(response, 404, { error: "campaign_not_found" });
 
         if (sessionRoute.action === "session" && request.method === "GET") {
+          if (access) await access.authorize(request, { roles: ["admin", "gm", "player"], campaignId: sessionRoute.campaignId });
           return sendJson(response, 200, { data: await sessionStore.get(sessionRoute.campaignId) ?? emptySession(sessionRoute.campaignId) });
         }
         if (sessionRoute.action === "session" && request.method === "PUT") {
+          if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: sessionRoute.campaignId });
           const session = normalizeSession(sessionRoute.campaignId, await readJson(request));
           await sessionStore.put(sessionRoute.campaignId, session);
           return sendJson(response, 200, { data: session });
         }
         if (sessionRoute.action === "battle/next" && request.method === "POST") {
+          if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: sessionRoute.campaignId });
           const session = advanceTurn(await sessionStore.get(sessionRoute.campaignId) ?? emptySession(sessionRoute.campaignId));
           await sessionStore.put(sessionRoute.campaignId, session);
           return sendJson(response, 200, { data: session });
@@ -200,6 +262,7 @@ export function createApp({
       const campaignId = campaignIdFrom(url.pathname);
       if (campaignId) {
         if (request.method === "GET") {
+          if (access) await access.authorize(request, { roles: ["admin", "gm", "player"], campaignId });
           const campaign = await campaignStore.get(campaignId);
           return campaign
             ? sendJson(response, 200, { data: campaign })
@@ -207,6 +270,7 @@ export function createApp({
         }
 
         if (request.method === "PUT") {
+          if (access) await access.authorize(request, { roles: ["admin"] });
           const existing = await campaignStore.get(campaignId);
           if (!existing) return sendJson(response, 404, { error: "campaign_not_found" });
           const input = await readJson(request);
@@ -224,6 +288,7 @@ export function createApp({
         }
 
         if (request.method === "DELETE") {
+          if (access) await access.authorize(request, { roles: ["admin"] });
           return (await campaignStore.delete(campaignId))
             ? sendJson(response, 204, null)
             : sendJson(response, 404, { error: "campaign_not_found" });

@@ -61,6 +61,10 @@ The dashboard also manages system-neutral campaign characters. Each character ha
 a shareable local player view that combines live resources, conditions, GM notes,
 scene information, and battle turn state without requiring a cloud connection.
 
+Role-specific entry points are available at `/admin/`, `/gm/`, and `/player/`.
+Admin and GM devices pair with installer-generated PINs; Player devices select a
+campaign and character and receive a read-only character-scoped session.
+
 Initial development may use Raspberry Pi hardware.
 
 Long-term production hardware may use either:
@@ -719,7 +723,7 @@ sudo ./scripts/install.sh
 
 The installer creates a restricted `nexus` service account, stores runtime data under `/var/lib/sublim3-nexus`, and enables Nexus Core at boot. Runtime settings can be changed in `/etc/default/sublim3-nexus`.
 
-The installer also configures the Network Settings helper, generates a Settings PIN and Local Wi-Fi password, and prints both values. Open `/settings/` to switch between the Nexus hotspot and Home Wi-Fi or toggle Bluetooth visibility. Re-run the installer after pulling a release that changes system services.
+The installer also configures the Network Settings helper, generates Admin and GM PINs plus a Local Wi-Fi password, and prints them. Open `/settings/` to switch between the Nexus hotspot and Home Wi-Fi or toggle Bluetooth visibility. Re-run the installer after pulling a release that changes system services or access credentials.
 
 ```bash
 systemctl status sublim3-nexus

@@ -1,4 +1,5 @@
 const $ = (selector) => document.querySelector(selector);
+let authToken = localStorage.getItem("nexus-admin-token") ?? "";
 
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes)) return "—";
@@ -19,7 +20,9 @@ function formatUptime(totalSeconds) {
 }
 
 async function request(path, options) {
-  const response = await fetch(path, options);
+  const headers = new Headers(options?.headers);
+  if (authToken) headers.set("authorization", `Bearer ${authToken}`);
+  const response = await fetch(path, { ...options, headers });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     throw new Error(body.details?.join(". ") || body.message || body.error || "Request failed");
@@ -318,4 +321,32 @@ function updateClock() {
 
 updateClock();
 setInterval(updateClock, 30_000);
-Promise.all([loadSystemInfo(), loadCampaigns()]).catch((error) => showMessage(`Core connection error: ${error.message}`, "error"));
+
+async function openAdminApp() {
+  const { data } = await request("/api/v1/auth/me");
+  if (data.role !== "admin") throw new Error("This browser is not paired for System Admin access.");
+  $("#admin-gate").hidden = true;
+  $("#admin-app").hidden = false;
+  await Promise.all([loadSystemInfo(), loadCampaigns()]);
+}
+
+$("#admin-pair-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const message = $("#admin-pair-message");
+  try {
+    const response = await fetch("/api/v1/auth/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role: "admin", pin: $("#admin-pin").value }) });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.message || body.error || "Pairing failed");
+    authToken = body.token;
+    localStorage.setItem("nexus-admin-token", authToken);
+    await openAdminApp();
+  } catch (error) { message.textContent = error.message; message.className = "form-message error"; }
+});
+
+$("#admin-logout").addEventListener("click", async () => {
+  try { await request("/api/v1/auth/session", { method: "DELETE" }); } catch { /* The local token is cleared either way. */ }
+  localStorage.removeItem("nexus-admin-token");
+  window.location.reload();
+});
+
+if (authToken) openAdminApp().catch(() => { authToken = ""; localStorage.removeItem("nexus-admin-token"); $("#admin-gate").hidden = false; });

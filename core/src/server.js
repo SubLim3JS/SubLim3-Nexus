@@ -6,6 +6,7 @@ import { JsonStore } from "./storage/json-store.js";
 import { collectSystemInfo } from "./system-info.js";
 import { CommandRunner } from "./platform/command-runner.js";
 import { ConnectivityService } from "./platform/connectivity.js";
+import { AccessService } from "./access.js";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const dataDirectory = process.env.NEXUS_DATA_DIR ?? path.resolve(directory, "../data");
@@ -20,12 +21,19 @@ const connectivity = new ConnectivityService({
 const campaignStore = new JsonStore(path.join(dataDirectory, "campaigns"));
 const sessionStore = new JsonStore(path.join(dataDirectory, "sessions"));
 const characterStore = new JsonStore(path.join(dataDirectory, "characters"));
-await Promise.all([campaignStore.initialize(), sessionStore.initialize(), characterStore.initialize()]);
+const accessSessionStore = new JsonStore(path.join(dataDirectory, "access-sessions"));
+await Promise.all([campaignStore.initialize(), sessionStore.initialize(), characterStore.initialize(), accessSessionStore.initialize()]);
+const access = new AccessService({
+  sessionStore: accessSessionStore,
+  adminPin: process.env.NEXUS_ADMIN_PIN ?? process.env.NEXUS_SETTINGS_PIN ?? "",
+  gmPin: process.env.NEXUS_GM_PIN ?? "",
+});
 
 const server = createServer(createApp({
   campaignStore,
   sessionStore,
   characterStore,
+  access,
   connectivity,
   getSystemInfo: () => collectSystemInfo(dataDirectory),
 }));

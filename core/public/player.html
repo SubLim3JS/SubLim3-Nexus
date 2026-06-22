@@ -6,16 +6,18 @@
     <meta name="theme-color" content="#090b12">
     <title>Player View • SubLim3 Nexus</title>
     <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
-    <link rel="stylesheet" href="/assets/styles.css?v=0.7.0">
-    <link rel="stylesheet" href="/assets/player.css?v=0.7.0">
-    <script type="module" src="/assets/player.js?v=0.7.0"></script>
+    <link rel="stylesheet" href="/assets/styles.css?v=0.8.0">
+    <link rel="stylesheet" href="/assets/player.css?v=0.8.0">
+    <script type="module" src="/assets/player.js?v=0.8.0"></script>
   </head>
   <body>
     <main class="player-main">
       <header class="player-header">
         <a class="brand" href="/"><span class="brand-mark"><img src="/assets/nexus-logo.png" alt=""></span><span><strong>SubLim3</strong><small>PLAYER VIEW</small></span></a>
-        <div><span id="connection-state" class="player-live"><i></i>Connected</span><a href="/">GM dashboard</a></div>
+        <div><span id="connection-state" class="player-live" hidden><i></i>Connected</span><button id="player-switch" type="button" hidden>Switch character</button></div>
       </header>
+
+      <section id="player-select" class="player-loading" hidden><span class="access-logo"><img src="/assets/nexus-logo.png" alt=""></span><p class="eyebrow">PLAYER ACCESS</p><h1>Choose your character</h1><p>Select the campaign and character assigned to you. This device will remember your choice.</p><form id="player-pair-form" class="player-pair-form"><label>Campaign<select id="player-campaign" required><option value="">Choose a campaign</option></select></label><label>Character<select id="player-character" required disabled><option value="">Choose a character</option></select></label><button class="primary-button" type="submit">Join the table <span>→</span></button></form><p id="player-pair-message" class="form-message" role="status"></p></section>
 
       <section id="player-loading" class="player-loading"><img src="/assets/nexus-logo.png" alt=""><h1>Joining the table…</h1><p>Loading character and session state from Nexus Core.</p></section>
 

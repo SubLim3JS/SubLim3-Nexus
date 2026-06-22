@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#090b12">
+    <title>GM Console • SubLim3 Nexus</title><link rel="icon" type="image/png" href="/assets/nexus-logo.png">
+    <link rel="stylesheet" href="/assets/styles.css?v=0.8.0"><link rel="stylesheet" href="/assets/gm.css?v=0.8.0"><script type="module" src="/assets/gm.js?v=0.8.0"></script>
+  </head>
+  <body>
+    <section id="gm-gate" class="access-gate"><div class="access-gate-card"><span class="access-logo"><img src="/assets/nexus-logo.png" alt=""></span><p class="eyebrow">GM / DM ACCESS</p><h1>Join your campaign</h1><p>Pair this device to one campaign using the GM PIN.</p><form id="gm-pair-form"><label>Campaign<select id="gm-campaign" required><option value="">Choose a campaign</option></select></label><label>GM PIN<input id="gm-pin" type="password" inputmode="numeric" required placeholder="000000"></label><button class="primary-button" type="submit">Open table console <span>→</span></button></form><p id="gm-pair-message" class="form-message" role="status"></p><div class="access-links"><a href="/">System Admin</a><a href="/player/">Player view</a></div></div></section>
+    <main id="gm-app" class="gm-main" hidden>
+      <header class="gm-header"><a class="brand" href="/gm/"><span class="brand-mark"><img src="/assets/nexus-logo.png" alt=""></span><span><strong>SubLim3</strong><small>GM CONSOLE</small></span></a><div><span class="live-badge"><i></i>Table live</span><button id="gm-logout" type="button">Switch campaign</button></div></header>
+      <section class="gm-intro"><div><p class="eyebrow">ACTIVE CAMPAIGN</p><h1 id="gm-campaign-name">Campaign</h1><p>Publish what the table sees and keep initiative moving.</p></div><div id="gm-turn" class="gm-turn"><span>Current turn</span><strong>Exploration</strong><small>Game mode</small></div></section>
+      <div class="gm-grid">
+        <form id="gm-session-form" class="gm-console"><div class="panel-title"><div><p class="eyebrow">TABLE STATE</p><h2>Scene &amp; battle</h2></div><span id="gm-mode-badge" class="count-badge">Game mode</span></div><label>Mode<select id="gm-mode"><option value="game">Game</option><option value="battle">Battle</option></select></label><label>Scene title<input id="gm-scene-title" placeholder="The Broken Gate"></label><label>What players see<textarea id="gm-scene-description" rows="4"></textarea></label><label>Initiative <small>One per line: Name, initiative</small><textarea id="gm-combatants" rows="7" placeholder="Nyra Vale, 18&#10;Vault Sentinel, 12"></textarea></label><div class="gm-actions"><button class="primary-button" type="submit">Publish to table <span>→</span></button><button id="gm-next-turn" class="secondary-button" type="button">Next turn</button></div><p id="gm-message" class="form-message" role="status"></p></form>
+        <aside class="gm-roster"><div class="panel-title"><div><p class="eyebrow">PARTY</p><h2>Characters</h2></div><span id="gm-character-count" class="count-badge">0</span></div><div id="gm-character-list"></div></aside>
+      </div>
+    </main>
+  </body>
+</html>

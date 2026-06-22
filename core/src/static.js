@@ -4,6 +4,8 @@ import path from "node:path";
 const FILES = new Map([
   ["/", ["index.html", "text/html; charset=utf-8"]],
   ["/index.html", ["index.html", "text/html; charset=utf-8"]],
+  ["/admin", ["index.html", "text/html; charset=utf-8"]],
+  ["/admin/", ["index.html", "text/html; charset=utf-8"]],
   ["/settings", ["settings.html", "text/html; charset=utf-8"]],
   ["/settings/", ["settings.html", "text/html; charset=utf-8"]],
   ["/settings/index.html", ["settings.html", "text/html; charset=utf-8"]],
@@ -13,6 +15,9 @@ const FILES = new Map([
   ["/player", ["player.html", "text/html; charset=utf-8"]],
   ["/player/", ["player.html", "text/html; charset=utf-8"]],
   ["/player/index.html", ["player.html", "text/html; charset=utf-8"]],
+  ["/gm", ["gm.html", "text/html; charset=utf-8"]],
+  ["/gm/", ["gm.html", "text/html; charset=utf-8"]],
+  ["/gm/index.html", ["gm.html", "text/html; charset=utf-8"]],
   ["/assets/styles.css", ["assets/styles.css", "text/css; charset=utf-8"]],
   ["/assets/app.js", ["assets/app.js", "text/javascript; charset=utf-8"]],
   ["/assets/settings.css", ["assets/settings.css", "text/css; charset=utf-8"]],
@@ -21,6 +26,8 @@ const FILES = new Map([
   ["/assets/media.js", ["assets/media.js", "text/javascript; charset=utf-8"]],
   ["/assets/player.css", ["assets/player.css", "text/css; charset=utf-8"]],
   ["/assets/player.js", ["assets/player.js", "text/javascript; charset=utf-8"]],
+  ["/assets/gm.css", ["assets/gm.css", "text/css; charset=utf-8"]],
+  ["/assets/gm.js", ["assets/gm.js", "text/javascript; charset=utf-8"]],
   ["/assets/nexus-logo.png", ["assets/nexus-logo.png", "image/png"]],
 ]);
 

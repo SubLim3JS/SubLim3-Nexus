@@ -31,18 +31,24 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 | `PUT` | `/api/v1/campaigns/{campaign_id}/session` | Publish scene and battle state |
 | `POST` | `/api/v1/campaigns/{campaign_id}/battle/next` | Advance the active turn |
 | `GET` | `/api/v1/connectivity/status` | Read Wi-Fi and Bluetooth state |
-| `GET` | `/api/v1/connectivity/wifi/networks` | Scan Wi-Fi networks (Settings PIN) |
-| `POST` | `/api/v1/connectivity/wifi/mode` | Switch Local/Home mode (Settings PIN) |
-| `POST` | `/api/v1/connectivity/bluetooth/visibility` | Toggle Bluetooth discovery (Settings PIN) |
+| `GET` | `/api/v1/connectivity/wifi/networks` | Scan Wi-Fi networks (Admin) |
+| `POST` | `/api/v1/connectivity/wifi/mode` | Switch Local/Home mode (Admin) |
+| `POST` | `/api/v1/connectivity/bluetooth/visibility` | Toggle Bluetooth discovery (Admin) |
 | `GET` | `/api/v1/campaigns/{campaign_id}/characters` | List a campaign's characters |
 | `POST` | `/api/v1/campaigns/{campaign_id}/characters` | Create a system-neutral character |
 | `GET` | `/api/v1/campaigns/{campaign_id}/characters/{character_id}` | Read a character |
 | `PUT` | `/api/v1/campaigns/{campaign_id}/characters/{character_id}` | Replace editable character state |
 | `DELETE` | `/api/v1/campaigns/{campaign_id}/characters/{character_id}` | Delete a character |
+| `POST` | `/api/v1/auth/pair` | Pair an Admin, GM, or Player client |
+| `GET` | `/api/v1/auth/me` | Read the current access scope |
+| `DELETE` | `/api/v1/auth/session` | Unpair the current client |
+| `GET` | `/api/v1/auth/sessions` | List active sessions (Admin) |
+| `GET` | `/api/v1/discovery/campaigns` | Public local campaign picker |
+| `GET` | `/api/v1/discovery/campaigns/{campaign_id}/characters` | Public local character picker |
 
 ## Browser-first session model
 
-The GM dashboard and player views share one system-neutral session record per campaign. Game Mode publishes scene information. Battle Mode adds ordered combatants, initiative, round, and turn state. Player-specific resources and permissions will layer onto this contract before companion hardware uses it.
+The GM dashboard and player views share one system-neutral session record per campaign. Game Mode publishes scene information. Battle Mode adds ordered combatants, initiative, round, and turn state. Player sessions can read only their paired character and campaign table state.
 
 ## Local dashboard
 
@@ -53,6 +59,8 @@ The Settings page at `/settings/` uses a six-digit installer-generated PIN for c
 The media proof of concept at `/media/` is browser-first and fully offline. Its procedural Web Audio soundscapes and effects play through the device viewing the page. Raspberry Pi audio output, Bluetooth routing, persistent libraries, playlists, and RFID triggers remain later media-service boundaries.
 
 Character records are system-neutral: game-specific values live in flexible `fields` and `resources` objects while conditions and public notes have stable shared shapes. The GM manages campaign rosters on the dashboard. `/player/` combines one character with the campaign's published session and refreshes from Nexus Core every three seconds, providing the first phone/tablet view and the contract future companion hardware will consume.
+
+Production startup enables the access layer. Admin sessions have global control, GM sessions are restricted to one campaign, and Player sessions are read-only and restricted to one character. Access tokens are persisted only as SHA-256 hashes and expire after 90 days. Static pages, system health, and discovery summaries remain available before pairing. See `docs/client-surfaces.md` for the Android wrapper direction.
 
 ## Next boundaries
 
