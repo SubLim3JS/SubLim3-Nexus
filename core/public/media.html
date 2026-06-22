@@ -27,6 +27,17 @@
 
       <p id="media-message" class="media-message" role="status" aria-live="polite"></p>
 
+      <section class="audio-search-section">
+        <div class="section-heading"><div><p class="eyebrow">AUDIO FINDER</p><h2>Search audio</h2></div><span class="count-badge">Local · USB · Live</span></div>
+        <form id="audio-search-form" class="audio-search-card">
+          <label class="audio-search-query"><span>Search</span><input id="audio-search-query" type="search" maxlength="120" placeholder="Track, folder, tag, or station"></label>
+          <label><span>Source</span><select id="audio-search-source"><option value="all">All sources</option><option value="local">Nexus library</option><option value="usb">Mounted USB</option><option value="live">Live radio</option></select></label>
+          <button type="submit">Search</button>
+        </form>
+        <p id="audio-search-message" class="library-message" role="status" aria-live="polite">Search every available audio source from one place.</p>
+        <div id="audio-search-results" class="audio-search-results"></div>
+      </section>
+
       <section class="player-grid">
         <article id="now-playing" class="now-playing">
           <div class="album-art">

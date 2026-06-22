@@ -10,6 +10,7 @@ import { JsonStore } from "../core/src/storage/json-store.js";
 import { BUILT_IN_GAME_SYSTEMS } from "../core/src/game-system.js";
 import { AudioService } from "../core/src/audio.js";
 import { AudioFileService } from "../core/src/audio-files.js";
+import { PlayerSettingsService } from "../core/src/player-settings.js";
 
 let baseUrl;
 let server;
@@ -36,6 +37,8 @@ before(async () => {
     stateStore: new JsonStore(path.join(temporaryDirectory, "audio", "state")),
     files: new AudioFileService({ rootDirectory: path.join(temporaryDirectory, "audio", "files"), libraryStore: accessAudioLibraryStore }),
   });
+  const playerSettings = new PlayerSettingsService({ store: new JsonStore(path.join(temporaryDirectory, "settings")) });
+  await playerSettings.initialize();
   await audio.initialize();
   for (const system of BUILT_IN_GAME_SYSTEMS) await systemStore.put(system.system_id, system);
   await campaignStore.put("green_realm", { campaign_id: "green_realm", name: "Green Realm", system_id: "custom" });
@@ -43,7 +46,7 @@ before(async () => {
   await characterStore.put("nyra", { character_id: "nyra", campaign_id: "green_realm", character_name: "Nyra", player_name: "Jordan", fields: {}, resources: {}, conditions: [], public_notes: "", created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
   await characterStore.put("orin", { character_id: "orin", campaign_id: "green_realm", character_name: "Orin", player_name: "Sam", fields: {}, resources: {}, conditions: [], public_notes: "", created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
   const access = new AccessService({ sessionStore: accessSessionStore, adminPin: "111111", gmPin: "222222", persistGmPin: async (pin) => { persistedGmPin = pin; } });
-  server = createServer(createApp({ campaignStore, sessionStore, characterStore, systemStore, access, audio }));
+  server = createServer(createApp({ campaignStore, sessionStore, characterStore, systemStore, access, audio, playerSettings }));
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
@@ -72,6 +75,7 @@ test("scopes GM access to one campaign and permits table mutations", async () =>
   assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/red_realm`, { headers: bearer(gm.body.token) })).status, 403);
   assert.equal((await fetch(`${baseUrl}/api/v1/campaigns`, { headers: bearer(gm.body.token) })).status, 403);
   assert.equal((await fetch(`${baseUrl}/api/v1/auth/pairing`, { headers: bearer(gm.body.token) })).status, 403);
+  assert.equal((await fetch(`${baseUrl}/api/v1/settings/player`, { headers: bearer(gm.body.token) })).status, 403);
   assert.equal((await fetch(`${baseUrl}/api/v1/systems`, { headers: bearer(gm.body.token) })).status, 200);
   assert.equal((await fetch(`${baseUrl}/api/v1/systems`, { method: "POST", headers: { ...bearer(gm.body.token), "content-type": "application/json" }, body: JSON.stringify({ system_id: "forbidden", name: "Forbidden" }) })).status, 403);
   assert.equal((await fetch(`${baseUrl}/api/v1/audio/play`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ item_id: "lantern-and-oak" }) })).status, 401);
@@ -88,6 +92,7 @@ test("scopes GM access to one campaign and permits table mutations", async () =>
 
 test("lets Admin view sessions and rotate the GM PIN", async () => {
   const admin = await pair({ role: "admin", pin: "111111", device_name: "Admin laptop" });
+  assert.equal((await fetch(`${baseUrl}/api/v1/settings/player`, { headers:bearer(admin.body.token) })).status, 200);
   const pairing = await fetch(`${baseUrl}/api/v1/auth/pairing`, { headers: bearer(admin.body.token) }).then((response) => response.json());
   assert.equal(pairing.data.gm_pin, "222222");
   const sessions = await fetch(`${baseUrl}/api/v1/auth/sessions`, { headers: bearer(admin.body.token) }).then((response) => response.json());

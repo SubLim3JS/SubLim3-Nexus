@@ -443,18 +443,118 @@ function applyRadioPreset(event) {
 $("#radio-preset").addEventListener("input", applyRadioPreset);
 $("#radio-preset").addEventListener("change", applyRadioPreset);
 
-$("#radio-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const name = $("#radio-name").value.trim();
-  const url = $("#radio-url").value.trim();
-  const radioMessage = $("#radio-message");
+async function playRadioStation(name, url, target = $("#radio-message")) {
   try {
     await ensureAudio();
     const status = await api("/api/v1/audio/radio/play", { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify({ name, url }) });
     await applyStatus(status, { allowAudio:true });
-    radioMessage.textContent = `Playing ${name}.`;
-    radioMessage.className = "library-message success";
-  } catch (error) { radioMessage.textContent = error.message; radioMessage.className = "library-message error"; }
+    target.textContent = `Playing ${name}.`;
+    target.className = "library-message success";
+  } catch (error) { target.textContent = error.message; target.className = "library-message error"; }
+}
+
+$("#radio-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await playRadioStation($("#radio-name").value.trim(), $("#radio-url").value.trim());
+});
+
+function searchableText(...values) {
+  return values.flat(Infinity).filter(Boolean).join(" ").toLocaleLowerCase();
+}
+
+function liveStations() {
+  const stations = new Map();
+  for (const option of $("#radio-preset").options) {
+    if (option.value) stations.set(option.value, { name: option.dataset.name || option.textContent, url: option.value });
+  }
+  const customName = $("#radio-name").value.trim();
+  const customUrl = $("#radio-url").value.trim();
+  if (customName && customUrl) stations.set(customUrl, { name: customName, url: customUrl });
+  return [...stations.values()];
+}
+
+function renderAudioSearchResults(results) {
+  if (!results.length) {
+    const empty = document.createElement("p");
+    empty.className = "library-empty";
+    empty.textContent = "No matching audio was found.";
+    $("#audio-search-results").replaceChildren(empty);
+    return;
+  }
+  $("#audio-search-results").replaceChildren(...results.map((result) => {
+    const row = document.createElement("article");
+    row.className = "audio-result";
+    const copy = document.createElement("span");
+    copy.className = "audio-result-copy";
+    const name = document.createElement("strong");
+    name.textContent = result.name;
+    const detail = document.createElement("small");
+    detail.textContent = result.detail;
+    copy.append(name, detail);
+    const source = document.createElement("span");
+    source.className = "audio-result-source";
+    source.textContent = result.source;
+    const play = document.createElement("button");
+    play.type = "button";
+    play.textContent = "Play";
+    play.addEventListener("click", result.play);
+    row.append(copy, source, play);
+    return row;
+  }));
+}
+
+async function searchAudio() {
+  const query = $("#audio-search-query").value.trim().toLocaleLowerCase();
+  const selectedSource = $("#audio-search-source").value;
+  const searchMessage = $("#audio-search-message");
+  const includesSource = (source) => selectedSource === "all" || selectedSource === source;
+  const matches = (...values) => !query || searchableText(values).includes(query);
+  const results = [];
+  let usbWarning = "";
+
+  if (includesSource("local")) {
+    for (const item of libraryItems) {
+      if (!matches(item.name, item.description, item.tags, item.folder_path, item.source?.original_filename)) continue;
+      results.push({
+        source: "Local",
+        name: item.name,
+        detail: item.folder_path || item.description || item.tags?.join(" • ") || "Nexus library",
+        play: () => item.kind === "effect"
+          ? control(`/api/v1/audio/effects/${encodeURIComponent(item.item_id)}/trigger`)
+          : playTrack(tracks.findIndex((track) => track.item_id === item.item_id)),
+      });
+    }
+  }
+
+  if (includesSource("usb")) {
+    try {
+      const usbFiles = await api("/api/v1/audio/usb");
+      for (const file of usbFiles) {
+        if (!matches(file.name, file.location)) continue;
+        results.push({ source:"USB", name:file.name, detail:file.location, play:() => playFromUsb(file.source_path) });
+      }
+    } catch (error) { usbWarning = error.message; }
+  }
+
+  if (includesSource("live")) {
+    for (const station of liveStations()) {
+      if (!matches(station.name, station.url)) continue;
+      results.push({ source:"Live", name:station.name, detail:station.url, play:() => playRadioStation(station.name, station.url, searchMessage) });
+    }
+  }
+
+  renderAudioSearchResults(results);
+  searchMessage.textContent = `${results.length} result${results.length === 1 ? "" : "s"} found.${usbWarning ? ` USB unavailable: ${usbWarning}` : ""}`;
+  searchMessage.className = `library-message${usbWarning && selectedSource === "usb" ? " error" : ""}`;
+}
+
+$("#audio-search-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = event.currentTarget.querySelector("button");
+  button.disabled = true;
+  $("#audio-search-message").textContent = "Searching available audio…";
+  try { await searchAudio(); }
+  finally { button.disabled = false; }
 });
 
 async function reloadLibrary() {

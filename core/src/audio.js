@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { DEFAULT_PLAYER_SETTINGS } from "./player-settings.js";
 
 export const BUILT_IN_AUDIO_ITEMS = [
   {
@@ -46,14 +47,14 @@ function audioError(message, statusCode = 422) {
   return Object.assign(new Error(message), { statusCode });
 }
 
-function initialState(now) {
+function initialState(now, preferences = DEFAULT_PLAYER_SETTINGS) {
   return {
     state: "stopped",
     item_id: null,
     external_item: null,
     position_seconds: 0,
     started_at: null,
-    volume: 55,
+    volume: preferences.startup_volume,
     revision: 0,
     last_effect: null,
     output: { driver: "browser_preview", name: "Browser renderer" },
@@ -62,12 +63,14 @@ function initialState(now) {
 }
 
 export class AudioService {
-  constructor({ libraryStore, stateStore, files = null, now = () => new Date() }) {
+  constructor({ libraryStore, stateStore, files = null, preferences = DEFAULT_PLAYER_SETTINGS, now = () => new Date() }) {
     this.libraryStore = libraryStore;
     this.stateStore = stateStore;
     this.files = files;
     this.now = now;
+    this.preferences = { ...DEFAULT_PLAYER_SETTINGS, ...preferences };
     this.mutation = Promise.resolve();
+    this.stopTimer = null;
   }
 
   async initialize() {
@@ -79,8 +82,13 @@ export class AudioService {
       }
     }));
     const existingState = await this.stateStore.get(STATE_ID);
-    if (!existingState) await this.stateStore.put(STATE_ID, initialState(this.now()));
-    else if (existingState.external_item) await this.stateStore.put(STATE_ID, { ...existingState, state: "stopped", item_id: null, external_item: null, position_seconds: 0, started_at: null, updated_at: this.now().toISOString() });
+    if (!existingState) await this.stateStore.put(STATE_ID, initialState(this.now(), this.preferences));
+    else await this.stateStore.put(STATE_ID, {
+      ...existingState,
+      ...(existingState.external_item ? { state: "stopped", item_id: null, external_item: null, position_seconds: 0, started_at: null } : {}),
+      volume: this.preferences.startup_volume,
+      updated_at: this.now().toISOString(),
+    });
   }
 
   async library(kind = null) {
@@ -101,7 +109,7 @@ export class AudioService {
   }
 
   async status() {
-    const state = await this.stateStore.get(STATE_ID) ?? initialState(this.now());
+    const state = await this.stateStore.get(STATE_ID) ?? initialState(this.now(), this.preferences);
     const item = state.external_item?.item_id === state.item_id ? state.external_item : state.item_id ? await this.libraryStore.get(state.item_id) : null;
     let position = this.position(state);
     if (item?.duration_seconds && item.loop) position %= item.duration_seconds;
@@ -112,7 +120,7 @@ export class AudioService {
   async change(mutator) {
     const operation = this.mutation.then(async () => {
       const now = this.now();
-      const current = await this.stateStore.get(STATE_ID) ?? initialState(now);
+      const current = await this.stateStore.get(STATE_ID) ?? initialState(now, this.preferences);
       const next = await mutator(current, now);
       const saved = { ...next, revision: (Number(current.revision) || 0) + 1, updated_at: now.toISOString() };
       await this.stateStore.put(STATE_ID, saved);
@@ -122,9 +130,26 @@ export class AudioService {
     return operation;
   }
 
+  scheduleStop(status) {
+    clearTimeout(this.stopTimer);
+    this.stopTimer = null;
+    const minutes = Number(this.preferences.stop_playout_minutes) || 0;
+    if (status?.state !== "playing" || minutes <= 0) return;
+    this.stopTimer = setTimeout(() => this.stop().catch(() => {}), minutes * 60_000);
+    this.stopTimer.unref?.();
+  }
+
+  async applyPreferences(preferences) {
+    this.preferences = { ...DEFAULT_PLAYER_SETTINGS, ...preferences };
+    const status = await this.status();
+    if (status.volume > this.preferences.maximum_volume) return this.setVolume(this.preferences.maximum_volume);
+    this.scheduleStop(status);
+    return status;
+  }
+
   async play(itemId) {
     const item = await this.item(itemId, "ambience");
-    return this.change((current, now) => ({
+    const status = await this.change((current, now) => ({
       ...current,
       state: "playing",
       item_id: item.item_id,
@@ -132,12 +157,14 @@ export class AudioService {
       position_seconds: current.item_id === item.item_id ? this.position(current, now) : 0,
       started_at: now.toISOString(),
     }));
+    this.scheduleStop(status);
+    return status;
   }
 
   async playUsb(sourcePath) {
     if (!this.files) throw audioError("USB playback is unavailable", 503);
     const item = await this.files.describeUsb(sourcePath);
-    return this.change((current, now) => ({
+    const status = await this.change((current, now) => ({
       ...current,
       state: "playing",
       item_id: item.item_id,
@@ -145,6 +172,8 @@ export class AudioService {
       position_seconds: 0,
       started_at: now.toISOString(),
     }));
+    this.scheduleStop(status);
+    return status;
   }
 
   async playRadio({ name, url }) {
@@ -167,7 +196,7 @@ export class AudioService {
       loop: false,
       source: { type: "radio", stream_url: streamUrl.href },
     };
-    return this.change((current, now) => ({
+    const status = await this.change((current, now) => ({
       ...current,
       state: "playing",
       item_id: item.item_id,
@@ -175,9 +204,13 @@ export class AudioService {
       position_seconds: 0,
       started_at: now.toISOString(),
     }));
+    this.scheduleStop(status);
+    return status;
   }
 
   async pause() {
+    clearTimeout(this.stopTimer);
+    this.stopTimer = null;
     return this.change((current, now) => ({
       ...current,
       state: current.item_id ? "paused" : "stopped",
@@ -187,6 +220,8 @@ export class AudioService {
   }
 
   async stop() {
+    clearTimeout(this.stopTimer);
+    this.stopTimer = null;
     return this.change((current) => ({
       ...current,
       state: "stopped",
@@ -199,7 +234,7 @@ export class AudioService {
 
   async setVolume(value) {
     const volume = Number(value);
-    if (!Number.isFinite(volume) || volume < 0 || volume > 100) throw audioError("volume must be between 0 and 100");
+    if (!Number.isFinite(volume) || volume < 0 || volume > this.preferences.maximum_volume) throw audioError(`volume must be between 0 and ${this.preferences.maximum_volume}`);
     return this.change((current) => ({ ...current, volume: Math.round(volume) }));
   }
 

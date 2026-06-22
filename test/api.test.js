@@ -9,6 +9,7 @@ import { JsonStore } from "../core/src/storage/json-store.js";
 import { BUILT_IN_GAME_SYSTEMS } from "../core/src/game-system.js";
 import { AudioService } from "../core/src/audio.js";
 import { AudioFileService } from "../core/src/audio-files.js";
+import { PlayerSettingsService } from "../core/src/player-settings.js";
 
 let baseUrl;
 let server;
@@ -24,6 +25,8 @@ before(async () => {
   const systemStore = new JsonStore(path.join(temporaryDirectory, "systems"));
   const audioLibraryStore = new JsonStore(path.join(temporaryDirectory, "audio", "library"));
   const audioStateStore = new JsonStore(path.join(temporaryDirectory, "audio", "state"));
+  const playerSettings = new PlayerSettingsService({ store: new JsonStore(path.join(temporaryDirectory, "settings")) });
+  await playerSettings.initialize();
   const usbRoot = path.join(temporaryDirectory, "usb");
   await mkdir(usbRoot, { recursive: true });
   await writeFile(path.join(usbRoot, "usb-tone.wav"), Buffer.from("RIFFusb-audio"));
@@ -38,6 +41,7 @@ before(async () => {
     characterStore,
     systemStore,
     audio,
+    playerSettings,
     settingsPin: "123456",
     connectivity: {
       status: async () => ({ supported: true, wifi: { mode: "local", ssid: "SubLim3-Nexus", addresses: ["10.42.0.1/24"] }, bluetooth: { available: true, visible: false, connected_devices: [] } }),
@@ -131,7 +135,24 @@ test("serves the connectivity Settings page", async () => {
   assert.equal(response.status, 200);
   const page = await response.text();
   assert.match(page, /Bluetooth visibility/);
-  assert.match(page, /Update from GitHub/);
+  assert.match(page, />Update<\/button>/);
+  assert.match(page, /Playback defaults/);
+  assert.match(page, /Card behavior/);
+});
+
+test("protects and persists player settings", async () => {
+  assert.equal((await fetch(`${baseUrl}/api/v1/settings/player`)).status, 401);
+  const settings = await fetch(`${baseUrl}/api/v1/settings/player`, { headers:{ "x-nexus-settings-pin":"123456" } }).then((response) => response.json());
+  assert.equal(settings.data.volume_step, 5);
+  assert.equal(settings.data.rfid_second_scan, "toggle");
+
+  const updated = await fetch(`${baseUrl}/api/v1/settings/player`, {
+    method:"PUT", headers:{ "content-type":"application/json", "x-nexus-settings-pin":"123456" },
+    body:JSON.stringify({ maximum_volume:70, startup_volume:60, volume_step:10, stop_playout_minutes:15, rfid_scan_mode:"place" }),
+  }).then((response) => response.json());
+  assert.equal(updated.data.maximum_volume, 70);
+  assert.equal(updated.data.rfid_scan_mode, "place");
+  assert.equal((await fetch(`${baseUrl}/api/v1/audio/volume`, { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify({ volume:80 }) })).status, 422);
 });
 
 test("protects and delegates system controls", async () => {
@@ -154,6 +175,8 @@ test("serves the offline media player demo", async () => {
   assert.match(page, /Soundscapes/);
   assert.match(page, /Core synced/);
   assert.match(page, /Live radio/);
+  assert.match(page, /Search audio/);
+  assert.match(page, /Local · USB · Live/);
   assert.match(page, /stream\.revma\.ihrhls\.com\/zc2157/);
   assert.match(response.headers.get("content-security-policy"), /media-src 'self' http: https:/);
 });

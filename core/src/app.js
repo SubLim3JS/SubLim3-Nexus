@@ -98,6 +98,7 @@ export function createApp({
   audio,
   connectivity,
   systemControl,
+  playerSettings,
   settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
@@ -144,6 +145,17 @@ export function createApp({
           const output = await systemControl.update();
           return sendJson(response, 202, { success: true, message: "Update installed; Nexus Core is restarting", output });
         }
+      }
+
+      if (playerSettings && url.pathname === `${API_PREFIX}/settings/player`) {
+        if (access) await access.authorize(request, { roles: ["admin"] }); else requireSettingsAccess(request, settingsPin, settingsGuard);
+        if (request.method === "GET") return sendJson(response, 200, { data: await playerSettings.get() });
+        if (request.method === "PUT") {
+          const settings = await playerSettings.update(await readJson(request));
+          await audio?.applyPreferences(settings);
+          return sendJson(response, 200, { data: settings });
+        }
+        return sendJson(response, 405, { error: "method_not_allowed" });
       }
 
       if (audio && request.method === "GET" && url.pathname === `${API_PREFIX}/audio/library`) {

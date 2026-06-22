@@ -340,6 +340,8 @@ POST /api/v1/system/restart
 POST /api/v1/system/shutdown
 POST /api/v1/system/reboot
 POST /api/v1/system/update
+GET  /api/v1/settings/player
+PUT  /api/v1/settings/player
 ```
 
 ---

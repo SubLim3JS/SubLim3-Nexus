@@ -13,6 +13,7 @@ import { applyGameSystemDefaults, BUILT_IN_GAME_SYSTEMS } from "./game-system.js
 import { normalizeCharacter } from "./character.js";
 import { AudioService } from "./audio.js";
 import { AudioFileService } from "./audio-files.js";
+import { PlayerSettingsService } from "./player-settings.js";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const dataDirectory = process.env.NEXUS_DATA_DIR ?? path.resolve(directory, "../data");
@@ -33,12 +34,14 @@ const systemStore = new JsonStore(path.join(dataDirectory, "systems"));
 const accessSessionStore = new JsonStore(path.join(dataDirectory, "access-sessions"));
 const audioLibraryStore = new JsonStore(path.join(dataDirectory, "audio", "library"));
 const audioStateStore = new JsonStore(path.join(dataDirectory, "audio", "state"));
-await Promise.all([campaignStore.initialize(), sessionStore.initialize(), characterStore.initialize(), systemStore.initialize(), accessSessionStore.initialize(), audioLibraryStore.initialize(), audioStateStore.initialize()]);
+const playerSettingsStore = new JsonStore(path.join(dataDirectory, "settings"));
+const playerSettings = new PlayerSettingsService({ store: playerSettingsStore });
+await Promise.all([campaignStore.initialize(), sessionStore.initialize(), characterStore.initialize(), systemStore.initialize(), accessSessionStore.initialize(), audioLibraryStore.initialize(), audioStateStore.initialize(), playerSettings.initialize()]);
 const usbRoots = process.env.NEXUS_USB_IMPORT_ROOTS
   ? process.env.NEXUS_USB_IMPORT_ROOTS.split(path.delimiter).filter(Boolean)
   : process.platform === "linux" ? ["/media", "/mnt"] : [];
 const audioFiles = new AudioFileService({ rootDirectory: path.join(dataDirectory, "audio", "files"), libraryStore: audioLibraryStore, usbRoots });
-const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: audioStateStore, files: audioFiles });
+const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: audioStateStore, files: audioFiles, preferences: await playerSettings.get() });
 await audio.initialize();
 for (const system of BUILT_IN_GAME_SYSTEMS) {
   const existing = await systemStore.get(system.system_id);
@@ -80,6 +83,7 @@ const server = createServer(createApp({
   audio,
   connectivity,
   systemControl,
+  playerSettings,
   getSystemInfo: () => collectSystemInfo(dataDirectory),
 }));
 server.listen(port, host, () => {

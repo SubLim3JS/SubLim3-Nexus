@@ -22,8 +22,8 @@
 
       <section class="settings-intro">
         <p class="eyebrow">CORE CONFIGURATION</p>
-        <h1>Connectivity</h1>
-        <p>Control how the table reaches Nexus Core. Mode changes may disconnect this browser while the radio switches networks.</p>
+        <h1>Settings</h1>
+        <p>Configure connectivity, playback defaults, RFID behavior, and system power for Nexus Core.</p>
       </section>
 
       <div id="settings-alert" class="settings-alert" role="status">Reading Nexus connectivity…</div>
@@ -68,11 +68,35 @@
           <div id="bluetooth-devices" class="device-list">No connected devices</div>
         </article>
 
+        <article class="settings-card wide-panel locked-control">
+          <p class="eyebrow">PLAYER BEHAVIOR</p><h2>Playback defaults</h2>
+          <p class="settings-copy">Set safe volume limits and optionally stop long-running playback automatically.</p>
+          <form id="playback-settings-form" class="settings-form-grid">
+            <label>Maximum volume<input id="maximum-volume" type="number" min="10" max="100" step="5" required></label>
+            <label>Startup volume<input id="startup-volume" type="number" min="0" max="100" step="5" required></label>
+            <label>Volume change<select id="volume-step"><option value="1">1%</option><option value="2">2%</option><option value="5">5%</option><option value="10">10%</option></select></label>
+            <label>Stop playout timer<select id="stop-playout-minutes"><option value="0">Off</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="120">2 hours</option></select></label>
+            <button class="primary-button settings-save" type="submit">Save Playback Settings</button>
+          </form>
+        </article>
+
+        <article class="settings-card wide-panel locked-control">
+          <p class="eyebrow">RFID PLAYER CONTROL</p><h2>Card behavior</h2>
+          <p class="settings-copy">Choose how cards start audio and how Nexus responds when the same card is scanned again.</p>
+          <form id="rfid-settings-form" class="settings-form-grid">
+            <label>Card interaction<select id="rfid-scan-mode"><option value="swipe">Swipe starts playback</option><option value="place">Play while card is present</option></select></label>
+            <label>Second scan<select id="rfid-second-scan"><option value="toggle">Toggle pause / play</option><option value="restart">Restart audio</option><option value="ignore">Do nothing</option></select></label>
+            <label>Ignore repeat scans for<select id="rfid-rescan-delay"><option value="0">No delay</option><option value="1">1 second</option><option value="2">2 seconds</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="10">10 seconds</option></select></label>
+            <label class="toggle-row settings-toggle"><span>Function cards bypass delay</span><input id="function-cards-bypass" type="checkbox" role="switch"></label>
+            <button class="primary-button settings-save" type="submit">Save RFID Settings</button>
+          </form>
+        </article>
+
         <article class="settings-card system-panel locked-control">
           <p class="eyebrow">SYSTEM POWER</p><h2>Nexus Core</h2>
           <p class="settings-copy">Install the latest release from GitHub, restart the Pi, or shut it down safely.</p>
           <div class="system-actions">
-            <button id="update-system" class="primary-button" type="button">Update from GitHub</button>
+            <button id="update-system" class="primary-button" type="button">Update</button>
             <button id="reboot-system" class="secondary-button" type="button">Reboot</button>
             <button id="shutdown-system" class="danger-button" type="button">Shut Down</button>
           </div>

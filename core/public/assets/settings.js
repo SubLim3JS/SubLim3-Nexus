@@ -7,8 +7,9 @@ async function api(path, options = {}) { const response = await fetch(path, opti
 function lockControls(locked) { document.querySelectorAll(".locked-control").forEach((element) => element.classList.toggle("is-locked", locked)); }
 
 function renderStatus(status) {
-  $("#wifi-mode").textContent = status.wifi.mode;
-  $("#mode-badge").textContent = status.supported ? `${status.wifi.mode} mode` : "Unavailable";
+  const wifiMode = status.wifi.mode ? status.wifi.mode.charAt(0).toUpperCase() + status.wifi.mode.slice(1) : "Unknown";
+  $("#wifi-mode").textContent = wifiMode;
+  $("#mode-badge").textContent = status.supported ? `${wifiMode} mode` : "Unavailable";
   $("#wifi-ssid").textContent = status.wifi.ssid || status.wifi.connection || "Not connected";
   $("#wifi-address").textContent = status.wifi.addresses?.[0] || "No address";
   $("#bluetooth-state").textContent = status.bluetooth.available ? status.bluetooth.visible ? "Visible" : status.bluetooth.powered ? "Hidden" : "Powered off" : "Unavailable";
@@ -20,6 +21,18 @@ function renderStatus(status) {
 }
 
 async function loadStatus() { const { data } = await api("/api/v1/connectivity/status", { headers: headers() }); renderStatus(data); }
+function renderPlayerSettings(settings) {
+  $("#maximum-volume").value = settings.maximum_volume;
+  $("#startup-volume").value = settings.startup_volume;
+  $("#volume-step").value = settings.volume_step;
+  $("#stop-playout-minutes").value = settings.stop_playout_minutes;
+  $("#rfid-scan-mode").value = settings.rfid_scan_mode;
+  $("#rfid-second-scan").value = settings.rfid_second_scan;
+  $("#rfid-rescan-delay").value = settings.rfid_rescan_delay_seconds;
+  $("#function-cards-bypass").checked = settings.function_cards_bypass_delay;
+}
+async function loadPlayerSettings() { const { data } = await api("/api/v1/settings/player", { headers:headers() }); renderPlayerSettings(data); }
+async function loadSettingsPage() { await Promise.all([loadStatus(), loadPlayerSettings()]); }
 
 $("#pin-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -28,7 +41,7 @@ $("#pin-form").addEventListener("submit", async (event) => {
     const body = await response.json();
     if (!response.ok) throw new Error(body.message || body.error || "Pairing failed");
     adminToken = body.token; localStorage.setItem("nexus-admin-token", adminToken);
-    await loadStatus(); lockControls(false); alertMessage("Settings controls unlocked.", "success");
+    await loadSettingsPage(); lockControls(false); alertMessage("Settings controls unlocked.", "success");
   }
   catch (error) { adminToken = ""; localStorage.removeItem("nexus-admin-token"); lockControls(true); alertMessage(error.message, "error"); }
 });
@@ -61,6 +74,28 @@ $("#bluetooth-visible").addEventListener("change", async (event) => {
   finally { event.target.disabled = false; }
 });
 
+$("#playback-settings-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const { data } = await api("/api/v1/settings/player", { method:"PUT", headers:headers(true), body:JSON.stringify({
+      maximum_volume:Number($("#maximum-volume").value), startup_volume:Number($("#startup-volume").value),
+      volume_step:Number($("#volume-step").value), stop_playout_minutes:Number($("#stop-playout-minutes").value),
+    }) });
+    renderPlayerSettings(data); alertMessage("Playback settings saved.", "success");
+  } catch (error) { alertMessage(error.message, "error"); }
+});
+
+$("#rfid-settings-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const { data } = await api("/api/v1/settings/player", { method:"PUT", headers:headers(true), body:JSON.stringify({
+      rfid_scan_mode:$("#rfid-scan-mode").value, rfid_second_scan:$("#rfid-second-scan").value,
+      rfid_rescan_delay_seconds:Number($("#rfid-rescan-delay").value), function_cards_bypass_delay:$("#function-cards-bypass").checked,
+    }) });
+    renderPlayerSettings(data); alertMessage("RFID settings saved.", "success");
+  } catch (error) { alertMessage(error.message, "error"); }
+});
+
 async function systemAction(action, pendingMessage, successMessage) {
   alertMessage(pendingMessage);
   document.querySelectorAll(".system-actions button").forEach((button) => { button.disabled = true; });
@@ -90,5 +125,5 @@ $("#shutdown-system").addEventListener("click", () => {
 });
 
 lockControls(!adminToken);
-if (adminToken) { loadStatus().then(() => lockControls(false)).catch(() => { adminToken=""; localStorage.removeItem("nexus-admin-token"); lockControls(true); alertMessage("Enter the Admin PIN to unlock connectivity controls."); }); }
-else alertMessage("Enter the Admin PIN to unlock connectivity controls.");
+if (adminToken) { loadSettingsPage().then(() => lockControls(false)).catch(() => { adminToken=""; localStorage.removeItem("nexus-admin-token"); lockControls(true); alertMessage("Enter the Admin PIN to unlock settings controls."); }); }
+else alertMessage("Enter the Admin PIN to unlock settings controls.");
