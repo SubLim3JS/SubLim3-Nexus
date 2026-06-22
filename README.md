@@ -66,6 +66,11 @@ Admin and GM devices pair with installer-generated PINs; Player devices select a
 campaign and character and receive a read-only character-scoped session.
 The Admin dashboard can inspect and revoke paired clients or rotate the GM PIN.
 
+The GM console now includes a live encounter builder: select campaign characters,
+add NPCs, order initiative, advance turns, and apply damage, healing, or conditions.
+Player views receive those changes immediately and highlight the active character's
+turn, while retaining a polling fallback for local-network interruptions.
+
 Initial development may use Raspberry Pi hardware.
 
 Long-term production hardware may use either:

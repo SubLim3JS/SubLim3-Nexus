@@ -4,6 +4,7 @@ let campaignId = params.get("campaign") ?? "";
 let characterId = params.get("character") ?? "";
 let playerToken = localStorage.getItem("nexus-player-token") ?? "";
 let refreshTimer;
+let eventAbort;
 
 async function api(path, options = {}, authenticated = true) {
   const headers = new Headers(options.headers);
@@ -46,8 +47,11 @@ function render(character, campaign, session) {
   $("#scene-title").textContent = session.scene?.title || "The table awaits";
   $("#scene-description").textContent = session.scene?.description || "The Game Master has not published a scene yet.";
   const active = session.battle?.combatants?.[session.battle.turn_index];
-  $("#turn-name").textContent = active?.name ?? (session.mode === "battle" ? "Awaiting initiative" : "Exploration");
+  const isMyTurn = active?.character_id === character.character_id;
+  $("#turn-name").textContent = isMyTurn ? "Your turn" : active?.name ?? (session.mode === "battle" ? "Awaiting initiative" : "Exploration");
   $("#round-number").textContent = session.mode === "battle" ? `Round ${session.battle.round}` : "Game mode";
+  $("#identity-panel").classList.toggle("my-turn", isMyTurn);
+  $("#my-turn-banner").hidden = !isMyTurn;
   $("#player-loading").hidden = true; $("#player-select").hidden = true; $("#player-error").hidden = true; $("#player-content").hidden = false;
   $("#connection-state").hidden = false; $("#player-switch").hidden = false;
   $("#connection-state").classList.remove("offline"); $("#connection-state").lastChild.textContent = "Connected";
@@ -63,15 +67,37 @@ async function refresh() {
   render(character.data, campaign.data, session.data);
 }
 
-function startRefresh() {
+function startPolling() {
   clearInterval(refreshTimer);
   refreshTimer = setInterval(() => refresh().catch(showReconnect), 3_000);
+}
+
+async function connectLiveEvents() {
+  eventAbort?.abort(); eventAbort = new AbortController();
+  const response = await fetch(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/events`, { headers: { authorization: `Bearer ${playerToken}` }, signal: eventAbort.signal });
+  if (!response.ok || !response.body) throw new Error("Live updates unavailable");
+  const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read(); if (done) throw new Error("Live connection closed");
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split("\n\n"); buffer = events.pop() ?? "";
+    for (const event of events) if (event.includes("event: session")) await refresh();
+  }
+}
+
+function startLiveUpdates() {
+  clearInterval(refreshTimer);
+  connectLiveEvents().catch((error) => {
+    if (error.name === "AbortError") return;
+    showReconnect(); startPolling();
+    setTimeout(() => { clearInterval(refreshTimer); startLiveUpdates(); }, 10_000);
+  });
 }
 
 async function pairPlayer() {
   const body = await api("/api/v1/auth/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role: "player", campaign_id: campaignId, character_id: characterId, device_name: "Player browser" }) }, false);
   playerToken = body.token; localStorage.setItem("nexus-player-token", playerToken);
-  await refresh(); startRefresh();
+  await refresh(); startLiveUpdates();
 }
 
 async function loadCharacters(campaign) {
@@ -100,20 +126,20 @@ $("#player-pair-form").addEventListener("submit", async (event) => {
   catch (error) { $("#player-pair-message").textContent = error.message; }
 });
 $("#player-switch").addEventListener("click", async () => {
-  try { await api("/api/v1/auth/session", { method: "DELETE" }); } catch { /* Clear the local session regardless. */ }
+  eventAbort?.abort(); try { await api("/api/v1/auth/session", { method: "DELETE" }); } catch { /* Clear the local session regardless. */ }
   localStorage.removeItem("nexus-player-token"); window.location.href = "/player/";
 });
 
 async function start() {
   if (campaignId && characterId) {
     if (playerToken) {
-      try { const { data } = await api("/api/v1/auth/me"); if (data.role === "player" && data.campaign_id === campaignId && data.character_id === characterId) { await refresh(); startRefresh(); return; } }
+      try { const { data } = await api("/api/v1/auth/me"); if (data.role === "player" && data.campaign_id === campaignId && data.character_id === characterId) { await refresh(); startLiveUpdates(); return; } }
       catch { playerToken = ""; }
     }
     await pairPlayer(); return;
   }
   if (playerToken) {
-    try { const { data } = await api("/api/v1/auth/me"); if (data.role === "player") { campaignId = data.campaign_id; characterId = data.character_id; await refresh(); startRefresh(); return; } }
+    try { const { data } = await api("/api/v1/auth/me"); if (data.role === "player") { campaignId = data.campaign_id; characterId = data.character_id; await refresh(); startLiveUpdates(); return; } }
     catch { playerToken = ""; localStorage.removeItem("nexus-player-token"); }
   }
   await showSelection();

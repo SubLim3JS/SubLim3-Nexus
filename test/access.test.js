@@ -88,6 +88,7 @@ test("scopes Player access to one character and read-only table state", async ()
   assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/green_realm/characters/orin`, { headers: bearer(player.body.token) })).status, 403);
   assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/green_realm/session`, { headers: bearer(player.body.token) })).status, 200);
   assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/green_realm/session`, { method: "PUT", headers: { ...bearer(player.body.token), "content-type": "application/json" }, body: "{}" })).status, 403);
+  assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/green_realm/battle/combatants/nyra`, { method: "PATCH", headers: { ...bearer(player.body.token), "content-type": "application/json" }, body: "{}" })).status, 403);
   assert.equal((await fetch(`${baseUrl}/api/v1/auth/session`, { method: "DELETE", headers: bearer(player.body.token) })).status, 204);
   assert.equal((await fetch(`${baseUrl}/api/v1/auth/me`, { headers: bearer(player.body.token) })).status, 401);
 });

@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readJson, sendJson } from "./http.js";
 import { serveStatic } from "./static.js";
-import { advanceTurn, emptySession, normalizeSession } from "./session.js";
+import { advanceTurn, emptySession, endBattle, normalizeSession, updateCombatant } from "./session.js";
 import { normalizeCharacter, validateCharacter } from "./character.js";
 
 const API_PREFIX = "/api/v1";
@@ -15,7 +15,7 @@ function campaignIdFrom(pathname) {
 }
 
 function sessionRouteFrom(pathname) {
-  const match = pathname.match(/^\/api\/v1\/campaigns\/([^/]+)\/(session|battle\/next)$/);
+  const match = pathname.match(/^\/api\/v1\/campaigns\/([^/]+)\/(session|battle\/next|battle\/end|events)$/);
   return match ? { campaignId: decodeURIComponent(match[1]), action: match[2] } : null;
 }
 
@@ -25,6 +25,11 @@ function validateCampaign(input, { requireId = true } = {}) {
   if (typeof input.name !== "string" || input.name.trim() === "") errors.push("name is required");
   if (typeof input.system_id !== "string" || input.system_id.trim() === "") errors.push("system_id is required");
   return errors;
+}
+
+function combatantRouteFrom(pathname) {
+  const match = pathname.match(/^\/api\/v1\/campaigns\/([^/]+)\/battle\/combatants\/([^/]+)$/);
+  return match ? { campaignId: decodeURIComponent(match[1]), combatantId: decodeURIComponent(match[2]) } : null;
 }
 
 function characterRouteFrom(pathname) {
@@ -52,11 +57,12 @@ export function createApp({
   sessionStore,
   characterStore,
   access,
+  liveEvents,
   connectivity,
   settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "0.9.0",
+  version = "1.0.0",
   startedAt = new Date(),
 }) {
   const settingsGuard = { failures: 0, blockedUntil: 0 };
@@ -250,6 +256,13 @@ export function createApp({
         const campaign = await campaignStore.get(sessionRoute.campaignId);
         if (!campaign) return sendJson(response, 404, { error: "campaign_not_found" });
 
+        if (sessionRoute.action === "events" && request.method === "GET") {
+          if (access) await access.authorize(request, { roles: ["admin", "gm", "player"], campaignId: sessionRoute.campaignId });
+          if (!liveEvents) return sendJson(response, 503, { error: "live_events_unavailable" });
+          const session = await sessionStore.get(sessionRoute.campaignId) ?? emptySession(sessionRoute.campaignId);
+          liveEvents.stream(sessionRoute.campaignId, request, response, session);
+          return;
+        }
         if (sessionRoute.action === "session" && request.method === "GET") {
           if (access) await access.authorize(request, { roles: ["admin", "gm", "player"], campaignId: sessionRoute.campaignId });
           return sendJson(response, 200, { data: await sessionStore.get(sessionRoute.campaignId) ?? emptySession(sessionRoute.campaignId) });
@@ -258,15 +271,44 @@ export function createApp({
           if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: sessionRoute.campaignId });
           const session = normalizeSession(sessionRoute.campaignId, await readJson(request));
           await sessionStore.put(sessionRoute.campaignId, session);
+          liveEvents?.publish(sessionRoute.campaignId, session);
           return sendJson(response, 200, { data: session });
         }
         if (sessionRoute.action === "battle/next" && request.method === "POST") {
           if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: sessionRoute.campaignId });
           const session = advanceTurn(await sessionStore.get(sessionRoute.campaignId) ?? emptySession(sessionRoute.campaignId));
           await sessionStore.put(sessionRoute.campaignId, session);
+          liveEvents?.publish(sessionRoute.campaignId, session);
+          return sendJson(response, 200, { data: session });
+        }
+        if (sessionRoute.action === "battle/end" && request.method === "POST") {
+          if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: sessionRoute.campaignId });
+          const session = endBattle(await sessionStore.get(sessionRoute.campaignId) ?? emptySession(sessionRoute.campaignId));
+          await sessionStore.put(sessionRoute.campaignId, session);
+          liveEvents?.publish(sessionRoute.campaignId, session);
           return sendJson(response, 200, { data: session });
         }
         return sendJson(response, 405, { error: "method_not_allowed" });
+      }
+
+      const combatantRoute = sessionStore ? combatantRouteFrom(url.pathname) : null;
+      if (combatantRoute) {
+        if (!await campaignStore.get(combatantRoute.campaignId)) return sendJson(response, 404, { error: "campaign_not_found" });
+        if (request.method !== "PATCH") return sendJson(response, 405, { error: "method_not_allowed" });
+        if (access) await access.authorize(request, { roles: ["admin", "gm"], campaignId: combatantRoute.campaignId });
+        const session = updateCombatant(await sessionStore.get(combatantRoute.campaignId) ?? emptySession(combatantRoute.campaignId), combatantRoute.combatantId, await readJson(request));
+        const combatant = session.battle.combatants.find((item) => item.combatant_id === combatantRoute.combatantId);
+        if (combatant?.character_id && characterStore) {
+          const character = await characterStore.get(combatant.character_id);
+          if (character?.campaign_id === combatantRoute.campaignId) {
+            const resources = { ...character.resources };
+            if (combatant.health) resources.health = { ...(resources.health ?? {}), label: resources.health?.label ?? "Health", current: combatant.health.current, maximum: combatant.health.maximum };
+            await characterStore.put(character.character_id, { ...character, resources, conditions: combatant.conditions, updated_at: new Date().toISOString() });
+          }
+        }
+        await sessionStore.put(combatantRoute.campaignId, session);
+        liveEvents?.publish(combatantRoute.campaignId, session);
+        return sendJson(response, 200, { data: session });
       }
 
       const campaignId = campaignIdFrom(url.pathname);

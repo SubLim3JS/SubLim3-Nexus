@@ -251,4 +251,28 @@ test("runs a system-neutral battle session", async () => {
   const wrapped = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/battle/next`, { method: "POST" }).then((response) => response.json());
   assert.equal(wrapped.data.battle.turn_index, 0);
   assert.equal(wrapped.data.battle.round, 2);
+
+  await fetch(`${baseUrl}/api/v1/campaigns/battle_test/characters`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ character_id: "battle_hero", character_name: "Battle Hero", resources: { health: { label: "Health", current: 10, maximum: 10 } }, conditions: [] }),
+  });
+  await fetch(`${baseUrl}/api/v1/campaigns/battle_test/session`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode: "battle", scene: {}, battle: { combatants: [{ combatant_id: "character_battle_hero", character_id: "battle_hero", source: "character", name: "Battle Hero", initiative: 20, health: { current: 10, maximum: 10 } }] } }),
+  });
+  const damaged = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/battle/combatants/character_battle_hero`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ health_change: -4, conditions: ["Poisoned"] }),
+  }).then((response) => response.json());
+  assert.equal(damaged.data.battle.combatants[0].health.current, 6);
+  assert.deepEqual(damaged.data.battle.combatants[0].conditions, ["Poisoned"]);
+  const syncedCharacter = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/characters/battle_hero`).then((response) => response.json());
+  assert.equal(syncedCharacter.data.resources.health.current, 6);
+  assert.deepEqual(syncedCharacter.data.conditions, ["Poisoned"]);
+  const ended = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/battle/end`, { method: "POST" }).then((response) => response.json());
+  assert.equal(ended.data.mode, "game");
+  assert.equal(ended.data.battle.combatants.length, 0);
 });

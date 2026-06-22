@@ -29,7 +29,10 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 | `DELETE` | `/api/v1/campaigns/{campaign_id}` | Delete a campaign |
 | `GET` | `/api/v1/campaigns/{campaign_id}/session` | Read shared Game/Battle state |
 | `PUT` | `/api/v1/campaigns/{campaign_id}/session` | Publish scene and battle state |
+| `GET` | `/api/v1/campaigns/{campaign_id}/events` | Stream live session updates |
 | `POST` | `/api/v1/campaigns/{campaign_id}/battle/next` | Advance the active turn |
+| `POST` | `/api/v1/campaigns/{campaign_id}/battle/end` | End the encounter and clear initiative |
+| `PATCH` | `/api/v1/campaigns/{campaign_id}/battle/combatants/{combatant_id}` | Apply health and condition changes |
 | `GET` | `/api/v1/connectivity/status` | Read Wi-Fi and Bluetooth state |
 | `GET` | `/api/v1/connectivity/wifi/networks` | Scan Wi-Fi networks (Admin) |
 | `POST` | `/api/v1/connectivity/wifi/mode` | Switch Local/Home mode (Admin) |
@@ -51,7 +54,7 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 
 ## Browser-first session model
 
-The GM dashboard and player views share one system-neutral session record per campaign. Game Mode publishes scene information. Battle Mode adds ordered combatants, initiative, round, and turn state. Player sessions can read only their paired character and campaign table state.
+The GM dashboard and player views share one system-neutral session record per campaign. Game Mode publishes scene information. Battle Mode adds ordered combatants, initiative, round, turn, health, and condition state. The GM console builds encounters from campaign characters and NPCs, advances turns, and applies damage, healing, or conditions. Server-sent events push each saved change to scoped Player clients, with polling retained as a fallback. Player sessions can read only their paired character and campaign table state.
 
 ## Local dashboard
 
@@ -61,7 +64,7 @@ The Settings page at `/settings/` uses a six-digit installer-generated PIN for c
 
 The media proof of concept at `/media/` is browser-first and fully offline. Its procedural Web Audio soundscapes and effects play through the device viewing the page. Raspberry Pi audio output, Bluetooth routing, persistent libraries, playlists, and RFID triggers remain later media-service boundaries.
 
-Character records are system-neutral: game-specific values live in flexible `fields` and `resources` objects while conditions and public notes have stable shared shapes. The GM manages campaign rosters on the dashboard. `/player/` combines one character with the campaign's published session and refreshes from Nexus Core every three seconds, providing the first phone/tablet view and the contract future companion hardware will consume.
+Character records are system-neutral: game-specific values live in flexible `fields` and `resources` objects while conditions and public notes have stable shared shapes. The GM manages campaign rosters on the dashboard. `/player/` combines one character with the campaign's live session, highlights that character's active turn, and provides the first phone/tablet view and the contract future companion hardware will consume.
 
 Production startup enables the access layer. Admin sessions have global control, GM sessions are restricted to one campaign, and Player sessions are read-only and restricted to one character. Access tokens are persisted only as SHA-256 hashes and expire after 90 days. Static pages, system health, and discovery summaries remain available before pairing. See `docs/client-surfaces.md` for the Android wrapper direction.
 

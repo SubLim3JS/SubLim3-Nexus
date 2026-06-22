@@ -42,6 +42,15 @@ export function normalizeSession(campaignId, input) {
       name: combatant.name.trim(),
       initiative: Number.isFinite(Number(combatant.initiative)) ? Number(combatant.initiative) : 0,
       player_visible: combatant.player_visible !== false,
+      source: combatant.source === "character" ? "character" : "npc",
+      character_id: combatant.source === "character" && typeof combatant.character_id === "string" ? combatant.character_id : null,
+      health: combatant.health && typeof combatant.health === "object" ? (() => {
+        const maximum = Math.max(0, Number.isFinite(Number(combatant.health.maximum)) ? Number(combatant.health.maximum) : 0);
+        const current = Number.isFinite(Number(combatant.health.current)) ? Number(combatant.health.current) : 0;
+        return { current: Math.max(0, Math.min(maximum, current)), maximum };
+      })() : null,
+      conditions: Array.isArray(combatant.conditions) ? [...new Set(combatant.conditions.map((condition) => String(condition).trim()).filter(Boolean))].slice(0, 20) : [],
+      defeated: Boolean(combatant.defeated) || Boolean(combatant.health && Number(combatant.health.current) <= 0),
     };
   }).sort((left, right) => right.initiative - left.initiative);
 
@@ -61,6 +70,38 @@ export function normalizeSession(campaignId, input) {
   };
 }
 
+export function updateCombatant(session, combatantId, input) {
+  if (session.mode !== "battle") {
+    const error = new Error("battle mode is not active");
+    error.statusCode = 409;
+    throw error;
+  }
+  let updatedCombatant = null;
+  const combatants = session.battle.combatants.map((combatant) => {
+    if (combatant.combatant_id !== combatantId) return combatant;
+    let health = combatant.health;
+    if (health && Number.isFinite(Number(input.health_change))) {
+      const maximum = Math.max(0, Number(health.maximum));
+      health = { ...health, current: Math.max(0, Math.min(maximum, Number(health.current) + Number(input.health_change))) };
+    }
+    const conditions = input.conditions === undefined
+      ? combatant.conditions
+      : [...new Set((Array.isArray(input.conditions) ? input.conditions : []).map((condition) => String(condition).trim()).filter(Boolean))].slice(0, 20);
+    updatedCombatant = { ...combatant, health, conditions, defeated: health ? health.current <= 0 : Boolean(input.defeated ?? combatant.defeated) };
+    return updatedCombatant;
+  });
+  if (!updatedCombatant) {
+    const error = new Error("combatant not found");
+    error.statusCode = 404;
+    throw error;
+  }
+  return { ...session, battle: { ...session.battle, combatants }, updated_at: new Date().toISOString() };
+}
+
+export function endBattle(session) {
+  return { ...session, mode: "game", battle: { round: 0, turn_index: 0, combatants: [] }, updated_at: new Date().toISOString() };
+}
+
 export function advanceTurn(session) {
   if (session.mode !== "battle" || session.battle.combatants.length === 0) {
     const error = new Error("battle mode requires at least one combatant");
@@ -78,4 +119,3 @@ export function advanceTurn(session) {
     updated_at: new Date().toISOString(),
   };
 }
-

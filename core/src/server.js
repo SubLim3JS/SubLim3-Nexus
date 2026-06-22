@@ -7,6 +7,7 @@ import { collectSystemInfo } from "./system-info.js";
 import { CommandRunner } from "./platform/command-runner.js";
 import { ConnectivityService } from "./platform/connectivity.js";
 import { AccessService } from "./access.js";
+import { LiveEvents } from "./live-events.js";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const dataDirectory = process.env.NEXUS_DATA_DIR ?? path.resolve(directory, "../data");
@@ -29,12 +30,14 @@ const access = new AccessService({
   gmPin: process.env.NEXUS_GM_PIN ?? "",
   persistGmPin: process.platform === "linux" ? (pin) => connectivity.runner.runPrivileged("gm-pin", [], `${pin}\n`) : null,
 });
+const liveEvents = new LiveEvents();
 
 const server = createServer(createApp({
   campaignStore,
   sessionStore,
   characterStore,
   access,
+  liveEvents,
   connectivity,
   getSystemInfo: () => collectSystemInfo(dataDirectory),
 }));

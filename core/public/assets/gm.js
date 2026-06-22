@@ -1,51 +1,54 @@
 const $ = (selector) => document.querySelector(selector);
 let gmToken = localStorage.getItem("nexus-gm-token") ?? "";
 let campaignId = "";
+let currentSession;
+let campaignCharacters = [];
+let npcDraft = [];
 
 async function api(path, options = {}, authenticated = true) {
-  const headers = new Headers(options.headers);
-  if (authenticated && gmToken) headers.set("authorization", `Bearer ${gmToken}`);
-  const response = await fetch(path, { ...options, headers });
-  const body = response.status === 204 ? null : await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body?.message || body?.details?.join(". ") || body?.error || "Request failed");
-  return body;
+  const headers = new Headers(options.headers); if (authenticated && gmToken) headers.set("authorization", `Bearer ${gmToken}`);
+  const response = await fetch(path, { ...options, headers }); const body = response.status === 204 ? null : await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body?.message || body?.details?.join(". ") || body?.error || "Request failed"); return body;
 }
 
-async function loadCampaignOptions() {
-  const { data } = await api("/api/v1/discovery/campaigns", {}, false);
-  $("#gm-campaign").replaceChildren(new Option("Choose a campaign", ""), ...data.map((campaign) => new Option(campaign.name, campaign.campaign_id)));
+async function loadCampaignOptions() { const { data } = await api("/api/v1/discovery/campaigns", {}, false); $("#gm-campaign").replaceChildren(new Option("Choose a campaign", ""), ...data.map((campaign) => new Option(campaign.name, campaign.campaign_id))); }
+
+function healthFrom(character) { const health = character.resources?.health; return health ? { current: Number(health.current), maximum: Number(health.maximum) } : null; }
+
+function rosterRow(character) {
+  const row=document.createElement("article");row.className="gm-character-row";const check=document.createElement("input"),copy=document.createElement("div"),name=document.createElement("strong"),meta=document.createElement("small"),initiative=document.createElement("input");
+  check.type="checkbox";check.dataset.characterId=character.character_id;name.textContent=character.character_name;meta.textContent=[character.fields?.role,healthFrom(character)?`${healthFrom(character).current}/${healthFrom(character).maximum} HP`:"No health resource"].filter(Boolean).join(" • ");initiative.type="number";initiative.value="0";initiative.className="initiative-input";initiative.dataset.initiativeFor=character.character_id;initiative.setAttribute("aria-label",`${character.character_name} initiative`);copy.append(name,meta);row.append(check,copy,initiative);return row;
 }
 
-function renderSession(session) {
-  $("#gm-mode").value = session.mode; $("#gm-scene-title").value = session.scene.title; $("#gm-scene-description").value = session.scene.description;
-  $("#gm-combatants").value = session.battle.combatants.map((combatant) => `${combatant.name}, ${combatant.initiative}`).join("\n");
-  const active = session.battle.combatants[session.battle.turn_index];
-  $("#gm-turn").querySelector("strong").textContent = active?.name ?? "Exploration";
-  $("#gm-turn").querySelector("small").textContent = session.mode === "battle" ? `Round ${session.battle.round}` : "Game mode";
-  $("#gm-mode-badge").textContent = session.mode === "battle" ? `Battle • Round ${session.battle.round}` : "Game mode";
+function renderNpcDraft() { $("#gm-npc-list").replaceChildren(...npcDraft.map((npc,index)=>{const row=document.createElement("article"),copy=document.createElement("span"),remove=document.createElement("button");row.className="gm-npc-row";copy.textContent=`${npc.name} • ${npc.health.maximum} HP • Init ${npc.initiative}`;remove.type="button";remove.textContent="Remove";remove.addEventListener("click",()=>{npcDraft.splice(index,1);renderNpcDraft();});row.append(copy,remove);return row;})); }
+
+function renderTurn(session) { const active=session.battle.combatants[session.battle.turn_index];$("#gm-turn strong").textContent=active?.name??"Exploration";$("#gm-turn small").textContent=session.mode==="battle"?`Round ${session.battle.round}`:"Game mode";$("#gm-mode-badge").textContent=session.mode==="battle"?`Battle • Round ${session.battle.round}`:"Game mode"; }
+
+function healthBlock(combatant) { const wrapper=document.createElement("div");wrapper.className="combatant-health";if(!combatant.health){wrapper.textContent="No health";return wrapper;}const copy=document.createElement("div"),label=document.createElement("span"),value=document.createElement("span"),meter=document.createElement("div"),fill=document.createElement("i");copy.className="combatant-health-copy";label.textContent="Health";value.textContent=`${combatant.health.current} / ${combatant.health.maximum}`;meter.className="combatant-health-meter";fill.style.width=`${combatant.health.maximum?combatant.health.current/combatant.health.maximum*100:0}%`;copy.append(label,value);meter.append(fill);wrapper.append(copy,meter);return wrapper; }
+
+async function patchCombatant(combatantId,payload) { try{const {data}=await api(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/battle/combatants/${encodeURIComponent(combatantId)}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});renderSession(data);$("#gm-message").textContent="Encounter updated.";}catch(error){$("#gm-message").textContent=error.message;} }
+
+function combatantCard(combatant,index) {
+  const combatantConditions = combatant.conditions ?? [];
+  const card=document.createElement("article");card.className=`combatant-card${index===currentSession.battle.turn_index?" active":""}${combatant.defeated?" defeated":""}`;
+  const initiative=document.createElement("div");initiative.className="combatant-initiative";initiative.textContent=combatant.initiative;
+  const identity=document.createElement("div"),name=document.createElement("strong"),meta=document.createElement("small");identity.className="combatant-identity";name.textContent=combatant.name;meta.textContent=combatant.source==="character"?"Player character":"NPC / Enemy";identity.append(name,meta);
+  const controls=document.createElement("div");controls.className="combatant-controls";const healthControls=document.createElement("div"),amount=document.createElement("input"),damage=document.createElement("button"),heal=document.createElement("button");healthControls.className="health-controls";amount.type="number";amount.min="1";amount.value="1";amount.setAttribute("aria-label",`${combatant.name} health amount`);damage.type="button";damage.className="damage";damage.textContent="Damage";heal.type="button";heal.className="heal";heal.textContent="Heal";damage.disabled=heal.disabled=!combatant.health;damage.addEventListener("click",()=>patchCombatant(combatant.combatant_id,{health_change:-Math.abs(Number(amount.value)||1)}));heal.addEventListener("click",()=>patchCombatant(combatant.combatant_id,{health_change:Math.abs(Number(amount.value)||1)}));healthControls.append(amount,damage,heal);
+  const conditionControl=document.createElement("div"),conditionInput=document.createElement("input"),addCondition=document.createElement("button");conditionControl.className="condition-control";conditionInput.placeholder="Add condition";addCondition.type="button";addCondition.textContent="Add";addCondition.addEventListener("click",()=>{const condition=conditionInput.value.trim();if(condition)patchCombatant(combatant.combatant_id,{conditions:[...combatantConditions,condition]});});conditionControl.append(conditionInput,addCondition);
+  const chips=document.createElement("div");chips.className="condition-chips";for(const condition of combatantConditions){const chip=document.createElement("button");chip.type="button";chip.textContent=condition;chip.addEventListener("click",()=>patchCombatant(combatant.combatant_id,{conditions:combatantConditions.filter((item)=>item!==condition)}));chips.append(chip);}controls.append(healthControls,conditionControl,chips);card.append(initiative,identity,healthBlock(combatant),controls);return card;
 }
 
-function characterRow(character) {
-  const row=document.createElement("article"); row.className="gm-character-row";
-  const top=document.createElement("div"), copy=document.createElement("div"), name=document.createElement("strong"), meta=document.createElement("small"), link=document.createElement("a");
-  name.textContent=character.character_name; meta.textContent=[character.player_name,character.fields?.role].filter(Boolean).join(" • ")||"Unassigned";
-  link.href=`/player/?campaign=${encodeURIComponent(campaignId)}&character=${encodeURIComponent(character.character_id)}`; link.textContent="Player view"; copy.append(name,meta); top.append(copy,link); row.append(top);
-  const health=character.resources?.health; if(health){const meter=document.createElement("div"),fill=document.createElement("i");meter.className="gm-health";fill.style.width=`${health.maximum>0?Math.max(0,Math.min(100,health.current/health.maximum*100)):0}%`;meter.append(fill);row.append(meter);} return row;
-}
+function renderSession(session) { currentSession=session;renderTurn(session);$("#gm-battle-board").hidden=session.mode!=="battle";$("#gm-combat-list").replaceChildren(...session.battle.combatants.map(combatantCard)); }
 
-async function openConsole() {
-  const { data: identity } = await api("/api/v1/auth/me");
-  if (identity.role !== "gm" || !identity.campaign_id) throw new Error("This is not a GM session.");
-  campaignId = identity.campaign_id;
-  const [{ data: campaign }, { data: session }, { data: characters }] = await Promise.all([api(`/api/v1/campaigns/${encodeURIComponent(campaignId)}`),api(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/session`),api(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/characters`)]);
-  $("#gm-campaign-name").textContent=campaign.name; renderSession(session); $("#gm-character-count").textContent=characters.length; $("#gm-character-list").replaceChildren(...characters.map(characterRow));
-  $("#gm-gate").hidden=true; $("#gm-app").hidden=false;
-}
+async function openConsole() { const{data:identity}=await api("/api/v1/auth/me");if(identity.role!=="gm"||!identity.campaign_id)throw new Error("This is not a GM session.");campaignId=identity.campaign_id;const[{data:campaign},{data:session},{data:characters}]=await Promise.all([api(`/api/v1/campaigns/${encodeURIComponent(campaignId)}`),api(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/session`),api(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/characters`)]);campaignCharacters=characters;$("#gm-campaign-name").textContent=campaign.name;$("#gm-scene-title").value=session.scene.title;$("#gm-scene-description").value=session.scene.description;$("#gm-character-list").replaceChildren(...characters.map(rosterRow));renderSession(session);$("#gm-gate").hidden=true;$("#gm-app").hidden=false; }
 
 $("#gm-pair-form").addEventListener("submit",async(event)=>{event.preventDefault();const message=$("#gm-pair-message");try{const body=await api("/api/v1/auth/pair",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({role:"gm",pin:$("#gm-pin").value,campaign_id:$("#gm-campaign").value,device_name:"GM / DM browser"})},false);gmToken=body.token;localStorage.setItem("nexus-gm-token",gmToken);await openConsole();}catch(error){message.textContent=error.message;message.className="form-message error";}});
-$("#gm-session-form").addEventListener("submit",async(event)=>{event.preventDefault();const combatants=$("#gm-combatants").value.split("\n").filter(Boolean).map((line,index)=>{const [name,initiative]=line.split(",");return{combatant_id:`combatant_${index+1}`,name:name.trim(),initiative:Number(initiative)||0};});try{const{data}=await api(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/session`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({mode:$("#gm-mode").value,scene:{title:$("#gm-scene-title").value,description:$("#gm-scene-description").value},battle:{combatants}})});renderSession(data);$("#gm-message").textContent="Table updated.";}catch(error){$("#gm-message").textContent=error.message;}});
+$("#gm-scene-form").addEventListener("submit",async(event)=>{event.preventDefault();try{const{data}=await api(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/session`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({...currentSession,scene:{title:$("#gm-scene-title").value,description:$("#gm-scene-description").value}})});renderSession(data);$("#gm-message").textContent="Scene published.";}catch(error){$("#gm-message").textContent=error.message;}});
+$("#gm-npc-form").addEventListener("submit",(event)=>{event.preventDefault();npcDraft.push({name:$("#gm-npc-name").value.trim(),initiative:Number($("#gm-npc-initiative").value)||0,health:{current:Number($("#gm-npc-health").value)||0,maximum:Number($("#gm-npc-health").value)||0}});event.currentTarget.reset();$("#gm-npc-health").value="10";$("#gm-npc-initiative").value="0";renderNpcDraft();});
+$("#gm-roll-initiative").addEventListener("click",()=>{document.querySelectorAll(".initiative-input").forEach((input)=>{input.value=String(Math.floor(Math.random()*20)+1);});npcDraft=npcDraft.map((npc)=>({...npc,initiative:Math.floor(Math.random()*20)+1}));renderNpcDraft();});
+$("#gm-start-battle").addEventListener("click",async()=>{const characters=campaignCharacters.filter((character)=>document.querySelector(`[data-character-id="${character.character_id}"]`)?.checked).map((character)=>({combatant_id:`character_${character.character_id}`,character_id:character.character_id,source:"character",name:character.character_name,initiative:Number(document.querySelector(`[data-initiative-for="${character.character_id}"]`)?.value)||0,health:healthFrom(character),conditions:character.conditions}));const npcs=npcDraft.map((npc,index)=>({combatant_id:`npc_${Date.now()}_${index}`,source:"npc",...npc,conditions:[]}));if(!characters.length&&!npcs.length){$("#gm-message").textContent="Select a character or add an NPC first.";return;}try{const{data}=await api(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/session`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({mode:"battle",scene:{title:$("#gm-scene-title").value,description:$("#gm-scene-description").value},battle:{combatants:[...characters,...npcs]}})});npcDraft=[];renderNpcDraft();renderSession(data);$("#gm-message").textContent="Encounter started.";$("#gm-battle-board").scrollIntoView({behavior:"smooth"});}catch(error){$("#gm-message").textContent=error.message;}});
 $("#gm-next-turn").addEventListener("click",async()=>{try{const{data}=await api(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/battle/next`,{method:"POST"});renderSession(data);}catch(error){$("#gm-message").textContent=error.message;}});
+$("#gm-end-battle").addEventListener("click",async()=>{if(!confirm("End this encounter and clear initiative?"))return;try{const{data}=await api(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/battle/end`,{method:"POST"});renderSession(data);$("#gm-message").textContent="Encounter ended.";}catch(error){$("#gm-message").textContent=error.message;}});
 $("#gm-logout").addEventListener("click",async()=>{try{await api("/api/v1/auth/session",{method:"DELETE"});}catch{}localStorage.removeItem("nexus-gm-token");window.location.reload();});
 
-loadCampaignOptions().catch((error)=>{$("#gm-pair-message").textContent=error.message;});
-if(gmToken)openConsole().catch(()=>{gmToken="";localStorage.removeItem("nexus-gm-token");});
+loadCampaignOptions().catch((error)=>{$("#gm-pair-message").textContent=error.message;});if(gmToken)openConsole().catch(()=>{gmToken="";localStorage.removeItem("nexus-gm-token");});
