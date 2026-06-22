@@ -58,7 +58,7 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
-  assert.equal(body.version, "1.2.0");
+  assert.equal(body.version, "1.2.1");
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
