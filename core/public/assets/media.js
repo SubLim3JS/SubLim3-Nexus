@@ -159,10 +159,10 @@ function renderLibrary() {
     const strong = document.createElement("strong");
     strong.textContent = track.name;
     const small = document.createElement("small");
-    small.textContent = track.folder_path || track.tags.join(" • ") || "Library root";
+    small.textContent = track.folder_path || track.tags?.join(" • ") || "Library root";
     copy.append(strong, small);
     const duration = document.createElement("em");
-    duration.textContent = formatTime(track.duration_seconds);
+    duration.textContent = track.source?.type === "radio" ? "LIVE" : formatTime(track.duration_seconds);
     button.append(number, copy, duration);
     button.addEventListener("click", () => playTrack(index));
     return button;
@@ -262,8 +262,9 @@ function renderTrack() {
   const track = tracks[currentTrack];
   if (!track) return;
   $("#track-title").textContent = track.name;
-  $("#track-subtitle").textContent = `${track.description} • ${track.source?.type === "file" ? folderName(track.folder_path) : track.loop ? "Seamless ambience" : "One shot"}`;
-  $("#duration").textContent = formatTime(track.duration_seconds);
+  const sourceLabel = track.source?.type === "radio" ? "Live stream" : track.source?.type === "file" ? folderName(track.folder_path) : track.loop ? "Seamless ambience" : "One shot";
+  $("#track-subtitle").textContent = `${track.description} • ${sourceLabel}`;
+  $("#duration").textContent = track.source?.type === "radio" ? "LIVE" : formatTime(track.duration_seconds);
   document.querySelectorAll(".queue-track").forEach((button) => button.classList.toggle("active", Number(button.dataset.track) === currentTrack));
 }
 
@@ -275,7 +276,12 @@ function renderPlayback() {
 
 async function renderAudioState(status, allowAudio = false) {
   let activeIndex = tracks.findIndex((track) => track.item_id === status.item_id);
-  if (activeIndex < 0 && status.item?.source?.type === "usb") {
+  if (activeIndex < 0 && ["usb", "radio"].includes(status.item?.source?.type)) {
+    if (status.item.source.type === "radio") {
+      for (let index = tracks.length - 1; index >= 0; index -= 1) {
+        if (tracks[index].source?.type === "radio") tracks.splice(index, 1);
+      }
+    }
     tracks.push({ ...status.item, transient: true });
     activeIndex = tracks.length - 1;
     renderLibrary();
@@ -291,12 +297,14 @@ async function renderAudioState(status, allowAudio = false) {
 
   if (status.state === "stopped") {
     stopNodes();
-  } else if (["file", "usb"].includes(status.item?.source?.type) && (allowAudio || fileAudio || audioContext)) {
+  } else if (["file", "usb", "radio"].includes(status.item?.source?.type) && (allowAudio || fileAudio || audioContext)) {
     if (renderedItemId !== status.item_id) {
       stopNodes();
-      const contentUrl = status.item.source.type === "usb"
-        ? `/api/v1/audio/usb/${encodeURIComponent(status.item_id)}/content`
-        : `/api/v1/audio/files/${encodeURIComponent(status.item_id)}/content`;
+      const contentUrl = status.item.source.type === "radio"
+        ? status.item.source.stream_url
+        : status.item.source.type === "usb"
+          ? `/api/v1/audio/usb/${encodeURIComponent(status.item_id)}/content`
+          : `/api/v1/audio/files/${encodeURIComponent(status.item_id)}/content`;
       fileAudio = new Audio(contentUrl);
       fileAudio.loop = Boolean(status.item.loop);
       fileAudio.volume = status.volume / 100;
@@ -352,6 +360,7 @@ async function control(path, body = {}) {
 function playTrack(index) {
   currentTrack = (index + tracks.length) % tracks.length;
   renderTrack();
+  if (tracks[currentTrack].source?.type === "radio") return control("/api/v1/audio/radio/play", { name: tracks[currentTrack].name, url: tracks[currentTrack].source.stream_url });
   return control("/api/v1/audio/play", { item_id: tracks[currentTrack].item_id });
 }
 
@@ -395,6 +404,12 @@ async function playEffect(name) {
 function updateProgress() {
   const track = tracks[currentTrack];
   if (track && serverStatus) {
+    if (track.source?.type === "radio") {
+      $("#elapsed").textContent = "LIVE";
+      $("#progress-bar").style.width = isPlaying ? "100%" : "0%";
+      requestAnimationFrame(updateProgress);
+      return;
+    }
     let elapsed = serverStatus.position_seconds;
     if (serverStatus.state === "playing") elapsed += (performance.now() - statusReceivedAt) / 1000;
     if (track.duration_seconds && track.loop) elapsed %= track.duration_seconds;
@@ -417,6 +432,29 @@ $("#master-volume").addEventListener("input", (event) => {
   if (fileAudio) fileAudio.volume = volume / 100;
   clearTimeout(volumeTimer);
   volumeTimer = setTimeout(() => control("/api/v1/audio/volume", { volume }), 120);
+});
+
+function applyRadioPreset(event) {
+  const option = event.target.selectedOptions[0];
+  if (!option.value) { $("#radio-name").value = ""; $("#radio-url").value = ""; $("#radio-name").focus(); return; }
+  $("#radio-name").value = option.dataset.name || option.textContent;
+  $("#radio-url").value = option.value;
+}
+$("#radio-preset").addEventListener("input", applyRadioPreset);
+$("#radio-preset").addEventListener("change", applyRadioPreset);
+
+$("#radio-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const name = $("#radio-name").value.trim();
+  const url = $("#radio-url").value.trim();
+  const radioMessage = $("#radio-message");
+  try {
+    await ensureAudio();
+    const status = await api("/api/v1/audio/radio/play", { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify({ name, url }) });
+    await applyStatus(status, { allowAudio:true });
+    radioMessage.textContent = `Playing ${name}.`;
+    radioMessage.className = "library-message success";
+  } catch (error) { radioMessage.textContent = error.message; radioMessage.className = "library-message error"; }
 });
 
 async function reloadLibrary() {

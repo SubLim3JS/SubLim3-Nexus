@@ -337,6 +337,9 @@ Base path:
 GET  /api/v1/system/status
 GET  /api/v1/system/info
 POST /api/v1/system/restart
+POST /api/v1/system/shutdown
+POST /api/v1/system/reboot
+POST /api/v1/system/update
 ```
 
 ---
@@ -421,6 +424,7 @@ PUT  /api/v1/audio/files/{item_id}
 GET  /api/v1/audio/files/{item_id}/content
 GET  /api/v1/audio/usb
 POST /api/v1/audio/usb/play
+POST /api/v1/audio/radio/play
 POST /api/v1/audio/import
 ```
 

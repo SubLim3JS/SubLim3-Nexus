@@ -3,6 +3,8 @@ set -euo pipefail
 export LC_ALL=C
 
 readonly CONFIG_FILE="/etc/default/sublim3-nexus"
+readonly APP_DIR="/opt/sublim3-nexus"
+readonly REPOSITORY_URL="https://github.com/SubLim3JS/SubLim3-Nexus.git"
 [[ "${EUID}" -eq 0 ]] || { echo "Connectivity helper must run as root." >&2; exit 1; }
 [[ -r "${CONFIG_FILE}" ]] && source "${CONFIG_FILE}"
 
@@ -78,6 +80,22 @@ case "${1:-}" in
     if grep -q '^NEXUS_GM_PIN=' "${CONFIG_FILE}"; then sed -i "s/^NEXUS_GM_PIN=.*/NEXUS_GM_PIN=${new_pin}/" "${CONFIG_FILE}"; else printf 'NEXUS_GM_PIN=%s\n' "${new_pin}" >> "${CONFIG_FILE}"; fi
     chown root:nexus "${CONFIG_FILE}"
     chmod 0640 "${CONFIG_FILE}"
+    ;;
+  system-shutdown)
+    [[ $# -eq 1 ]] || exit 2
+    systemctl poweroff
+    ;;
+  system-reboot)
+    [[ $# -eq 1 ]] || exit 2
+    systemctl reboot
+    ;;
+  system-update)
+    [[ $# -eq 1 ]] || exit 2
+    [[ -d "${APP_DIR}/.git" ]] || { echo "Nexus repository was not found at ${APP_DIR}." >&2; exit 1; }
+    [[ -z "$(git -C "${APP_DIR}" status --porcelain)" ]] || { echo "Update refused because the Nexus installation has local changes." >&2; exit 1; }
+    git -C "${APP_DIR}" fetch --quiet "${REPOSITORY_URL}" main
+    git -C "${APP_DIR}" merge --ff-only FETCH_HEAD
+    "${APP_DIR}/scripts/install.sh"
     ;;
   *) echo "Unsupported connectivity action." >&2; exit 2 ;;
 esac

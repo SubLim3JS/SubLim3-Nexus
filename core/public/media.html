@@ -53,6 +53,17 @@
         </aside>
       </section>
 
+      <section class="radio-section">
+        <div class="section-heading"><div><p class="eyebrow">ONLINE AUDIO</p><h2>Live radio</h2></div><span class="count-badge">Internet required</span></div>
+        <form id="radio-form" class="radio-card">
+          <label><span>Station preset</span><select id="radio-preset"><option value="https://stream.revma.ihrhls.com/zc2157" data-name="iHeart Radio 2157">iHeart Radio 2157</option><option value="">Custom stream…</option></select></label>
+          <label><span>Station name</span><input id="radio-name" type="text" maxlength="100" required value="iHeart Radio 2157" placeholder="Station name"></label>
+          <label class="radio-url"><span>Stream URL</span><input id="radio-url" type="url" maxlength="2000" required value="https://stream.revma.ihrhls.com/zc2157" placeholder="https://example.com/live-stream"></label>
+          <button type="submit">Play station</button>
+        </form>
+        <p id="radio-message" class="library-message" role="status" aria-live="polite">Choose a preset or enter any direct HTTP(S) audio stream.</p>
+      </section>
+
       <section class="library-section">
         <div class="section-heading"><div><p class="eyebrow">MEDIA LIBRARY</p><h2>Files &amp; folders</h2></div><span class="count-badge" id="file-count">0 files</span></div>
         <div class="library-card">

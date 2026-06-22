@@ -6,6 +6,7 @@ import { JsonStore } from "./storage/json-store.js";
 import { collectSystemInfo } from "./system-info.js";
 import { CommandRunner } from "./platform/command-runner.js";
 import { ConnectivityService } from "./platform/connectivity.js";
+import { SystemControlService } from "./platform/system-control.js";
 import { AccessService } from "./access.js";
 import { LiveEvents } from "./live-events.js";
 import { applyGameSystemDefaults, BUILT_IN_GAME_SYSTEMS } from "./game-system.js";
@@ -17,11 +18,13 @@ const directory = path.dirname(fileURLToPath(import.meta.url));
 const dataDirectory = process.env.NEXUS_DATA_DIR ?? path.resolve(directory, "../data");
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? "0.0.0.0";
+const commandRunner = new CommandRunner();
 const connectivity = new ConnectivityService({
-  runner: new CommandRunner(),
+  runner: commandRunner,
   wifiInterface: process.env.NEXUS_WIFI_INTERFACE ?? "wlan0",
   hotspotConnection: process.env.NEXUS_HOTSPOT_CONNECTION ?? "sublim3-hotspot",
 });
+const systemControl = new SystemControlService({ runner: commandRunner });
 
 const campaignStore = new JsonStore(path.join(dataDirectory, "campaigns"));
 const sessionStore = new JsonStore(path.join(dataDirectory, "sessions"));
@@ -76,6 +79,7 @@ const server = createServer(createApp({
   liveEvents,
   audio,
   connectivity,
+  systemControl,
   getSystemInfo: () => collectSystemInfo(dataDirectory),
 }));
 server.listen(port, host, () => {

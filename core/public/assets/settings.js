@@ -61,6 +61,34 @@ $("#bluetooth-visible").addEventListener("change", async (event) => {
   finally { event.target.disabled = false; }
 });
 
+async function systemAction(action, pendingMessage, successMessage) {
+  alertMessage(pendingMessage);
+  document.querySelectorAll(".system-actions button").forEach((button) => { button.disabled = true; });
+  try {
+    await api(`/api/v1/system/${action}`, { method:"POST", headers:headers(true), body:"{}" });
+    alertMessage(successMessage, "success");
+  }
+  catch (error) {
+    if (error instanceof TypeError) alertMessage(successMessage, "success");
+    else { alertMessage(error.message, "error"); document.querySelectorAll(".system-actions button").forEach((button) => { button.disabled = false; }); }
+  }
+}
+
+$("#update-system").addEventListener("click", () => {
+  if (!confirm("Install the latest SubLim3 Nexus version from GitHub? Nexus Core will restart when the update finishes.")) return;
+  systemAction("update", "Downloading and installing the latest Nexus release…", "Update installed. Nexus Core is restarting; reload this page in a moment.");
+});
+
+$("#reboot-system").addEventListener("click", () => {
+  if (!confirm("Reboot Nexus Core now? The table will be unavailable for a moment.")) return;
+  systemAction("reboot", "Rebooting Nexus Core…", "Reboot requested. Reconnect in a moment.");
+});
+
+$("#shutdown-system").addEventListener("click", () => {
+  if (!confirm("Shut down Nexus Core? You will need physical access to turn it back on.")) return;
+  systemAction("shutdown", "Shutting down Nexus Core safely…", "Shutdown requested. It is safe to disconnect power after the Pi turns off.");
+});
+
 lockControls(!adminToken);
 if (adminToken) { loadStatus().then(() => lockControls(false)).catch(() => { adminToken=""; localStorage.removeItem("nexus-admin-token"); lockControls(true); alertMessage("Enter the Admin PIN to unlock connectivity controls."); }); }
 else alertMessage("Enter the Admin PIN to unlock connectivity controls.");

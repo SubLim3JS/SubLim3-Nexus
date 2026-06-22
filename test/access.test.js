@@ -76,6 +76,8 @@ test("scopes GM access to one campaign and permits table mutations", async () =>
   assert.equal((await fetch(`${baseUrl}/api/v1/systems`, { method: "POST", headers: { ...bearer(gm.body.token), "content-type": "application/json" }, body: JSON.stringify({ system_id: "forbidden", name: "Forbidden" }) })).status, 403);
   assert.equal((await fetch(`${baseUrl}/api/v1/audio/play`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ item_id: "lantern-and-oak" }) })).status, 401);
   assert.equal((await fetch(`${baseUrl}/api/v1/audio/play`, { method: "POST", headers: { ...bearer(gm.body.token), "content-type": "application/json" }, body: JSON.stringify({ item_id: "lantern-and-oak" }) })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/v1/audio/radio/play`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Radio", url: "https://example.com/live" }) })).status, 401);
+  assert.equal((await fetch(`${baseUrl}/api/v1/audio/radio/play`, { method: "POST", headers: { ...bearer(gm.body.token), "content-type": "application/json" }, body: JSON.stringify({ name: "Radio", url: "https://example.com/live" }) })).status, 200);
   assert.equal((await fetch(`${baseUrl}/api/v1/audio/folders`)).status, 401);
   assert.equal((await fetch(`${baseUrl}/api/v1/audio/folders`, { headers: bearer(gm.body.token) })).status, 200);
   assert.equal((await fetch(`${baseUrl}/api/v1/audio/usb/play`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).status, 401);

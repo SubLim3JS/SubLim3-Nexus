@@ -97,6 +97,7 @@ export function createApp({
   liveEvents,
   audio,
   connectivity,
+  systemControl,
   settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
@@ -127,6 +128,22 @@ export function createApp({
           version,
           uptime_seconds: Math.floor((Date.now() - startedAt.getTime()) / 1000),
         });
+      }
+
+      if (systemControl && request.method === "POST" && url.pathname.startsWith(`${API_PREFIX}/system/`)) {
+        if (access) await access.authorize(request, { roles: ["admin"] }); else requireSettingsAccess(request, settingsPin, settingsGuard);
+        if (url.pathname === `${API_PREFIX}/system/shutdown`) {
+          await systemControl.shutdown();
+          return sendJson(response, 202, { success: true, message: "Shutdown requested" });
+        }
+        if (url.pathname === `${API_PREFIX}/system/reboot`) {
+          await systemControl.reboot();
+          return sendJson(response, 202, { success: true, message: "Reboot requested" });
+        }
+        if (url.pathname === `${API_PREFIX}/system/update`) {
+          const output = await systemControl.update();
+          return sendJson(response, 202, { success: true, message: "Update installed; Nexus Core is restarting", output });
+        }
       }
 
       if (audio && request.method === "GET" && url.pathname === `${API_PREFIX}/audio/library`) {
@@ -195,6 +212,12 @@ export function createApp({
         if (access) await access.authorize(request, { roles: ["admin", "gm"] });
         const input = await readJson(request);
         return sendJson(response, 200, { data: await audio.playUsb(input?.source_path) });
+      }
+
+      if (audio && request.method === "POST" && url.pathname === `${API_PREFIX}/audio/radio/play`) {
+        if (access) await access.authorize(request, { roles: ["admin", "gm"] });
+        const input = await readJson(request);
+        return sendJson(response, 200, { data: await audio.playRadio({ name: input?.name, url: input?.url }) });
       }
 
       const audioFile = audio?.files && request.method === "PUT" ? url.pathname.match(/^\/api\/v1\/audio\/files\/([^/]+)$/) : null;

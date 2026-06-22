@@ -14,6 +14,7 @@ let baseUrl;
 let server;
 let temporaryDirectory;
 const connectivityActions = [];
+const systemActions = [];
 
 before(async () => {
   temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "nexus-test-"));
@@ -43,6 +44,11 @@ before(async () => {
       scanWifi: async () => [{ ssid: "Table WiFi", signal: 88, security: "WPA2" }],
       switchWifi: async (input) => { connectivityActions.push(["wifi", input]); },
       setBluetoothVisible: async (visible) => { connectivityActions.push(["bluetooth", visible]); },
+    },
+    systemControl: {
+      shutdown: async () => { systemActions.push("shutdown"); },
+      reboot: async () => { systemActions.push("reboot"); },
+      update: async () => { systemActions.push("update"); return "Already up to date."; },
     },
     startedAt: new Date(),
     getSystemInfo: async () => ({
@@ -123,7 +129,21 @@ test("protects connectivity controls with the Settings PIN", async () => {
 test("serves the connectivity Settings page", async () => {
   const response = await fetch(`${baseUrl}/settings/`);
   assert.equal(response.status, 200);
-  assert.match(await response.text(), /Bluetooth visibility/);
+  const page = await response.text();
+  assert.match(page, /Bluetooth visibility/);
+  assert.match(page, /Update from GitHub/);
+});
+
+test("protects and delegates system controls", async () => {
+  assert.equal((await fetch(`${baseUrl}/api/v1/system/reboot`, { method: "POST" })).status, 401);
+  for (const action of ["shutdown", "reboot", "update"]) {
+    const response = await fetch(`${baseUrl}/api/v1/system/${action}`, {
+      method: "POST",
+      headers: { "x-nexus-settings-pin": "123456" },
+    });
+    assert.equal(response.status, 202);
+  }
+  assert.deepEqual(systemActions, ["shutdown", "reboot", "update"]);
 });
 
 test("serves the offline media player demo", async () => {
@@ -133,6 +153,9 @@ test("serves the offline media player demo", async () => {
   const page = await response.text();
   assert.match(page, /Soundscapes/);
   assert.match(page, /Core synced/);
+  assert.match(page, /Live radio/);
+  assert.match(page, /stream\.revma\.ihrhls\.com\/zc2157/);
+  assert.match(response.headers.get("content-security-policy"), /media-src 'self' http: https:/);
 });
 
 test("manages the persistent audio library and playback state", async () => {
@@ -172,6 +195,23 @@ test("manages the persistent audio library and playback state", async () => {
     body: JSON.stringify({ item_id: "missing" }),
   });
   assert.equal(missing.status, 404);
+
+  const radio = await fetch(`${baseUrl}/api/v1/audio/radio/play`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "Table Radio", url: "https://stream.example.com/live" }),
+  }).then((response) => response.json());
+  assert.equal(radio.data.state, "playing");
+  assert.equal(radio.data.item.name, "Table Radio");
+  assert.equal(radio.data.item.source.type, "radio");
+  assert.equal(radio.data.item.source.stream_url, "https://stream.example.com/live");
+
+  const unsafeRadio = await fetch(`${baseUrl}/api/v1/audio/radio/play`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "Unsafe", url: "file:///etc/passwd" }),
+  });
+  assert.equal(unsafeRadio.status, 422);
 });
 
 test("uploads, organizes, streams, and imports audio files", async () => {

@@ -23,14 +23,15 @@ export class CommandRunner {
       });
       let stdout = "";
       let stderr = "";
-      const timer = setTimeout(() => child.kill(), 120_000);
+      const timeout = action === "system-update" ? 10 * 60_000 : 120_000;
+      const timer = setTimeout(() => child.kill(), timeout);
       child.stdout.on("data", (chunk) => { stdout += chunk; });
       child.stderr.on("data", (chunk) => { stderr += chunk; });
       child.on("error", (error) => { clearTimeout(timer); reject(error); });
       child.on("close", (code) => {
         clearTimeout(timer);
         if (code === 0) resolve(stdout.trim());
-        else reject(new Error(stderr.trim() || `Connectivity helper exited with code ${code}`));
+        else reject(new Error(stderr.trim() || `Privileged helper exited with code ${code}`));
       });
       child.stdin.end(input);
     });

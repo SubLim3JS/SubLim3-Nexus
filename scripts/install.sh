@@ -24,7 +24,7 @@ if [[ ! -x /usr/bin/node ]]; then
   exit 1
 fi
 
-for required_command in nmcli bluetoothctl visudo; do
+for required_command in nmcli bluetoothctl visudo git; do
   command -v "${required_command}" >/dev/null 2>&1 || { echo "Required command not found: ${required_command}" >&2; exit 1; }
 done
 

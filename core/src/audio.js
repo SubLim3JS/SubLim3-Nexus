@@ -147,6 +147,36 @@ export class AudioService {
     }));
   }
 
+  async playRadio({ name, url }) {
+    const stationName = typeof name === "string" ? name.trim() : "";
+    if (!stationName || stationName.length > 100) throw audioError("Radio station name must be 1-100 characters");
+    let streamUrl;
+    try { streamUrl = new URL(url); }
+    catch { throw audioError("Radio stream must be a valid HTTP or HTTPS URL"); }
+    if (!["http:", "https:"].includes(streamUrl.protocol) || streamUrl.username || streamUrl.password) {
+      throw audioError("Radio stream must be a valid HTTP or HTTPS URL without embedded credentials");
+    }
+    if (streamUrl.href.length > 2_000) throw audioError("Radio stream URL is too long");
+    const item = {
+      item_id: `radio-${randomUUID()}`,
+      name: stationName,
+      kind: "ambience",
+      description: "Live online radio",
+      tags: ["Radio", "Live"],
+      duration_seconds: null,
+      loop: false,
+      source: { type: "radio", stream_url: streamUrl.href },
+    };
+    return this.change((current, now) => ({
+      ...current,
+      state: "playing",
+      item_id: item.item_id,
+      external_item: item,
+      position_seconds: 0,
+      started_at: now.toISOString(),
+    }));
+  }
+
   async pause() {
     return this.change((current, now) => ({
       ...current,
