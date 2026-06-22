@@ -5,3 +5,5 @@ core/data/campaigns/*.json
 !core/data/campaigns/.gitkeep
 core/data/sessions/*.json
 !core/data/sessions/.gitkeep
+core/data/characters/*.json
+!core/data/characters/.gitkeep

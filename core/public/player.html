@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#090b12">
+    <title>Player View • SubLim3 Nexus</title>
+    <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
+    <link rel="stylesheet" href="/assets/styles.css?v=0.7.0">
+    <link rel="stylesheet" href="/assets/player.css?v=0.7.0">
+    <script type="module" src="/assets/player.js?v=0.7.0"></script>
+  </head>
+  <body>
+    <main class="player-main">
+      <header class="player-header">
+        <a class="brand" href="/"><span class="brand-mark"><img src="/assets/nexus-logo.png" alt=""></span><span><strong>SubLim3</strong><small>PLAYER VIEW</small></span></a>
+        <div><span id="connection-state" class="player-live"><i></i>Connected</span><a href="/">GM dashboard</a></div>
+      </header>
+
+      <section id="player-loading" class="player-loading"><img src="/assets/nexus-logo.png" alt=""><h1>Joining the table…</h1><p>Loading character and session state from Nexus Core.</p></section>
+
+      <section id="player-error" class="player-loading" hidden><span class="error-glyph">!</span><h1>Player view unavailable</h1><p id="player-error-message">This link needs a campaign and character.</p><a class="primary-button" href="/">Return to dashboard</a></section>
+
+      <div id="player-content" hidden>
+        <section class="identity-panel">
+          <div id="player-avatar" class="player-avatar">NV</div>
+          <div class="identity-copy"><p id="campaign-name" class="eyebrow">CAMPAIGN</p><h1 id="character-name">Character</h1><p id="character-meta">Player • Role</p></div>
+          <div class="turn-pill"><span>Current turn</span><strong id="turn-name">Exploration</strong><small id="round-number">Game mode</small></div>
+        </section>
+
+        <section class="player-grid">
+          <div>
+            <article class="resource-panel"><div class="panel-title"><div><p class="eyebrow">LIVE STATUS</p><h2>Resources</h2></div><span id="defense-value" class="defense-badge">Defense —</span></div><div id="resource-list" class="resource-list"></div></article>
+            <article class="condition-panel"><div class="panel-title"><div><p class="eyebrow">ACTIVE EFFECTS</p><h2>Conditions</h2></div></div><div id="condition-list" class="player-conditions"></div></article>
+          </div>
+          <aside>
+            <article class="scene-panel"><p class="eyebrow">CURRENT SCENE</p><h2 id="scene-title">The table awaits</h2><p id="scene-description">The Game Master has not published a scene yet.</p></article>
+            <article class="notes-panel"><p class="eyebrow">FROM THE GM</p><h2>Notes</h2><p id="public-notes">No notes for this character.</p></article>
+          </aside>
+        </section>
+        <p class="refresh-note">Updates automatically every 3 seconds • Local network only</p>
+      </div>
+    </main>
+  </body>
+</html>

@@ -16,9 +16,11 @@ before(async () => {
   temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "nexus-test-"));
   const store = new JsonStore(path.join(temporaryDirectory, "campaigns"));
   const sessionStore = new JsonStore(path.join(temporaryDirectory, "sessions"));
+  const characterStore = new JsonStore(path.join(temporaryDirectory, "characters"));
   server = createServer(createApp({
     campaignStore: store,
     sessionStore,
+    characterStore,
     settingsPin: "123456",
     connectivity: {
       status: async () => ({ supported: true, wifi: { mode: "local", ssid: "SubLim3-Nexus", addresses: ["10.42.0.1/24"] }, bluetooth: { available: true, visible: false, connected_devices: [] } }),
@@ -111,6 +113,63 @@ test("serves the offline media player demo", async () => {
   const page = await response.text();
   assert.match(page, /Soundscapes/);
   assert.match(page, /Browser preview/);
+});
+
+test("creates, reads, updates, lists, and deletes campaign characters", async () => {
+  await fetch(`${baseUrl}/api/v1/campaigns`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ campaign_id: "character_test", name: "Character Test", system_id: "custom" }),
+  });
+  const created = await fetch(`${baseUrl}/api/v1/campaigns/character_test/characters`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      character_id: "nyra_vale",
+      character_name: "Nyra Vale",
+      player_name: "Jordan",
+      fields: { role: "Warden", level: 3 },
+      resources: { health: { label: "Health", current: 18, maximum: 24 } },
+      conditions: ["Inspired"],
+    }),
+  });
+  assert.equal(created.status, 201);
+  assert.equal((await created.json()).data.resources.health.maximum, 24);
+
+  const list = await fetch(`${baseUrl}/api/v1/campaigns/character_test/characters`).then((response) => response.json());
+  assert.equal(list.data.length, 1);
+  assert.equal(list.data[0].character_name, "Nyra Vale");
+
+  const updated = await fetch(`${baseUrl}/api/v1/campaigns/character_test/characters/nyra_vale`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ character_name: "Nyra Vale", fields: { role: "Warden", level: 4 }, resources: { health: { label: "Health", current: 21, maximum: 28 } }, conditions: [] }),
+  });
+  assert.equal(updated.status, 200);
+  assert.equal((await updated.json()).data.fields.level, 4);
+
+  assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/missing/characters/nyra_vale`)).status, 404);
+  assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/character_test/characters/nyra_vale`, { method: "DELETE" })).status, 204);
+  assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/character_test/characters/nyra_vale`)).status, 404);
+});
+
+test("validates character input and serves the player view", async () => {
+  const invalid = await fetch(`${baseUrl}/api/v1/campaigns/character_test/characters`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ character_id: "Bad ID" }),
+  });
+  assert.equal(invalid.status, 422);
+  const invalidBody = await fetch(`${baseUrl}/api/v1/campaigns/character_test/characters`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "null",
+  });
+  assert.equal(invalidBody.status, 422);
+  const playerPage = await fetch(`${baseUrl}/player/`);
+  assert.equal(playerPage.status, 200);
+  assert.match(await playerPage.text(), /PLAYER VIEW/);
+  assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/character_test`, { method: "DELETE" })).status, 204);
 });
 
 test("temporarily locks connectivity controls after repeated bad PINs", async () => {

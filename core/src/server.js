@@ -19,11 +19,13 @@ const connectivity = new ConnectivityService({
 
 const campaignStore = new JsonStore(path.join(dataDirectory, "campaigns"));
 const sessionStore = new JsonStore(path.join(dataDirectory, "sessions"));
-await Promise.all([campaignStore.initialize(), sessionStore.initialize()]);
+const characterStore = new JsonStore(path.join(dataDirectory, "characters"));
+await Promise.all([campaignStore.initialize(), sessionStore.initialize(), characterStore.initialize()]);
 
 const server = createServer(createApp({
   campaignStore,
   sessionStore,
+  characterStore,
   connectivity,
   getSystemInfo: () => collectSystemInfo(dataDirectory),
 }));

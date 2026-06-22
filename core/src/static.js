@@ -10,12 +10,17 @@ const FILES = new Map([
   ["/media", ["media.html", "text/html; charset=utf-8"]],
   ["/media/", ["media.html", "text/html; charset=utf-8"]],
   ["/media/index.html", ["media.html", "text/html; charset=utf-8"]],
+  ["/player", ["player.html", "text/html; charset=utf-8"]],
+  ["/player/", ["player.html", "text/html; charset=utf-8"]],
+  ["/player/index.html", ["player.html", "text/html; charset=utf-8"]],
   ["/assets/styles.css", ["assets/styles.css", "text/css; charset=utf-8"]],
   ["/assets/app.js", ["assets/app.js", "text/javascript; charset=utf-8"]],
   ["/assets/settings.css", ["assets/settings.css", "text/css; charset=utf-8"]],
   ["/assets/settings.js", ["assets/settings.js", "text/javascript; charset=utf-8"]],
   ["/assets/media.css", ["assets/media.css", "text/css; charset=utf-8"]],
   ["/assets/media.js", ["assets/media.js", "text/javascript; charset=utf-8"]],
+  ["/assets/player.css", ["assets/player.css", "text/css; charset=utf-8"]],
+  ["/assets/player.js", ["assets/player.js", "text/javascript; charset=utf-8"]],
   ["/assets/nexus-logo.png", ["assets/nexus-logo.png", "image/png"]],
 ]);
 

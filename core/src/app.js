@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { readJson, sendJson } from "./http.js";
 import { serveStatic } from "./static.js";
 import { advanceTurn, emptySession, normalizeSession } from "./session.js";
+import { normalizeCharacter, validateCharacter } from "./character.js";
 
 const API_PREFIX = "/api/v1";
 const defaultPublicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
@@ -26,6 +27,11 @@ function validateCampaign(input, { requireId = true } = {}) {
   return errors;
 }
 
+function characterRouteFrom(pathname) {
+  const match = pathname.match(/^\/api\/v1\/campaigns\/([^/]+)\/characters(?:\/([^/]+))?$/);
+  return match ? { campaignId: decodeURIComponent(match[1]), characterId: match[2] ? decodeURIComponent(match[2]) : null } : null;
+}
+
 function requireSettingsAccess(request, settingsPin, guard) {
   if (!settingsPin) throw Object.assign(new Error("Settings PIN is not configured"), { statusCode: 503 });
   if (guard.blockedUntil > Date.now()) throw Object.assign(new Error("Too many failed PIN attempts; try again shortly"), { statusCode: 429 });
@@ -44,11 +50,12 @@ function requireSettingsAccess(request, settingsPin, guard) {
 export function createApp({
   campaignStore,
   sessionStore,
+  characterStore,
   connectivity,
   settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "0.6.0",
+  version = "0.7.0",
   startedAt = new Date(),
 }) {
   const settingsGuard = { failures: 0, blockedUntil: 0 };
@@ -127,6 +134,45 @@ export function createApp({
           return sendJson(response, 201, { data: campaign });
         }
 
+        return sendJson(response, 405, { error: "method_not_allowed" });
+      }
+
+      const characterRoute = characterStore ? characterRouteFrom(url.pathname) : null;
+      if (characterRoute) {
+        const campaign = await campaignStore.get(characterRoute.campaignId);
+        if (!campaign) return sendJson(response, 404, { error: "campaign_not_found" });
+
+        if (!characterRoute.characterId && request.method === "GET") {
+          const characters = (await characterStore.list()).filter((item) => item.campaign_id === characterRoute.campaignId);
+          return sendJson(response, 200, { data: characters });
+        }
+        if (!characterRoute.characterId && request.method === "POST") {
+          const input = await readJson(request);
+          const errors = validateCharacter(input);
+          if (errors.length) return sendJson(response, 422, { error: "validation_failed", details: errors });
+          if (await characterStore.get(input.character_id)) return sendJson(response, 409, { error: "character_exists" });
+          const character = normalizeCharacter(characterRoute.campaignId, input);
+          await characterStore.put(character.character_id, character);
+          return sendJson(response, 201, { data: character });
+        }
+
+        if (characterRoute.characterId) {
+          const existing = await characterStore.get(characterRoute.characterId);
+          if (!existing || existing.campaign_id !== characterRoute.campaignId) return sendJson(response, 404, { error: "character_not_found" });
+          if (request.method === "GET") return sendJson(response, 200, { data: existing });
+          if (request.method === "PUT") {
+            const input = await readJson(request);
+            const errors = validateCharacter(input, { requireId: false });
+            if (errors.length) return sendJson(response, 422, { error: "validation_failed", details: errors });
+            const character = normalizeCharacter(characterRoute.campaignId, input, existing);
+            await characterStore.put(existing.character_id, character);
+            return sendJson(response, 200, { data: character });
+          }
+          if (request.method === "DELETE") {
+            await characterStore.delete(existing.character_id);
+            return sendJson(response, 204, null);
+          }
+        }
         return sendJson(response, 405, { error: "method_not_allowed" });
       }
 

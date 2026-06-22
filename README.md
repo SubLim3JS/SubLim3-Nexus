@@ -57,6 +57,10 @@ The proof-of-concept media player is available at `/media/`. It generates three
 looping soundscapes and four one-shot effects locally in the browser, so the demo
 works offline and does not require bundled or licensed audio files.
 
+The dashboard also manages system-neutral campaign characters. Each character has
+a shareable local player view that combines live resources, conditions, GM notes,
+scene information, and battle turn state without requiring a cloud connection.
+
 Initial development may use Raspberry Pi hardware.
 
 Long-term production hardware may use either:

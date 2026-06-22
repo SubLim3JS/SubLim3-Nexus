@@ -86,7 +86,185 @@ async function loadCampaigns() {
   const selected = selector.value;
   selector.replaceChildren(new Option("Select a campaign", ""), ...data.map((campaign) => new Option(campaign.name, campaign.campaign_id)));
   selector.value = selected;
+  const characterSelector = $("#character-campaign");
+  const selectedCharacterCampaign = characterSelector.value;
+  characterSelector.replaceChildren(new Option("Select a campaign", ""), ...data.map((campaign) => new Option(campaign.name, campaign.campaign_id)));
+  characterSelector.value = selectedCharacterCampaign && data.some((campaign) => campaign.campaign_id === selectedCharacterCampaign)
+    ? selectedCharacterCampaign
+    : data.find((campaign) => campaign.active)?.campaign_id ?? data[0]?.campaign_id ?? "";
+  await loadCharacters();
 }
+
+let editingCharacterId = null;
+
+function characterEmpty(title, copy) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "character-empty";
+  const glyph = document.createElement("span");
+  glyph.textContent = "♙";
+  const heading = document.createElement("h3");
+  heading.textContent = title;
+  const description = document.createElement("p");
+  description.textContent = copy;
+  wrapper.append(glyph, heading, description);
+  return wrapper;
+}
+
+function resourceLine(resource) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "resource-line";
+  const copy = document.createElement("div");
+  copy.className = "resource-copy";
+  const label = document.createElement("span");
+  label.textContent = resource.label;
+  const value = document.createElement("span");
+  value.textContent = `${resource.current} / ${resource.maximum}`;
+  const meter = document.createElement("div");
+  meter.className = "resource-meter";
+  const fill = document.createElement("i");
+  fill.style.width = `${resource.maximum > 0 ? Math.max(0, Math.min(100, resource.current / resource.maximum * 100)) : 0}%`;
+  copy.append(label, value);
+  meter.append(fill);
+  wrapper.append(copy, meter);
+  return wrapper;
+}
+
+function resetCharacterForm() {
+  editingCharacterId = null;
+  $("#character-form").reset();
+  $("#character-level").value = "1";
+  $("#health-current").value = "10";
+  $("#health-maximum").value = "10";
+  $("#character-id").disabled = false;
+  $("#character-id").dataset.edited = "";
+  $("#character-form-eyebrow").textContent = "NEW CHARACTER";
+  $("#character-form-title").textContent = "Add to the party";
+  $("#cancel-character-edit").hidden = true;
+}
+
+function editCharacter(character) {
+  editingCharacterId = character.character_id;
+  $("#character-name").value = character.character_name;
+  $("#player-name").value = character.player_name;
+  $("#character-role").value = character.fields?.role ?? "";
+  $("#character-level").value = character.fields?.level ?? "";
+  $("#character-defense").value = character.fields?.defense ?? "";
+  $("#health-current").value = character.resources?.health?.current ?? 0;
+  $("#health-maximum").value = character.resources?.health?.maximum ?? 0;
+  const secondary = Object.values(character.resources ?? {}).find((resource) => resource.resource_id !== "health");
+  $("#resource-label").value = secondary?.label ?? "";
+  $("#resource-values").value = secondary ? `${secondary.current} / ${secondary.maximum}` : "";
+  $("#character-conditions").value = character.conditions.join(", ");
+  $("#character-notes").value = character.public_notes;
+  $("#character-id").value = character.character_id;
+  $("#character-id").disabled = true;
+  $("#character-form-eyebrow").textContent = "EDIT CHARACTER";
+  $("#character-form-title").textContent = character.character_name;
+  $("#cancel-character-edit").hidden = false;
+  $("#character-form").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function characterCard(character) {
+  const card = document.createElement("article");
+  card.className = "character-card";
+  const head = document.createElement("div");
+  head.className = "character-card-head";
+  const avatar = document.createElement("div");
+  avatar.className = "character-avatar";
+  avatar.textContent = character.character_name.slice(0, 2).toUpperCase();
+  const identity = document.createElement("div");
+  const title = document.createElement("h3");
+  title.textContent = character.character_name;
+  const meta = document.createElement("p");
+  meta.className = "character-card-meta";
+  meta.textContent = [character.player_name || "Unassigned", character.fields?.role, character.fields?.level ? `Level ${character.fields.level}` : ""].filter(Boolean).join(" • ");
+  identity.append(title, meta);
+  head.append(avatar, identity);
+  card.append(head);
+  const health = character.resources?.health;
+  if (health) card.append(resourceLine(health));
+  if (character.conditions.length) {
+    const chips = document.createElement("div");
+    chips.className = "condition-chips";
+    for (const condition of character.conditions) { const chip = document.createElement("span"); chip.textContent = condition; chips.append(chip); }
+    card.append(chips);
+  }
+  const actions = document.createElement("div");
+  actions.className = "character-card-actions";
+  const playerView = document.createElement("a");
+  playerView.href = `/player/?campaign=${encodeURIComponent(character.campaign_id)}&character=${encodeURIComponent(character.character_id)}`;
+  playerView.textContent = "Player view";
+  const edit = document.createElement("button");
+  edit.type = "button";
+  edit.textContent = "Edit";
+  edit.addEventListener("click", () => editCharacter(character));
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.textContent = "Delete";
+  remove.addEventListener("click", async () => {
+    if (!window.confirm(`Delete “${character.character_name}”?`)) return;
+    await request(`/api/v1/campaigns/${encodeURIComponent(character.campaign_id)}/characters/${encodeURIComponent(character.character_id)}`, { method: "DELETE" });
+    if (editingCharacterId === character.character_id) resetCharacterForm();
+    await loadCharacters();
+  });
+  actions.append(playerView, edit, remove);
+  card.append(actions);
+  return card;
+}
+
+async function loadCharacters() {
+  const campaignId = $("#character-campaign").value;
+  const list = $("#character-list");
+  if (!campaignId) {
+    $("#character-count").textContent = "0 characters";
+    list.replaceChildren(characterEmpty("Select a campaign", "Choose a world to manage its party."));
+    return;
+  }
+  const { data } = await request(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/characters`);
+  $("#character-count").textContent = `${data.length} ${data.length === 1 ? "character" : "characters"}`;
+  list.replaceChildren(...(data.length ? data.map(characterCard) : [characterEmpty("No characters—yet.", "Add the first hero, rival, or investigator to this campaign.")]));
+}
+
+function parseResourceValues(value) {
+  const [current, maximum] = value.split("/").map((part) => Number(part.trim()));
+  return { current: Number.isFinite(current) ? current : 0, maximum: Number.isFinite(maximum) ? maximum : (Number.isFinite(current) ? current : 0) };
+}
+
+$("#character-campaign").addEventListener("change", () => { resetCharacterForm(); loadCharacters().catch((error) => { $("#character-message").textContent = error.message; }); });
+$("#cancel-character-edit").addEventListener("click", resetCharacterForm);
+$("#character-name").addEventListener("input", (event) => { const id = $("#character-id"); if (!id.dataset.edited && !editingCharacterId) id.value = slugify(event.target.value); });
+$("#character-id").addEventListener("input", (event) => { event.target.dataset.edited = "true"; });
+$("#character-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const campaignId = $("#character-campaign").value;
+  const message = $("#character-message");
+  if (!campaignId) { message.textContent = "Select a campaign first."; message.className = "form-message error"; return; }
+  const resourceLabel = $("#resource-label").value.trim();
+  const resources = { health: { label: "Health", current: Number($("#health-current").value), maximum: Number($("#health-maximum").value) } };
+  if (resourceLabel) resources.secondary = { label: resourceLabel, ...parseResourceValues($("#resource-values").value) };
+  const payload = {
+    character_id: $("#character-id").value,
+    character_name: $("#character-name").value,
+    player_name: $("#player-name").value,
+    fields: { role: $("#character-role").value, level: Number($("#character-level").value) || 0, defense: $("#character-defense").value },
+    resources,
+    conditions: $("#character-conditions").value.split(",").map((condition) => condition.trim()).filter(Boolean),
+    public_notes: $("#character-notes").value,
+  };
+  const path = editingCharacterId
+    ? `/api/v1/campaigns/${encodeURIComponent(campaignId)}/characters/${encodeURIComponent(editingCharacterId)}`
+    : `/api/v1/campaigns/${encodeURIComponent(campaignId)}/characters`;
+  const button = event.currentTarget.querySelector("button[type=submit]");
+  button.disabled = true;
+  try {
+    await request(path, { method: editingCharacterId ? "PUT" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+    resetCharacterForm();
+    message.textContent = "Character saved.";
+    message.className = "form-message success";
+    await loadCharacters();
+  } catch (error) { message.textContent = error.message; message.className = "form-message error"; }
+  finally { button.disabled = false; }
+});
 
 function renderSession(session) { const active=session.battle.combatants[session.battle.turn_index]; $("#battle-status").textContent=session.mode==="battle"?`Battle • Round ${session.battle.round}`:"Game mode"; $("#turn-display strong").textContent=active?.name??"Not in battle"; $("#turn-display small").textContent=`Round ${session.battle.round}`; }
 async function loadSession() { const id=$("#session-campaign").value; if(!id)return; const {data}=await request(`/api/v1/campaigns/${id}/session`); $("#session-mode").value=data.mode; $("#scene-title").value=data.scene.title; $("#scene-description").value=data.scene.description; $("#combatants").value=data.battle.combatants.map(c=>`${c.name}, ${c.initiative}`).join("\n"); renderSession(data); }

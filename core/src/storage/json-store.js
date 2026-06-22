@@ -32,7 +32,7 @@ export class JsonStore {
       const content = await readFile(path.join(this.rootDirectory, file), "utf8");
       return JSON.parse(content);
     }));
-    return records.sort((left, right) => left.name.localeCompare(right.name));
+    return records.sort((left, right) => String(left.name ?? left.character_name ?? left.character_id ?? "").localeCompare(String(right.name ?? right.character_name ?? right.character_id ?? "")));
   }
 
   async get(id) {
@@ -63,4 +63,3 @@ export class JsonStore {
     }
   }
 }
-
