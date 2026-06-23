@@ -28,6 +28,7 @@ const FILES = new Map([
   ["/assets/player.js", ["assets/player.js", "text/javascript; charset=utf-8"]],
   ["/assets/gm.css", ["assets/gm.css", "text/css; charset=utf-8"]],
   ["/assets/gm.js", ["assets/gm.js", "text/javascript; charset=utf-8"]],
+  ["/assets/qr.js", ["assets/qr.js", "text/javascript; charset=utf-8"]],
   ["/assets/nexus-logo.png", ["assets/nexus-logo.png", "image/png"]],
 ]);
 

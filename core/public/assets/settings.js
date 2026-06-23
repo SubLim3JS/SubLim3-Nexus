@@ -5,6 +5,7 @@ function alertMessage(message, type = "") { const alert = $("#settings-alert"); 
 function headers(json = false) { return { ...(json ? { "content-type": "application/json" } : {}), ...(adminToken ? { authorization: `Bearer ${adminToken}` } : {}) }; }
 async function api(path, options = {}) { const response = await fetch(path, options); const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.message || body.details?.join(". ") || body.error || "Request failed"); return body; }
 function lockControls(locked) { document.querySelectorAll(".locked-control").forEach((element) => element.classList.toggle("is-locked", locked)); }
+function enablePlayerSettings(enabled) { document.querySelectorAll(".player-settings-panel input,.player-settings-panel select,.player-settings-panel button").forEach((element) => { element.disabled = !enabled; }); }
 
 function renderStatus(status) {
   const wifiMode = status.wifi.mode ? status.wifi.mode.charAt(0).toUpperCase() + status.wifi.mode.slice(1) : "Unknown";
@@ -32,7 +33,11 @@ function renderPlayerSettings(settings) {
   $("#function-cards-bypass").checked = settings.function_cards_bypass_delay;
 }
 async function loadPlayerSettings() { const { data } = await api("/api/v1/settings/player", { headers:headers() }); renderPlayerSettings(data); }
-async function loadSettingsPage() { await Promise.all([loadStatus(), loadPlayerSettings()]); }
+async function loadSettingsPage() {
+  await loadStatus();
+  try { await loadPlayerSettings(); enablePlayerSettings(true); return true; }
+  catch { enablePlayerSettings(false); return false; }
+}
 
 $("#pin-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -41,7 +46,8 @@ $("#pin-form").addEventListener("submit", async (event) => {
     const body = await response.json();
     if (!response.ok) throw new Error(body.message || body.error || "Pairing failed");
     adminToken = body.token; localStorage.setItem("nexus-admin-token", adminToken);
-    await loadSettingsPage(); lockControls(false); alertMessage("Settings controls unlocked.", "success");
+    const playerSettingsAvailable = await loadSettingsPage(); lockControls(false);
+    alertMessage(playerSettingsAvailable ? "Settings controls unlocked." : "Settings unlocked. Restart Nexus Core to enable the new player settings.", playerSettingsAvailable ? "success" : "");
   }
   catch (error) { adminToken = ""; localStorage.removeItem("nexus-admin-token"); lockControls(true); alertMessage(error.message, "error"); }
 });
@@ -125,5 +131,5 @@ $("#shutdown-system").addEventListener("click", () => {
 });
 
 lockControls(!adminToken);
-if (adminToken) { loadSettingsPage().then(() => lockControls(false)).catch(() => { adminToken=""; localStorage.removeItem("nexus-admin-token"); lockControls(true); alertMessage("Enter the Admin PIN to unlock settings controls."); }); }
+if (adminToken) { loadSettingsPage().then((playerSettingsAvailable) => { lockControls(false); if (!playerSettingsAvailable) alertMessage("Settings unlocked. Restart Nexus Core to enable the new player settings."); }).catch(() => { adminToken=""; localStorage.removeItem("nexus-admin-token"); lockControls(true); alertMessage("Enter the Admin PIN to unlock settings controls."); }); }
 else alertMessage("Enter the Admin PIN to unlock settings controls.");

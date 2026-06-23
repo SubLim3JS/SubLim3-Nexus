@@ -181,6 +181,17 @@ test("serves the offline media player demo", async () => {
   assert.match(response.headers.get("content-security-policy"), /media-src 'self' http: https:/);
 });
 
+test("serves the GM campaign invitation surface", async () => {
+  const response = await fetch(`${baseUrl}/gm/`);
+  assert.equal(response.status, 200);
+  const page = await response.text();
+  assert.match(page, /Scan to join this campaign/);
+  assert.match(page, /gm-player-qr/);
+  const module = await fetch(`${baseUrl}/assets/qr.js`);
+  assert.equal(module.status, 200);
+  assert.match(module.headers.get("content-type"), /javascript/);
+});
+
 test("manages the persistent audio library and playback state", async () => {
   const library = await fetch(`${baseUrl}/api/v1/audio/library`).then((response) => response.json());
   assert.equal(library.data.filter((item) => item.kind === "ambience").length, 3);

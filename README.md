@@ -75,6 +75,13 @@ backward through turns, reset the round, and apply damage, healing, or condition
 Player views receive those changes immediately and highlight the active character's
 turn, while retaining a polling fallback for local-network interruptions.
 
+The first app-onboarding migration is also active: the GM console renders a
+campaign-specific Player QR code and share link. Scanning it opens the Player
+surface with that campaign selected so the player can choose a character. The
+planned printed Quick Start, device-claim, app-download, and short-lived invitation
+flows are specified in `docs/onboarding.md`; PINs remain a recovery fallback while
+device enrollment is introduced.
+
 Version 1.2 adds the first template contract. Installed game systems define typed
 character fields, resources, condition vocabularies, companion pages, and actions.
 Campaigns bind to one installed system; new characters receive its defaults and
