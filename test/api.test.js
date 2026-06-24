@@ -192,6 +192,17 @@ test("serves the GM campaign invitation surface", async () => {
   assert.match(module.headers.get("content-type"), /javascript/);
 });
 
+test("serves the Player Controllers management page", async () => {
+  const response = await fetch(`${baseUrl}/controllers/`);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type"), /text\/html/);
+  const page = await response.text();
+  assert.match(page, /Player Controllers/);
+  assert.match(page, /Paired controllers/);
+  assert.equal((await fetch(`${baseUrl}/assets/controllers.js`)).status, 200);
+  assert.equal((await fetch(`${baseUrl}/assets/controllers.css`)).status, 200);
+});
+
 test("manages the persistent audio library and playback state", async () => {
   const library = await fetch(`${baseUrl}/api/v1/audio/library`).then((response) => response.json());
   assert.equal(library.data.filter((item) => item.kind === "ambience").length, 3);
@@ -624,6 +635,14 @@ test("runs a system-neutral battle session", async () => {
   const syncedCharacter = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/characters/battle_hero`).then((response) => response.json());
   assert.equal(syncedCharacter.data.resources.health.current, 6);
   assert.deepEqual(syncedCharacter.data.conditions, ["Poisoned"]);
+  const playerAdjusted = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/characters/battle_hero/resources/health/adjust`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ delta: 2 }),
+  }).then((response) => response.json());
+  assert.equal(playerAdjusted.data.resources.health.current, 8);
+  const adjustedSession = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/session`).then((response) => response.json());
+  assert.equal(adjustedSession.data.battle.combatants[0].health.current, 8);
   const ended = await fetch(`${baseUrl}/api/v1/campaigns/battle_test/battle/end`, { method: "POST" }).then((response) => response.json());
   assert.equal(ended.data.mode, "game");
   assert.equal(ended.data.battle.combatants.length, 0);

@@ -43,7 +43,7 @@ before(async () => {
   for (const system of BUILT_IN_GAME_SYSTEMS) await systemStore.put(system.system_id, system);
   await campaignStore.put("green_realm", { campaign_id: "green_realm", name: "Green Realm", system_id: "custom" });
   await campaignStore.put("red_realm", { campaign_id: "red_realm", name: "Red Realm", system_id: "custom" });
-  await characterStore.put("nyra", { character_id: "nyra", campaign_id: "green_realm", character_name: "Nyra", player_name: "Jordan", fields: {}, resources: {}, conditions: [], public_notes: "", created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+  await characterStore.put("nyra", { character_id: "nyra", campaign_id: "green_realm", character_name: "Nyra", player_name: "Jordan", fields: {}, resources: { health: { label: "Health", current: 10, maximum: 10 } }, conditions: [], public_notes: "", created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
   await characterStore.put("orin", { character_id: "orin", campaign_id: "green_realm", character_name: "Orin", player_name: "Sam", fields: {}, resources: {}, conditions: [], public_notes: "", created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
   const access = new AccessService({ sessionStore: accessSessionStore, adminPin: "111111", gmPin: "222222", persistGmPin: async (pin) => { persistedGmPin = pin; } });
   server = createServer(createApp({ campaignStore, sessionStore, characterStore, systemStore, access, audio, playerSettings }));
@@ -111,7 +111,7 @@ test("lets Admin view sessions and rotate the GM PIN", async () => {
   assert.equal((await pair({ role: "gm", pin: newPin, campaign_id: "green_realm" })).response.status, 201);
 });
 
-test("scopes Player access to one character and read-only table state", async () => {
+test("scopes Player access to one character and its health resource", async () => {
   const player = await pair({ role: "player", campaign_id: "green_realm", character_id: "nyra" });
   assert.equal(player.response.status, 201);
   assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/green_realm/characters/nyra`, { headers: bearer(player.body.token) })).status, 200);
@@ -119,6 +119,11 @@ test("scopes Player access to one character and read-only table state", async ()
   assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/green_realm/session`, { headers: bearer(player.body.token) })).status, 200);
   assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/green_realm/session`, { method: "PUT", headers: { ...bearer(player.body.token), "content-type": "application/json" }, body: "{}" })).status, 403);
   assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/green_realm/battle/combatants/nyra`, { method: "PATCH", headers: { ...bearer(player.body.token), "content-type": "application/json" }, body: "{}" })).status, 403);
+  const adjusted = await fetch(`${baseUrl}/api/v1/campaigns/green_realm/characters/nyra/resources/health/adjust`, { method: "POST", headers: { ...bearer(player.body.token), "content-type": "application/json" }, body: JSON.stringify({ delta: -3 }) });
+  assert.equal(adjusted.status, 200);
+  assert.equal((await adjusted.json()).data.resources.health.current, 7);
+  assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/green_realm/characters/orin/resources/health/adjust`, { method: "POST", headers: { ...bearer(player.body.token), "content-type": "application/json" }, body: JSON.stringify({ delta: -1 }) })).status, 403);
+  assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/green_realm/characters/nyra/resources/health/adjust`, { method: "POST", headers: { ...bearer(player.body.token), "content-type": "application/json" }, body: JSON.stringify({ delta: 0 }) })).status, 422);
   assert.equal((await fetch(`${baseUrl}/api/v1/auth/session`, { method: "DELETE", headers: bearer(player.body.token) })).status, 204);
   assert.equal((await fetch(`${baseUrl}/api/v1/auth/me`, { headers: bearer(player.body.token) })).status, 401);
 });

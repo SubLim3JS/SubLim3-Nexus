@@ -67,6 +67,7 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 | `GET` | `/api/v1/campaigns/{campaign_id}/characters/{character_id}` | Read a character |
 | `PUT` | `/api/v1/campaigns/{campaign_id}/characters/{character_id}` | Replace editable character state |
 | `DELETE` | `/api/v1/campaigns/{campaign_id}/characters/{character_id}` | Delete a character |
+| `POST` | `/api/v1/campaigns/{campaign_id}/characters/{character_id}/resources/health/adjust` | Adjust the paired character's HP and active combatant |
 | `POST` | `/api/v1/auth/pair` | Pair an Admin, GM, or Player client |
 | `GET` | `/api/v1/auth/me` | Read the current access scope |
 | `DELETE` | `/api/v1/auth/session` | Unpair the current client |
@@ -79,7 +80,7 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 
 ## Browser-first session model
 
-The GM dashboard and player views share one system-neutral session record per campaign. Game Mode publishes scene information. Battle Mode adds ordered combatants, initiative, round, turn, health, and condition state. The GM console builds and revises encounters during play, edits initiative order, navigates turns in either direction, and applies damage, healing, or conditions. The Admin dashboard exposes the same state as a read-only overview; its only session mutation is an explicit emergency reset. Server-sent events push each saved change to scoped Player clients, with polling retained as a fallback. Player sessions can read only their paired character and campaign table state.
+The GM dashboard and player views share one system-neutral session record per campaign. Game Mode publishes scene information. Battle Mode adds ordered combatants, initiative, round, turn, health, and condition state. The GM console builds and revises encounters during play, edits initiative order, navigates turns in either direction, and applies damage, healing, or conditions. The Admin dashboard exposes the same state as a read-only overview; its only session mutation is an explicit emergency reset. Server-sent events push each saved change to scoped Player clients, with polling retained as a fallback. Player sessions can read only their paired character and campaign table state, with one bounded mutation for adjusting their own health resource; Core mirrors that change into the matching active combatant.
 
 ## Template model
 
@@ -97,7 +98,7 @@ The media surface at `/media/` is browser-first and fully offline. Nexus Core ow
 
 Character records are system-neutral: game-specific values live in flexible `fields` and `resources` objects while conditions and public notes have stable shared shapes. The GM manages campaign rosters on the dashboard. `/player/` combines one character with the campaign's live session, highlights that character's active turn, and provides the first phone/tablet view and the contract future companion hardware will consume.
 
-Production startup enables the access layer. Admin sessions have global control, GM sessions are restricted to one campaign, and Player sessions are read-only and restricted to one character. Access tokens are persisted only as SHA-256 hashes and expire after 90 days. Static pages, system health, and discovery summaries remain available before pairing. See `docs/client-surfaces.md` for the Android wrapper direction.
+Production startup enables the access layer. Admin sessions have global control, GM sessions are restricted to one campaign, and Player sessions are restricted to one character with only their bounded health adjustment writable. Access tokens are persisted only as SHA-256 hashes and expire after 90 days. Static pages, system health, and discovery summaries remain available before pairing. See `docs/client-surfaces.md` for the Android wrapper direction.
 
 The Admin dashboard exposes active client sessions and their scopes. Admin can revoke individual clients, reveal the current GM PIN, or rotate it. Rotation is persisted through the same root-owned allowlisted helper used for connectivity; Nexus Core never receives general root access. All existing GM sessions are revoked when the PIN changes.
 

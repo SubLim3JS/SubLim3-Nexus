@@ -65,7 +65,8 @@ scene information, and battle turn state without requiring a cloud connection.
 
 Role-specific entry points are available at `/admin/`, `/gm/`, and `/player/`.
 Admin and GM devices pair with installer-generated PINs; Player devices select a
-campaign and character and receive a read-only character-scoped session.
+campaign and character and receive a character-scoped session with a bounded
+self-service health adjustment.
 The Admin dashboard can inspect and revoke paired clients, rotate the GM PIN, and
 monitor a read-only Live Session Overview with an emergency full-session reset.
 
@@ -376,6 +377,7 @@ PUT    /api/v1/characters/{character_id}
 DELETE /api/v1/characters/{character_id}
 PATCH  /api/v1/characters/{character_id}/resources
 PATCH  /api/v1/characters/{character_id}/conditions
+POST   /api/v1/campaigns/{campaign_id}/characters/{character_id}/resources/health/adjust
 ```
 
 ---

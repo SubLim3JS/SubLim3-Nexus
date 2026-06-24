@@ -38,6 +38,15 @@ function characterRouteFrom(pathname) {
   return match ? { campaignId: decodeURIComponent(match[1]), characterId: match[2] ? decodeURIComponent(match[2]) : null } : null;
 }
 
+function resourceAdjustmentRouteFrom(pathname) {
+  const match = pathname.match(/^\/api\/v1\/campaigns\/([^/]+)\/characters\/([^/]+)\/resources\/([^/]+)\/adjust$/);
+  return match ? {
+    campaignId: decodeURIComponent(match[1]),
+    characterId: decodeURIComponent(match[2]),
+    resourceId: decodeURIComponent(match[3]),
+  } : null;
+}
+
 function systemRouteFrom(pathname) {
   const match = pathname.match(/^\/api\/v1\/systems(?:\/([^/]+))?$/);
   return match ? { systemId: match[1] ? decodeURIComponent(match[1]) : null } : null;
@@ -411,6 +420,63 @@ export function createApp({
         }
 
         return sendJson(response, 405, { error: "method_not_allowed" });
+      }
+
+      const resourceAdjustmentRoute = characterStore && request.method === "POST" ? resourceAdjustmentRouteFrom(url.pathname) : null;
+      if (resourceAdjustmentRoute) {
+        const { campaignId, characterId, resourceId } = resourceAdjustmentRoute;
+        if (access) await access.authorize(request, { roles: ["admin", "gm", "player"], campaignId, characterId });
+        if (!await campaignStore.get(campaignId)) return sendJson(response, 404, { error: "campaign_not_found" });
+        const character = await characterStore.get(characterId);
+        if (!character || character.campaign_id !== campaignId) return sendJson(response, 404, { error: "character_not_found" });
+        if (resourceId !== "health") return sendJson(response, 403, { error: "resource_not_player_editable" });
+        const resource = character.resources?.[resourceId];
+        if (!resource) return sendJson(response, 404, { error: "resource_not_found" });
+        const input = await readJson(request);
+        const delta = Number(input?.delta);
+        if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 100) {
+          return sendJson(response, 422, { error: "validation_failed", details: ["delta must be a non-zero integer between -100 and 100"] });
+        }
+
+        let session = sessionStore ? await sessionStore.get(campaignId) : null;
+        const liveCombatant = session?.mode === "battle"
+          ? session.battle.combatants.find((item) => item.character_id === characterId && item.health)
+          : null;
+        const maximum = Math.max(0, Number(liveCombatant?.health.maximum ?? resource.maximum) || 0);
+        const current = Math.max(0, Math.min(maximum, Number(liveCombatant?.health.current ?? resource.current) || 0));
+        const nextCurrent = Math.max(0, Math.min(maximum, current + delta));
+        let conditions = character.conditions;
+        let trackers = character.trackers;
+        let sessionChanged = false;
+
+        if (liveCombatant && sessionStore) {
+          session = updateCombatant(session, liveCombatant.combatant_id, { health_change: nextCurrent - current });
+          const updatedCombatant = session.battle.combatants.find((item) => item.combatant_id === liveCombatant.combatant_id);
+          conditions = updatedCombatant.conditions;
+          trackers = updatedCombatant.trackers;
+          sessionChanged = true;
+        } else if (nextCurrent > 0) {
+          trackers = Object.fromEntries(Object.entries(trackers ?? {}).map(([id, tracker]) => [
+            id,
+            tracker.reset_on_resource_positive && tracker.visible_when?.resource_id === resourceId
+              ? { ...tracker, successes: 0, failures: 0, status: "active" }
+              : tracker,
+          ]));
+        }
+
+        const updatedCharacter = {
+          ...character,
+          resources: { ...character.resources, [resourceId]: { ...resource, current: nextCurrent, maximum } },
+          conditions,
+          trackers,
+          updated_at: new Date().toISOString(),
+        };
+        await characterStore.put(characterId, updatedCharacter);
+        if (sessionChanged) {
+          await sessionStore.put(campaignId, session);
+          liveEvents?.publish(campaignId, session);
+        }
+        return sendJson(response, 200, { data: updatedCharacter });
       }
 
       const characterRoute = characterStore ? characterRouteFrom(url.pathname) : null;

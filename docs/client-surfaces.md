@@ -6,7 +6,7 @@ SubLim3 Nexus has three role-specific browser surfaces. These responsive pages a
 | --- | --- | --- |
 | System Admin | `/admin/` | Full system, settings, campaigns, characters, sessions, devices, and future diagnostics |
 | GM / DM | `/gm/` | One paired campaign: scenes, encounter building, initiative, health, conditions, and future companions |
-| Player | `/player/` | One selected character with live read-only table state and turn highlighting |
+| Player | `/player/` | One selected character with live table state, turn highlighting, and scoped health control |
 
 Admin and GM devices pair with installer-generated PINs. Their bearer tokens are random, stored only as hashes by Nexus Core, persisted across reboots, and expire after 90 days. Five failed PIN attempts temporarily lock pairing.
 
@@ -14,7 +14,7 @@ The Admin Access & Pairing panel lists active devices, their role scopes, and ex
 
 The Admin template library lists installed game systems and their character-field, resource, and companion-page counts. Campaign creation selects from this library rather than a hard-coded game list. The first slice is read-only in the browser; custom template authoring will build on the versioned `/api/v1/systems` contract.
 
-The Player flow intentionally asks only for a campaign and character. That selection creates a character-scoped read-only session; it is an isolation boundary for the simple local-table experience, not proof of a player's real-world identity. A campaign can add a player PIN later if a game requires stronger privacy.
+The Player flow intentionally asks only for a campaign and character. That selection creates a character-scoped session whose only mutation is a bounded adjustment to that character's health; it is an isolation boundary for the simple local-table experience, not proof of a player's real-world identity. A campaign can add a player PIN later if a game requires stronger privacy.
 
 Template-defined trackers appear only when their visibility rule matches. For D&D 5e, the GM battle card exposes death-save actions at zero HP while the Player surface shows the synchronized success, failure, stabilized, or dead state without mutation controls.
 

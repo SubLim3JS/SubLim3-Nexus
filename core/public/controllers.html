@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#090b12">
+    <title>Player Controllers • SubLim3 Nexus</title>
+    <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
+    <link rel="stylesheet" href="/assets/styles.css?v=1.3.0">
+    <link rel="stylesheet" href="/assets/controllers.css?v=1.0.0">
+    <script type="module" src="/assets/controllers.js?v=1.0.0"></script>
+  </head>
+  <body>
+    <main class="controllers-main">
+      <header class="controllers-header">
+        <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><img src="/assets/nexus-logo.png" alt=""></span><span><strong>SubLim3</strong><small>PLAYER CONTROLLERS</small></span></a>
+        <a class="back-link" href="/">← Command center</a>
+      </header>
+      <section class="controllers-intro">
+        <div><p class="eyebrow">PLAYER HARDWARE</p><h1>Player Controllers</h1><p>See every paired Player Cube or player device, its character assignment, and its access status.</p></div>
+        <button id="refresh-controllers" class="secondary-button" type="button">Refresh</button>
+      </section>
+      <p id="controllers-message" class="controllers-message" role="status" aria-live="polite">Reading paired player devices…</p>
+      <section class="controller-metrics" aria-label="Controller summary">
+        <article><span>Paired devices</span><strong id="controller-count">—</strong></article>
+        <article><span>Assigned characters</span><strong id="assignment-count">—</strong></article>
+        <article><span>Campaigns represented</span><strong id="controller-campaign-count">—</strong></article>
+      </section>
+      <section class="controllers-section">
+        <div class="section-heading"><div><p class="eyebrow">DEVICE ROSTER</p><h2>Paired controllers</h2></div><span id="controller-badge" class="count-badge">Loading</span></div>
+        <div id="controller-list" class="controller-list"></div>
+      </section>
+      <section class="controller-help">
+        <div><p class="eyebrow">ADD A CONTROLLER</p><h2>Pair from the device</h2><p>Power on a Player Cube, connect it to Nexus Wi-Fi, then choose its campaign and character. Once paired, it appears here automatically.</p></div>
+        <ol><li>Connect the controller to Nexus.</li><li>Select a campaign.</li><li>Select an available character.</li><li>Confirm the assignment.</li></ol>
+      </section>
+    </main>
+  </body>
+</html>
