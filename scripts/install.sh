@@ -24,9 +24,16 @@ if [[ ! -x /usr/bin/node ]]; then
   exit 1
 fi
 
-for required_command in nmcli bluetoothctl visudo git; do
+for required_command in nmcli bluetoothctl visudo git runuser; do
   command -v "${required_command}" >/dev/null 2>&1 || { echo "Required command not found: ${required_command}" >&2; exit 1; }
 done
+
+# Updates are initiated by a root-owned helper, but the repository may belong to
+# the interactive installer account. Reconcile mixed ownership left by older
+# updater versions before returning control to that account.
+repository_owner="$(stat -c '%U' "${APP_DIR}")"
+repository_group="$(stat -c '%G' "${APP_DIR}")"
+chown -R "${repository_owner}:${repository_group}" "${APP_DIR}"
 
 node_major="$(/usr/bin/node --version | sed -E 's/^v([0-9]+).*/\1/')"
 if (( node_major < 20 )); then

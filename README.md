@@ -103,6 +103,12 @@ optional until an Admin installs them from the local catalog. Installed packs us
 a dynamic editor generated from their fields and resources. Pack manifests already
 carry availability and licensing metadata; every current optional pack is free.
 
+Version 1.4.1 hardens one-click updates. Git operations run as the repository
+owner, the installer repairs mixed ownership left by older releases, and helper
+failures are shown in Settings instead of a generic server error. After an update
+passes or fails, Settings waits for Nexus Core, refreshes to the top of the page,
+and preserves a visible result notification across the restart.
+
 Initial development may use Raspberry Pi hardware.
 
 Long-term production hardware may use either:

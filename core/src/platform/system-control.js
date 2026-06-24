@@ -22,6 +22,10 @@ export class SystemControlService {
 
   async update() {
     this.ensureSupported();
-    return this.runner.runPrivileged("system-update");
+    try {
+      return await this.runner.runPrivileged("system-update");
+    } catch (error) {
+      throw Object.assign(new Error(`Update failed: ${error.message}`), { statusCode: 502 });
+    }
   }
 }

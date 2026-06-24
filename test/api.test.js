@@ -82,7 +82,7 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
-  assert.equal(body.version, "1.4.0");
+  assert.equal(body.version, "1.4.1");
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
@@ -140,6 +140,11 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, />Update<\/button>/);
   assert.match(page, /Playback defaults/);
   assert.match(page, /Card behavior/);
+  const script = await fetch(`${baseUrl}/assets/settings.js`).then((asset) => asset.text());
+  assert.match(script, /sessionStorage\.setItem\(UPDATE_NOTICE_KEY/);
+  assert.match(script, /window\.location\.replace/);
+  assert.match(script, /window\.scrollTo\(0,0\)/);
+  assert.match(script, /Update succeeded\. Nexus Core v/);
 });
 
 test("protects and persists player settings", async () => {

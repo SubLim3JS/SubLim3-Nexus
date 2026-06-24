@@ -18,6 +18,17 @@ WIFI_MODE="${NEXUS_WIFI_MODE:-local}"
 valid_interface() { [[ "$1" =~ ^[a-zA-Z0-9_.:-]+$ ]]; }
 valid_interface "${WIFI_INTERFACE}" || { echo "Invalid Wi-Fi interface." >&2; exit 2; }
 
+git_as_repository_owner() {
+  local repository_owner
+  repository_owner="$(stat -c '%U' "${APP_DIR}")"
+  [[ -n "${repository_owner}" ]] || { echo "Unable to determine the Nexus repository owner." >&2; exit 1; }
+  if [[ "${repository_owner}" == "root" ]]; then
+    git -c safe.directory="${APP_DIR}" -C "${APP_DIR}" "$@"
+  else
+    runuser -u "${repository_owner}" -- git -C "${APP_DIR}" "$@"
+  fi
+}
+
 set_wifi_mode() {
   local mode="$1"
   [[ "${mode}" == "local" || "${mode}" == "home" ]] || exit 2
@@ -92,9 +103,9 @@ case "${1:-}" in
   system-update)
     [[ $# -eq 1 ]] || exit 2
     [[ -d "${APP_DIR}/.git" ]] || { echo "Nexus repository was not found at ${APP_DIR}." >&2; exit 1; }
-    [[ -z "$(git -C "${APP_DIR}" status --porcelain)" ]] || { echo "Update refused because the Nexus installation has local changes." >&2; exit 1; }
-    git -C "${APP_DIR}" fetch --quiet "${REPOSITORY_URL}" main
-    git -C "${APP_DIR}" merge --ff-only FETCH_HEAD
+    [[ -z "$(git_as_repository_owner status --porcelain)" ]] || { echo "Update refused because the Nexus installation has local changes." >&2; exit 1; }
+    git_as_repository_owner fetch --quiet "${REPOSITORY_URL}" main
+    git_as_repository_owner merge --ff-only FETCH_HEAD
     "${APP_DIR}/scripts/install.sh"
     ;;
   *) echo "Unsupported connectivity action." >&2; exit 2 ;;

@@ -1,11 +1,17 @@
 const $ = (selector) => document.querySelector(selector);
 let adminToken = localStorage.getItem("nexus-admin-token") ?? "";
+const UPDATE_NOTICE_KEY = "nexus-update-notice";
 
 function alertMessage(message, type = "") { const alert = $("#settings-alert"); alert.textContent = message; alert.className = `settings-alert ${type}`; }
 function headers(json = false) { return { ...(json ? { "content-type": "application/json" } : {}), ...(adminToken ? { authorization: `Bearer ${adminToken}` } : {}) }; }
 async function api(path, options = {}) { const response = await fetch(path, options); const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.message || body.details?.join(". ") || body.error || "Request failed"); return body; }
 function lockControls(locked) { document.querySelectorAll(".locked-control").forEach((element) => element.classList.toggle("is-locked", locked)); }
 function enablePlayerSettings(enabled) { document.querySelectorAll(".player-settings-panel input,.player-settings-panel select,.player-settings-panel button").forEach((element) => { element.disabled = !enabled; }); }
+
+function saveUpdateNotice(message, type) { sessionStorage.setItem(UPDATE_NOTICE_KEY, JSON.stringify({ message, type })); }
+function takeUpdateNotice() { try { const notice=JSON.parse(sessionStorage.getItem(UPDATE_NOTICE_KEY));sessionStorage.removeItem(UPDATE_NOTICE_KEY);return notice?.message?notice:null; } catch { sessionStorage.removeItem(UPDATE_NOTICE_KEY);return null; } }
+function refreshSettingsPage(message, type) { saveUpdateNotice(message,type);window.location.replace(`/settings/?update=${Date.now()}`); }
+async function waitForCore(timeoutMs=120_000) { const deadline=Date.now()+timeoutMs;while(Date.now()<deadline){try{const response=await fetch("/api/v1/system/status",{cache:"no-store"});if(response.ok)return response.json();}catch{/* Restart in progress. */}await new Promise((resolve)=>setTimeout(resolve,1_000));}throw new Error("Nexus Core did not return before the update timeout."); }
 
 function renderStatus(status) {
   const wifiMode = status.wifi.mode ? status.wifi.mode.charAt(0).toUpperCase() + status.wifi.mode.slice(1) : "Unknown";
@@ -115,9 +121,25 @@ async function systemAction(action, pendingMessage, successMessage) {
   }
 }
 
+async function updateSystem() {
+  alertMessage("Downloading and installing the latest Nexus release…");
+  document.querySelectorAll(".system-actions button").forEach((button) => { button.disabled=true; });
+  let requestSucceeded=false;
+  try { await api("/api/v1/system/update",{method:"POST",headers:headers(true),body:"{}"});requestSucceeded=true; }
+  catch(error){
+    if(!(error instanceof TypeError))return refreshSettingsPage(error.message,"error");
+  }
+  try {
+    const status=await waitForCore();
+    refreshSettingsPage(`Update succeeded. Nexus Core v${status.version} is online.`,"success");
+  } catch(error) {
+    refreshSettingsPage(requestSucceeded?`Update finished, but ${error.message}`:`The update connection closed and ${error.message}`,"error");
+  }
+}
+
 $("#update-system").addEventListener("click", () => {
   if (!confirm("Install the latest SubLim3 Nexus version from GitHub? Nexus Core will restart when the update finishes.")) return;
-  systemAction("update", "Downloading and installing the latest Nexus release…", "Update installed. Nexus Core is restarting; reload this page in a moment.");
+  updateSystem();
 });
 
 $("#reboot-system").addEventListener("click", () => {
@@ -130,6 +152,10 @@ $("#shutdown-system").addEventListener("click", () => {
   systemAction("shutdown", "Shutting down Nexus Core safely…", "Shutdown requested. It is safe to disconnect power after the Pi turns off.");
 });
 
+const updateNotice=takeUpdateNotice();
+history.scrollRestoration="manual";
 lockControls(!adminToken);
-if (adminToken) { loadSettingsPage().then((playerSettingsAvailable) => { lockControls(false); if (!playerSettingsAvailable) alertMessage("Settings unlocked. Restart Nexus Core to enable the new player settings."); }).catch(() => { adminToken=""; localStorage.removeItem("nexus-admin-token"); lockControls(true); alertMessage("Enter the Admin PIN to unlock settings controls."); }); }
-else alertMessage("Enter the Admin PIN to unlock settings controls.");
+const initialization=adminToken
+  ? loadSettingsPage().then((playerSettingsAvailable) => { lockControls(false);if(!playerSettingsAvailable)alertMessage("Settings unlocked. Restart Nexus Core to enable the new player settings."); }).catch(() => { adminToken="";localStorage.removeItem("nexus-admin-token");lockControls(true);alertMessage("Enter the Admin PIN to unlock settings controls."); })
+  : Promise.resolve(alertMessage("Enter the Admin PIN to unlock settings controls."));
+initialization.finally(()=>{if(updateNotice)alertMessage(updateNotice.message,updateNotice.type);window.scrollTo(0,0);});
