@@ -11,11 +11,21 @@
     <script type="module" src="/assets/controllers.js?v=1.0.0"></script>
   </head>
   <body>
-    <main class="controllers-main">
-      <header class="controllers-header">
-        <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><img src="/assets/nexus-logo.png" alt=""></span><span><strong>SubLim3</strong><small>PLAYER CONTROLLERS</small></span></a>
-        <a class="back-link" href="/">← Command center</a>
-      </header>
+    <div class="app-shell controllers-shell">
+      <aside class="sidebar">
+        <a class="brand" href="/" aria-label="SubLim3 Nexus home"><span class="brand-mark" aria-hidden="true"><img src="/assets/nexus-logo.png" alt=""></span><span><strong>SubLim3</strong><small>PLAYER CONTROLLERS</small></span></a>
+        <nav aria-label="Media navigation">
+          <a class="nav-item" href="/"><span class="nav-icon">⌂</span>Overview</a>
+          <a class="nav-item" href="/gm/"><span class="nav-icon">◈</span>GM Console</a>
+          <a class="nav-item" href="/media/"><span class="nav-icon">♫</span>Media</a>
+          <a class="nav-item" href="/rfid/"><span class="nav-icon">◇</span>RFID Cards</a>
+          <a class="nav-item" href="/library/"><span class="nav-icon">▤</span>Media Library</a>
+          <a class="nav-item active" href="/controllers/"><span class="nav-icon">⌁</span>Player Controllers</a>
+          <a class="nav-item" href="/settings/"><span class="nav-icon">⚙</span>Settings</a>
+        </nav>
+        <div class="sidebar-status"><span class="pulse-dot"></span><div><strong>Controllers online</strong><small>Watching paired devices</small></div></div>
+      </aside>
+      <main class="controllers-main">
       <section class="controllers-intro">
         <div><p class="eyebrow">PLAYER HARDWARE</p><h1>Player Controllers</h1><p>See every paired Player Cube or player device, its character assignment, and its access status.</p></div>
         <button id="refresh-controllers" class="secondary-button" type="button">Refresh</button>
@@ -34,6 +44,7 @@
         <div><p class="eyebrow">ADD A CONTROLLER</p><h2>Pair from the device</h2><p>Power on a Player Cube, connect it to Nexus Wi-Fi, then choose its campaign and character. Once paired, it appears here automatically.</p></div>
         <ol><li>Connect the controller to Nexus.</li><li>Select a campaign.</li><li>Select an available character.</li><li>Confirm the assignment.</li></ol>
       </section>
-    </main>
+      </main>
+    </div>
   </body>
 </html>

@@ -114,6 +114,7 @@ test("serves the dashboard with secure response headers", async () => {
   const page = await response.text();
   assert.match(page, /The table is ready/);
   assert.match(page, /ACCESS &amp; PAIRING/);
+  assert.match(page, /class="nav-divider" role="separator"/);
 });
 
 test("serves the Nexus logo asset", async () => {
@@ -235,6 +236,9 @@ test("serves the Player Controllers management page", async () => {
   const page = await response.text();
   assert.match(page, /Player Controllers/);
   assert.match(page, /Paired controllers/);
+  assert.match(page, /class="nav-item active" href="\/controllers\/"/);
+  assert.match(page, /href="\/rfid\/"/);
+  assert.match(page, /href="\/library\/"/);
   assert.equal((await fetch(`${baseUrl}/assets/controllers.js`)).status, 200);
   assert.equal((await fetch(`${baseUrl}/assets/controllers.css`)).status, 200);
 });
