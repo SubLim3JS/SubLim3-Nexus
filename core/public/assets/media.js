@@ -2,9 +2,6 @@ const $ = (selector) => document.querySelector(selector);
 const authToken = localStorage.getItem("nexus-admin-token") ?? localStorage.getItem("nexus-gm-token") ?? "";
 const tracks = [];
 let libraryItems = [];
-let folders = [""];
-let rfidCards = [];
-let latestRfidScan = null;
 let audioContext;
 let fileAudio;
 let masterGain;
@@ -29,11 +26,6 @@ function formatTime(seconds) {
 function message(text = "", type = "") {
   $("#media-message").textContent = text;
   $("#media-message").className = `media-message ${type}`.trim();
-}
-
-function libraryMessage(text = "", type = "") {
-  $("#library-message").textContent = text;
-  $("#library-message").className = `library-message ${type}`.trim();
 }
 
 async function api(path, options = {}) {
@@ -173,91 +165,6 @@ function renderLibrary() {
 
 function folderName(folder) {
   return folder || "Library root";
-}
-
-function folderOptions(selected = "") {
-  return folders.map((folder) => {
-    const option = document.createElement("option");
-    option.value = folder;
-    option.textContent = folderName(folder);
-    option.selected = folder === selected;
-    return option;
-  });
-}
-
-function renderFolders() {
-  const current = folders.includes($("#library-folder").value) ? $("#library-folder").value : "";
-  $("#library-folder").replaceChildren(...folderOptions(current));
-  renderManagedFiles();
-}
-
-function renderManagedFiles() {
-  const currentFolder = $("#library-folder").value;
-  const files = libraryItems.filter((item) => item.source?.type === "file" && (item.folder_path ?? "") === currentFolder);
-  $("#file-count").textContent = `${libraryItems.filter((item) => item.source?.type === "file").length} files`;
-  if (!files.length) {
-    const empty = document.createElement("p");
-    empty.className = "library-empty";
-    empty.textContent = `No audio files in ${folderName(currentFolder)}.`;
-    $("#managed-files").replaceChildren(empty);
-    return;
-  }
-  $("#managed-files").replaceChildren(...files.map((item) => {
-    const row = document.createElement("div");
-    row.className = "managed-file";
-    const copy = document.createElement("span");
-    const name = document.createElement("strong");
-    name.textContent = item.name;
-    const details = document.createElement("small");
-    details.textContent = `${item.source.original_filename} • ${Math.max(1, Math.round(item.source.size_bytes / 1024))} KB`;
-    copy.append(name, details);
-    const target = document.createElement("select");
-    target.setAttribute("aria-label", `Move ${item.name} to folder`);
-    target.append(...folderOptions(item.folder_path ?? ""));
-    const move = document.createElement("button");
-    move.type = "button";
-    move.textContent = "Move";
-    move.addEventListener("click", () => moveFile(item.item_id, target.value));
-    row.append(copy, target, move);
-    return row;
-  }));
-}
-
-function renderUsbFiles(files) {
-  $("#usb-results").hidden = false;
-  $("#usb-count").textContent = `${files.length} found`;
-  if (!files.length) {
-    const empty = document.createElement("p");
-    empty.className = "library-empty";
-    empty.textContent = "No supported audio files were found in the configured USB mount roots.";
-    $("#usb-files").replaceChildren(empty);
-    return;
-  }
-  $("#usb-files").replaceChildren(...files.map((file) => {
-    const row = document.createElement("div");
-    row.className = "usb-file";
-    const copy = document.createElement("span");
-    const name = document.createElement("strong");
-    name.textContent = file.name;
-    const location = document.createElement("small");
-    location.textContent = file.location;
-    copy.append(name, location);
-    const destination = document.createElement("span");
-    destination.textContent = folderName($("#library-folder").value);
-    const actions = document.createElement("span");
-    actions.className = "usb-actions";
-    const play = document.createElement("button");
-    play.type = "button";
-    play.textContent = "Play from USB";
-    play.addEventListener("click", () => playFromUsb(file.source_path));
-    const importButton = document.createElement("button");
-    importButton.type = "button";
-    importButton.textContent = "Import to library";
-    importButton.addEventListener("click", () => importUsb(file.source_path));
-    actions.append(play, importButton);
-    row.append(copy, destination, actions);
-    return row;
-  }));
 }
 
 function renderTrack() {
@@ -564,192 +471,6 @@ async function reloadLibrary() {
   tracks.splice(0, tracks.length, ...libraryItems.filter((item) => item.kind === "ambience"));
   renderLibrary();
   renderTrack();
-  renderManagedFiles();
-  renderRfidAudioOptions();
-}
-
-function rfidMessage(text = "", type = "") {
-  $("#rfid-message").textContent = text;
-  $("#rfid-message").className = `library-message ${type}`.trim();
-}
-
-function renderRfidAudioOptions(selected = $("#rfid-audio-item").value) {
-  const groups = [
-    ["Ambience", libraryItems.filter((item) => item.kind === "ambience")],
-    ["Effects", libraryItems.filter((item) => item.kind === "effect")],
-  ];
-  const nodes = [];
-  for (const [label, items] of groups) {
-    if (!items.length) continue;
-    const group = document.createElement("optgroup");
-    group.label = label;
-    for (const item of items) {
-      const option = document.createElement("option");
-      option.value = item.item_id;
-      option.textContent = item.name;
-      option.selected = item.item_id === selected;
-      group.append(option);
-    }
-    nodes.push(group);
-  }
-  $("#rfid-audio-item").replaceChildren(...nodes);
-}
-
-function rfidActionLabel(card) {
-  if (card.action.type === "audio") {
-    const item = libraryItems.find((entry) => entry.item_id === card.action.item_id);
-    return item ? `${item.kind === "effect" ? "Effect" : "Play"}: ${item.name}` : `Missing audio: ${card.action.item_id}`;
-  }
-  return { stop:"Stop playback", pause:"Pause playback", volume_up:"Volume up", volume_down:"Volume down" }[card.action.type] ?? card.action.type;
-}
-
-function clearRfidForm() {
-  $("#rfid-form").reset();
-  $("#rfid-action").value = "audio";
-  updateRfidActionField();
-  renderRfidAudioOptions();
-}
-
-function editRfidCard(card) {
-  $("#rfid-uid").value = card.uid;
-  $("#rfid-name").value = card.name;
-  $("#rfid-action").value = card.action.type;
-  updateRfidActionField();
-  if (card.action.item_id) renderRfidAudioOptions(card.action.item_id);
-  $("#rfid-uid").focus();
-  $("#rfid-section")?.scrollIntoView({ behavior:"smooth", block:"start" });
-}
-
-function renderRfidCards() {
-  $("#rfid-count").textContent = `${rfidCards.length} card${rfidCards.length === 1 ? "" : "s"}`;
-  if (!rfidCards.length) {
-    const empty = document.createElement("p");
-    empty.className = "rfid-empty";
-    empty.textContent = "No cards assigned yet. Scan a card and create the first binding.";
-    $("#rfid-card-list").replaceChildren(empty);
-    return;
-  }
-  $("#rfid-card-list").replaceChildren(...rfidCards.map((card) => {
-    const row = document.createElement("article");
-    row.className = "rfid-row";
-    const identity = document.createElement("span");
-    const name = document.createElement("strong");
-    name.textContent = card.name;
-    const uid = document.createElement("small");
-    uid.textContent = card.uid;
-    identity.append(name, uid);
-    const action = document.createElement("span");
-    action.className = "rfid-action-label";
-    action.textContent = rfidActionLabel(card);
-    const actions = document.createElement("span");
-    actions.className = "rfid-row-actions";
-    const test = document.createElement("button");
-    test.type = "button";
-    test.textContent = "Test";
-    test.addEventListener("click", () => testRfidUid(card.uid));
-    const edit = document.createElement("button");
-    edit.type = "button";
-    edit.textContent = "Edit";
-    edit.addEventListener("click", () => editRfidCard(card));
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "danger";
-    remove.textContent = "Delete";
-    remove.addEventListener("click", () => deleteRfidCard(card));
-    actions.append(test, edit, remove);
-    row.append(identity, action, actions);
-    return row;
-  }));
-}
-
-async function reloadRfidCards() {
-  rfidCards = await api("/api/v1/rfid/cards");
-  renderRfidCards();
-}
-
-function renderLastRfidScan(scan) {
-  if (!scan) return;
-  latestRfidScan = scan;
-  $("#rfid-last-scan").textContent = scan.uid;
-  const cardName = scan.card?.name ? ` · ${scan.card.name}` : " · Unassigned card";
-  const outcomes = { executed:"Action executed", ignored_delay:"Repeat scan ignored", released:"Card removed", unassigned:"No binding assigned" };
-  $("#rfid-last-outcome").textContent = `${outcomes[scan.outcome] ?? scan.outcome}${cardName}`;
-}
-
-async function refreshRfidScan() {
-  try {
-    const scan = await api("/api/v1/rfid/last-scan");
-    if (scan?.scanned_at !== latestRfidScan?.scanned_at) renderLastRfidScan(scan);
-  } catch { /* Reader status should not interrupt audio playback. */ }
-}
-
-async function testRfidUid(uid) {
-  if (!uid.trim()) return rfidMessage("Enter or scan a card UID first.", "error");
-  try {
-    await ensureAudio();
-    const result = await api("/api/v1/rfid/scan", { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify({ uid }) });
-    renderLastRfidScan(result);
-    await applyStatus(result.audio, { allowAudio:true });
-    rfidMessage(result.outcome === "unassigned" ? "That card is not assigned yet." : `Scan result: ${result.outcome.replaceAll("_", " ")}.`, result.outcome === "executed" ? "success" : "");
-  } catch (error) { rfidMessage(error.message, "error"); }
-}
-
-async function deleteRfidCard(card) {
-  if (!window.confirm(`Delete the binding for ${card.name}?`)) return;
-  try {
-    await api(`/api/v1/rfid/cards/${encodeURIComponent(card.uid)}`, { method:"DELETE" });
-    await reloadRfidCards();
-    rfidMessage(`${card.name} deleted.`, "success");
-  } catch (error) { rfidMessage(error.message, "error"); }
-}
-
-function updateRfidActionField() {
-  const audioAction = $("#rfid-action").value === "audio";
-  $("#rfid-audio-field").hidden = !audioAction;
-  $("#rfid-audio-item").disabled = !audioAction;
-  $("#rfid-audio-item").required = audioAction;
-}
-
-$("#rfid-action").addEventListener("change", updateRfidActionField);
-$("#rfid-clear").addEventListener("click", clearRfidForm);
-$("#rfid-use-scan").addEventListener("click", () => {
-  if (!latestRfidScan) return rfidMessage("No card has been scanned yet.", "error");
-  $("#rfid-uid").value = latestRfidScan.uid;
-  if (latestRfidScan.card) editRfidCard(latestRfidScan.card);
-  else $("#rfid-name").focus();
-});
-$("#rfid-simulate").addEventListener("click", () => testRfidUid($("#rfid-uid").value));
-$("#rfid-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const actionType = $("#rfid-action").value;
-  const action = actionType === "audio" ? { type:actionType, item_id:$("#rfid-audio-item").value } : { type:actionType };
-  try {
-    const saved = await api("/api/v1/rfid/cards", { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify({ uid:$("#rfid-uid").value, name:$("#rfid-name").value, action }) });
-    await reloadRfidCards();
-    clearRfidForm();
-    rfidMessage(`${saved.name} is ready to scan.`, "success");
-  } catch (error) { rfidMessage(error.message, "error"); }
-});
-
-async function reloadFolders() {
-  folders = await api("/api/v1/audio/folders");
-  renderFolders();
-}
-
-async function moveFile(itemId, folderPath) {
-  try {
-    await api(`/api/v1/audio/files/${encodeURIComponent(itemId)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ folder_path: folderPath }) });
-    await reloadLibrary();
-    libraryMessage("Audio file moved.", "success");
-  } catch (error) { libraryMessage(error.message, "error"); }
-}
-
-async function importUsb(sourcePath) {
-  try {
-    await api("/api/v1/audio/import", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source_path: sourcePath, folder_path: $("#library-folder").value, kind: "ambience" }) });
-    await reloadLibrary();
-    libraryMessage("USB audio imported.", "success");
-  } catch (error) { libraryMessage(error.message, "error"); }
 }
 
 async function playFromUsb(sourcePath) {
@@ -757,47 +478,9 @@ async function playFromUsb(sourcePath) {
     await ensureAudio();
     const status = await api("/api/v1/audio/usb/play", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source_path: sourcePath }) });
     await applyStatus(status, { allowAudio: true });
-    libraryMessage(`Playing ${status.item.name} directly from USB.`, "success");
-  } catch (error) { libraryMessage(error.message, "error"); }
+    message(`Playing ${status.item.name} directly from USB.`, "success");
+  } catch (error) { message(error.message, "error"); }
 }
-
-$("#library-folder").addEventListener("change", renderManagedFiles);
-$("#folder-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const name = $("#folder-name").value.trim();
-  if (!name) return libraryMessage("Enter a folder name.", "error");
-  try {
-    const created = await api("/api/v1/audio/folders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ parent_path: $("#library-folder").value, name }) });
-    await reloadFolders();
-    $("#library-folder").value = created.folder_path;
-    $("#folder-name").value = "";
-    renderManagedFiles();
-    libraryMessage(`Created ${created.folder_path}.`, "success");
-  } catch (error) { libraryMessage(error.message, "error"); }
-});
-$("#upload-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const files = [...$("#audio-upload").files];
-  if (!files.length) return libraryMessage("Choose one or more audio files.", "error");
-  try {
-    for (const file of files) {
-      libraryMessage(`Uploading ${file.name}…`);
-      const query = new URLSearchParams({ filename: file.name, folder: $("#library-folder").value, kind: "ambience" });
-      await api(`/api/v1/audio/files/upload?${query}`, { method: "POST", headers: { "content-type": file.type || "application/octet-stream" }, body: file });
-    }
-    $("#audio-upload").value = "";
-    await reloadLibrary();
-    libraryMessage(`${files.length} audio file${files.length === 1 ? "" : "s"} uploaded.`, "success");
-  } catch (error) { libraryMessage(error.message, "error"); }
-});
-$("#scan-usb").addEventListener("click", async () => {
-  try {
-    libraryMessage("Scanning configured USB mounts…");
-    const files = await api("/api/v1/audio/usb");
-    renderUsbFiles(files);
-    libraryMessage(files.length ? "USB scan complete." : "No USB audio found.");
-  } catch (error) { libraryMessage(error.message, "error"); }
-});
 
 async function refresh() {
   try { await applyStatus(await api("/api/v1/audio/status")); }
@@ -807,20 +490,13 @@ async function refresh() {
 async function initialize() {
   try {
     await reloadLibrary();
-    try { await reloadFolders(); }
-    catch (error) { libraryMessage(error.message, "error"); }
-    try { await reloadRfidCards(); }
-    catch (error) { rfidMessage(error.message, "error"); }
-    await refreshRfidScan();
     await refresh();
     setInterval(refresh, 1000);
-    setInterval(refreshRfidScan, 1000);
   } catch (error) {
     message(error.message, "error");
   }
 }
 
 renderPlayback();
-updateRfidActionField();
 requestAnimationFrame(updateProgress);
 initialize();

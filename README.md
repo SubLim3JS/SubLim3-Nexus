@@ -53,11 +53,11 @@ Responsibilities:
 * Provide REST APIs
 * Serve local dashboard pages
 
-The media player is available at `/media/`. Nexus Core persists its folder-based
-library and global playback state. Paired Admin and GM browsers can upload audio,
-create and organize folders, or import supported files from configured USB mount
-roots. The first browser playback driver streams managed files and also provides
-three procedural soundscapes and four one-shot effects as offline starter content.
+The clean GM media player is available at `/media/`. RFID card bindings live at
+`/rfid/`, while file, folder, upload, and USB management live at `/library/`.
+All three surfaces share a left navigation rail and one Core-managed library and
+playback state. The browser driver streams managed files and also provides three
+procedural soundscapes and four one-shot effects as offline starter content.
 
 The dashboard also manages system-neutral campaign characters. Each character has
 a shareable local player view that combines live resources, conditions, GM notes,

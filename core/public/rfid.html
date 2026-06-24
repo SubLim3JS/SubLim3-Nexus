@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#090b12">
+    <title>RFID Cards • SubLim3 Nexus</title>
+    <link rel="icon" type="image/png" href="/assets/nexus-logo.png"><link rel="stylesheet" href="/assets/styles.css?v=1.4.2"><link rel="stylesheet" href="/assets/manage.css?v=1.0.0">
+    <script type="module" src="/assets/rfid.js?v=1.0.0"></script>
+  </head>
+  <body><div class="app-shell management-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="SubLim3 Nexus home"><span class="brand-mark" aria-hidden="true"><img src="/assets/nexus-logo.png" alt=""></span><span><strong>SubLim3</strong><small>RFID CARDS</small></span></a>
+      <nav aria-label="Media navigation"><a class="nav-item" href="/"><span class="nav-icon">⌂</span>Overview</a><a class="nav-item" href="/gm/"><span class="nav-icon">◈</span>GM Console</a><a class="nav-item" href="/media/"><span class="nav-icon">♫</span>Media</a><a class="nav-item active" href="/rfid/"><span class="nav-icon">◇</span>RFID Cards</a><a class="nav-item" href="/library/"><span class="nav-icon">▤</span>Media Library</a><a class="nav-item" href="/controllers/"><span class="nav-icon">⌁</span>Player Controllers</a><a class="nav-item" href="/settings/"><span class="nav-icon">⚙</span>Settings</a></nav>
+      <div class="sidebar-status"><span class="pulse-dot"></span><div><strong>Reader ready</strong><small>Watching for card scans</small></div></div>
+    </aside>
+    <main class="management-main">
+      <header class="management-intro"><div><p class="eyebrow">PHYSICAL MEDIA</p><h1>RFID Cards</h1><p>Assign physical cards to soundscapes, effects, and table playback controls.</p></div><a class="secondary-link" href="/media/">Open Media Player →</a></header>
+      <div class="section-heading"><div><p class="eyebrow">CARD MANAGER</p><h2>Bindings</h2></div><span class="count-badge" id="rfid-count">0 cards</span></div>
+      <section class="rfid-layout">
+        <form id="rfid-form" class="management-card rfid-card-form">
+          <div><p class="eyebrow">CARD BINDING</p><h3>Assign a card</h3><p>Enter a UID or use the latest scan, then choose what happens at the table.</p></div>
+          <label><span>Card UID</span><div class="rfid-uid-field"><input id="rfid-uid" type="text" maxlength="80" required placeholder="04:A1:B2:C3" autocomplete="off" spellcheck="false"><button id="rfid-use-scan" type="button">Use last scan</button></div></label>
+          <label><span>Card name</span><input id="rfid-name" type="text" maxlength="100" required placeholder="Tavern ambience"></label>
+          <div class="rfid-form-pair"><label><span>Action</span><select id="rfid-action"><option value="audio">Play audio or effect</option><option value="stop">Stop playback</option><option value="pause">Pause playback</option><option value="volume_up">Volume up</option><option value="volume_down">Volume down</option></select></label><label id="rfid-audio-field"><span>Audio item</span><select id="rfid-audio-item" required></select></label></div>
+          <div class="rfid-form-actions"><button class="primary-action" type="submit">Save binding</button><button id="rfid-clear" type="button">Clear</button></div><p id="rfid-message" class="page-message" role="status" aria-live="polite">Pair as Admin or GM to manage cards.</p>
+        </form>
+        <div class="management-card rfid-card-list-panel"><div class="rfid-live"><span class="rfid-pulse" aria-hidden="true"></span><div><small>LATEST READER EVENT</small><strong id="rfid-last-scan">Waiting for a card scan…</strong><span id="rfid-last-outcome">Reader adapters post scans to Nexus Core.</span></div><button id="rfid-simulate" type="button">Test entered UID</button></div><div id="rfid-card-list" class="rfid-card-list"></div></div>
+      </section>
+    </main>
+  </div></body>
+</html>

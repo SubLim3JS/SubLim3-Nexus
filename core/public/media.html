@@ -11,14 +11,21 @@
     <script type="module" src="/assets/media.js?v=1.0.0"></script>
   </head>
   <body>
-    <main class="media-main">
-      <header class="media-header">
-        <a class="brand" href="/">
-          <span class="brand-mark" aria-hidden="true"><img src="/assets/nexus-logo.png" alt=""></span>
-          <span><strong>SubLim3</strong><small>NEXUS MEDIA</small></span>
-        </a>
-        <div class="media-header-actions"><span class="preview-badge"><i></i>Core synced</span><a class="back-link" href="/">← Command center</a></div>
-      </header>
+    <div class="app-shell media-shell">
+      <aside class="sidebar">
+        <a class="brand" href="/" aria-label="SubLim3 Nexus home"><span class="brand-mark" aria-hidden="true"><img src="/assets/nexus-logo.png" alt=""></span><span><strong>SubLim3</strong><small>NEXUS MEDIA</small></span></a>
+        <nav aria-label="Media navigation">
+          <a class="nav-item" href="/"><span class="nav-icon">⌂</span>Overview</a>
+          <a class="nav-item" href="/gm/"><span class="nav-icon">◈</span>GM Console</a>
+          <a class="nav-item active" href="/media/"><span class="nav-icon">♫</span>Media</a>
+          <a class="nav-item" href="/rfid/"><span class="nav-icon">◇</span>RFID Cards</a>
+          <a class="nav-item" href="/library/"><span class="nav-icon">▤</span>Media Library</a>
+          <a class="nav-item" href="/controllers/"><span class="nav-icon">⌁</span>Player Controllers</a>
+          <a class="nav-item" href="/settings/"><span class="nav-icon">⚙</span>Settings</a>
+        </nav>
+        <div class="sidebar-status"><span class="pulse-dot"></span><div><strong>Nexus online</strong><small>Media service ready</small></div></div>
+      </aside>
+      <main class="media-main">
 
       <section class="media-intro">
         <div><p class="eyebrow">TABLE AUDIO</p><h1>Soundscapes</h1><p>Layer atmosphere into every scene. Nexus Core now owns the library, playback state, and controls while this browser provides the first audio renderer.</p></div>
@@ -36,27 +43,6 @@
         </form>
         <p id="audio-search-message" class="library-message" role="status" aria-live="polite">Search every available audio source from one place.</p>
         <div id="audio-search-results" class="audio-search-results"></div>
-      </section>
-
-      <section id="rfid-section" class="rfid-section">
-        <div class="section-heading"><div><p class="eyebrow">PHYSICAL MEDIA</p><h2>RFID Manager</h2></div><span class="count-badge" id="rfid-count">0 cards</span></div>
-        <div class="rfid-layout">
-          <form id="rfid-form" class="rfid-card-form">
-            <div><p class="eyebrow">CARD BINDING</p><h3>Assign a card</h3><p>Enter a UID or use the latest scan, then choose what happens at the table.</p></div>
-            <label><span>Card UID</span><div class="rfid-uid-field"><input id="rfid-uid" type="text" maxlength="80" required placeholder="04:A1:B2:C3" autocomplete="off" spellcheck="false"><button id="rfid-use-scan" type="button">Use last scan</button></div></label>
-            <label><span>Card name</span><input id="rfid-name" type="text" maxlength="100" required placeholder="Tavern ambience"></label>
-            <div class="rfid-form-pair">
-              <label><span>Action</span><select id="rfid-action"><option value="audio">Play audio or effect</option><option value="stop">Stop playback</option><option value="pause">Pause playback</option><option value="volume_up">Volume up</option><option value="volume_down">Volume down</option></select></label>
-              <label id="rfid-audio-field"><span>Audio item</span><select id="rfid-audio-item" required></select></label>
-            </div>
-            <div class="rfid-form-actions"><button class="rfid-primary" type="submit">Save binding</button><button id="rfid-clear" type="button">Clear</button></div>
-            <p id="rfid-message" class="library-message" role="status" aria-live="polite">Pair as Admin or GM to manage cards.</p>
-          </form>
-          <div class="rfid-card-list-panel">
-            <div class="rfid-live"><span class="rfid-pulse" aria-hidden="true"></span><div><small>LATEST READER EVENT</small><strong id="rfid-last-scan">Waiting for a card scan…</strong><span id="rfid-last-outcome">Reader adapters post scans to Nexus Core.</span></div><button id="rfid-simulate" type="button">Test entered UID</button></div>
-            <div id="rfid-card-list" class="rfid-card-list"></div>
-          </div>
-        </div>
       </section>
 
       <section class="player-grid">
@@ -81,7 +67,6 @@
         <aside class="queue-panel">
           <div class="panel-heading"><div><p class="eyebrow">SCENE QUEUE</p><h2>Ambience</h2></div><span id="track-count">Loading…</span></div>
           <div id="queue-list"></div>
-          <div class="queue-note"><span>◇</span><p><strong>RFID ready</strong><small>Assigned cards can launch tracks and effects through the same media API.</small></p></div>
         </aside>
       </section>
 
@@ -96,21 +81,6 @@
         <p id="radio-message" class="library-message" role="status" aria-live="polite">Choose a preset or enter any direct HTTP(S) audio stream.</p>
       </section>
 
-      <section class="library-section">
-        <div class="section-heading"><div><p class="eyebrow">MEDIA LIBRARY</p><h2>Files &amp; folders</h2></div><span class="count-badge" id="file-count">0 files</span></div>
-        <div class="library-card">
-          <div class="library-toolbar">
-            <label><span>Current folder</span><select id="library-folder"><option value="">Library root</option></select></label>
-            <form id="folder-form"><label><span>New folder</span><input id="folder-name" type="text" maxlength="80" placeholder="Taverns"></label><button type="submit">Create folder</button></form>
-            <form id="upload-form"><label class="file-picker"><span>Add audio</span><input id="audio-upload" type="file" accept="audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.aac,.flac,.webm" multiple></label><button type="submit">Upload files</button></form>
-            <button id="scan-usb" type="button">Scan USB</button>
-          </div>
-          <p id="library-message" class="library-message" role="status" aria-live="polite">Create folders, upload from this device, or import from a mounted USB drive.</p>
-          <div id="managed-files" class="managed-files"></div>
-          <div id="usb-results" class="usb-results" hidden><div class="library-subheading"><strong>USB audio</strong><span id="usb-count"></span></div><div id="usb-files"></div></div>
-        </div>
-      </section>
-
       <section class="sfx-section">
         <div class="section-heading"><div><p class="eyebrow">QUICK TRIGGERS</p><h2>Sound effects</h2></div><span class="count-badge">Procedural demo</span></div>
         <div class="sfx-grid">
@@ -120,6 +90,7 @@
           <button type="button" data-sfx="arcane-pulse"><span>◉</span><strong>Arcane Pulse</strong><small>Resonant energy</small></button>
         </div>
       </section>
-    </main>
+      </main>
+    </div>
   </body>
 </html>

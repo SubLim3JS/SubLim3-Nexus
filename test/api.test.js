@@ -189,14 +189,32 @@ test("serves the offline media player demo", async () => {
   assert.match(response.headers.get("content-type"), /text\/html/);
   const page = await response.text();
   assert.match(page, /Soundscapes/);
-  assert.match(page, /Core synced/);
+  assert.match(page, /Media Library/);
   assert.match(page, /Live radio/);
   assert.match(page, /Search audio/);
-  assert.match(page, /RFID Manager/);
-  assert.match(page, /Use last scan/);
+  assert.doesNotMatch(page, /Assign a card/);
+  assert.doesNotMatch(page, /Create folder/);
   assert.match(page, /Local · USB · Live/);
   assert.match(page, /stream\.revma\.ihrhls\.com\/zc2157/);
   assert.match(response.headers.get("content-security-policy"), /media-src 'self' http: https:/);
+});
+
+test("serves separate RFID and media library management pages", async () => {
+  const rfidPage = await fetch(`${baseUrl}/rfid/`).then((response) => response.text());
+  assert.match(rfidPage, /RFID Cards/);
+  assert.match(rfidPage, /Assign a card/);
+  assert.match(rfidPage, /Use last scan/);
+  assert.match(rfidPage, /href="\/media\/"/);
+  assert.doesNotMatch(rfidPage, /Create folder/);
+
+  const libraryPage = await fetch(`${baseUrl}/library/`).then((response) => response.text());
+  assert.match(libraryPage, /Media Library/);
+  assert.match(libraryPage, /Create folder/);
+  assert.match(libraryPage, /Scan USB/);
+  assert.match(libraryPage, /href="\/rfid\/"/);
+  assert.doesNotMatch(libraryPage, /Assign a card/);
+
+  for (const asset of ["manage.css", "rfid.js", "library.js"]) assert.equal((await fetch(`${baseUrl}/assets/${asset}`)).status, 200);
 });
 
 test("serves the GM campaign invitation surface", async () => {
