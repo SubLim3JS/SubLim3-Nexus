@@ -19,6 +19,16 @@ if [[ "${REPOSITORY_ROOT}" != "${APP_DIR}" ]]; then
   exit 1
 fi
 
+# Updates originate inside the deliberately read-only Nexus Core service
+# sandbox. Ask the system manager to run the actual installation in a fresh
+# root service so package files and systemd units can be replaced safely.
+if [[ "${NEXUS_INSTALL_TRANSIENT:-0}" != "1" ]]; then
+  command -v systemd-run >/dev/null 2>&1 || { echo "Required command not found: systemd-run" >&2; exit 1; }
+  exec systemd-run --quiet --wait --pipe --collect \
+    --unit=sublim3-nexus-install \
+    /usr/bin/env NEXUS_INSTALL_TRANSIENT=1 "${REPOSITORY_ROOT}/scripts/install.sh"
+fi
+
 if [[ ! -x /usr/bin/node ]]; then
   echo "Node.js is not installed at /usr/bin/node." >&2
   exit 1

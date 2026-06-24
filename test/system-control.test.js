@@ -32,13 +32,19 @@ test("surfaces privileged update failures to the Settings client", async () => {
   );
 });
 
-test("runs updater Git operations as the repository owner and repairs legacy ownership", async () => {
+test("runs updates with an isolated Git environment outside the Core sandbox", async () => {
   const [helper, installer] = await Promise.all([
     readFile(new URL("../scripts/connectivity-helper.sh", import.meta.url), "utf8"),
     readFile(new URL("../scripts/install.sh", import.meta.url), "utf8"),
   ]);
-  assert.match(helper, /runuser -u "\$\{repository_owner\}" -- git/);
+  assert.match(helper, /runuser -u "\$\{repository_owner\}" -- env/);
+  assert.match(helper, /HOME="\$\{APP_DIR\}"/);
+  assert.match(helper, /XDG_CONFIG_HOME="\$\{APP_DIR\}\/\.git\/\.config"/);
+  assert.match(helper, /GIT_CONFIG_GLOBAL=\/dev\/null/);
   assert.match(helper, /git_as_repository_owner fetch/);
   assert.match(helper, /git_as_repository_owner merge --ff-only FETCH_HEAD/);
+  assert.match(installer, /NEXUS_INSTALL_TRANSIENT/);
+  assert.match(installer, /systemd-run --quiet --wait --pipe --collect/);
+  assert.match(installer, /--unit=sublim3-nexus-install/);
   assert.match(installer, /chown -R "\$\{repository_owner\}:\$\{repository_group\}" "\$\{APP_DIR\}"/);
 });

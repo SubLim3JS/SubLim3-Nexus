@@ -25,7 +25,13 @@ git_as_repository_owner() {
   if [[ "${repository_owner}" == "root" ]]; then
     git -c safe.directory="${APP_DIR}" -C "${APP_DIR}" "$@"
   else
-    runuser -u "${repository_owner}" -- git -C "${APP_DIR}" "$@"
+    # Nexus Core runs with ProtectHome enabled. Give Git an accessible,
+    # repository-local environment instead of probing the owner's hidden home.
+    runuser -u "${repository_owner}" -- env \
+      HOME="${APP_DIR}" \
+      XDG_CONFIG_HOME="${APP_DIR}/.git/.config" \
+      GIT_CONFIG_GLOBAL=/dev/null \
+      git -C "${APP_DIR}" "$@"
   fi
 }
 

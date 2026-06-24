@@ -109,6 +109,11 @@ failures are shown in Settings instead of a generic server error. After an updat
 passes or fails, Settings waits for Nexus Core, refreshes to the top of the page,
 and preserves a visible result notification across the restart.
 
+Version 1.4.2 completes the hardened updater path for fresh installations. Git
+uses a repository-local configuration environment while the service home is
+protected, and installation runs in a short-lived root service outside the
+read-only Nexus Core sandbox.
+
 Initial development may use Raspberry Pi hardware.
 
 Long-term production hardware may use either:
