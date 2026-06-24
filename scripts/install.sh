@@ -34,7 +34,7 @@ if [[ ! -x /usr/bin/node ]]; then
   exit 1
 fi
 
-for required_command in nmcli bluetoothctl visudo git runuser; do
+for required_command in nmcli bluetoothctl visudo git runuser getent usermod; do
   command -v "${required_command}" >/dev/null 2>&1 || { echo "Required command not found: ${required_command}" >&2; exit 1; }
 done
 
@@ -53,6 +53,19 @@ fi
 
 if ! id "${SERVICE_USER}" >/dev/null 2>&1; then
   useradd --system --home-dir "${DATA_DIR}" --shell /usr/sbin/nologin "${SERVICE_USER}"
+fi
+
+if getent group audio >/dev/null 2>&1; then
+  usermod -a -G audio "${SERVICE_USER}"
+fi
+
+if ! command -v mpv >/dev/null 2>&1; then
+  echo "Installing the Raspberry Pi audio driver (mpv)..."
+  if command -v apt-get >/dev/null 2>&1 && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends mpv; then
+    echo "mpv installed. Nexus Core will provide server-side audio output."
+  else
+    echo "Warning: mpv could not be installed. Nexus will keep using browser audio until mpv is available." >&2
+  fi
 fi
 
 install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 0750 "${DATA_DIR}"

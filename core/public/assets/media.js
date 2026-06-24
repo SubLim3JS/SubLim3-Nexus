@@ -204,6 +204,11 @@ async function renderAudioState(status, allowAudio = false) {
   renderTrack();
   renderPlayback();
 
+  if (status.output?.server_playback) {
+    stopNodes();
+    return;
+  }
+
   if (status.state === "stopped") {
     stopNodes();
   } else if (["file", "usb", "radio"].includes(status.item?.source?.type) && (allowAudio || fileAudio || audioContext)) {
@@ -247,7 +252,7 @@ async function applyStatus(status, { allowAudio = false } = {}) {
   serverStatus = status;
   statusReceivedAt = performance.now();
   const effectEventId = status.last_effect?.event_id ?? null;
-  if (!firstStatus && effectEventId && effectEventId !== lastEffectEventId && (allowAudio || audioContext)) {
+  if (!status.output?.server_playback && !firstStatus && effectEventId && effectEventId !== lastEffectEventId && (allowAudio || audioContext)) {
     try { await playEffect(status.last_effect.item_id); } catch { message("Tap a sound effect once to enable audio in this browser."); }
   }
   lastEffectEventId = effectEventId;
@@ -257,7 +262,7 @@ async function applyStatus(status, { allowAudio = false } = {}) {
 
 async function control(path, body = {}) {
   try {
-    await ensureAudio();
+    if (!serverStatus?.output?.server_playback) await ensureAudio();
     const status = await api(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     message("Nexus Core synced.", "success");
     await applyStatus(status, { allowAudio: true });

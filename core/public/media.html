@@ -8,7 +8,7 @@
     <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
     <link rel="stylesheet" href="/assets/styles.css?v=1.0.0">
     <link rel="stylesheet" href="/assets/media.css?v=1.0.0">
-    <script type="module" src="/assets/media.js?v=1.0.0"></script>
+    <script type="module" src="/assets/media.js?v=1.5.0"></script>
   </head>
   <body>
     <div class="app-shell media-shell">
@@ -29,8 +29,8 @@
       <main class="media-main">
 
       <section class="media-intro">
-        <div><p class="eyebrow">TABLE AUDIO</p><h1>Soundscapes</h1><p>Layer atmosphere into every scene. Nexus Core now owns the library, playback state, and controls while this browser provides the first audio renderer.</p></div>
-        <div class="output-card"><span>Output driver</span><strong id="output-name">Browser renderer</strong><small>Core-managed • Pi and Bluetooth drivers come next</small></div>
+        <div><p class="eyebrow">TABLE AUDIO</p><h1>Soundscapes</h1><p>Layer atmosphere into every scene. Nexus Core drives Raspberry Pi audio automatically and keeps browser playback available as a fallback.</p></div>
+        <div class="output-card"><span>Output driver</span><strong id="output-name">Detecting output…</strong><small>Automatic • Pi audio with browser fallback</small></div>
       </section>
 
       <p id="media-message" class="media-message" role="status" aria-live="polite"></p>

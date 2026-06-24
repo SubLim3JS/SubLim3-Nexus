@@ -56,8 +56,10 @@ Responsibilities:
 The clean GM media player is available at `/media/`. RFID card bindings live at
 `/rfid/`, while file, folder, upload, and USB management live at `/library/`.
 All three surfaces share a left navigation rail and one Core-managed library and
-playback state. The browser driver streams managed files and also provides three
-procedural soundscapes and four one-shot effects as offline starter content.
+playback state. On Raspberry Pi, Nexus uses `mpv` and ALSA to play procedural
+soundscapes, effects, uploaded files, USB audio, and radio without an open browser.
+Development machines and Pi installations without `mpv` retain browser playback
+as a safe fallback.
 
 The dashboard also manages system-neutral campaign characters. Each character has
 a shareable local player view that combines live resources, conditions, GM notes,
@@ -114,6 +116,11 @@ Version 1.4.2 completes the hardened updater path for fresh installations. Git
 uses a repository-local configuration environment while the service home is
 protected, and installation runs in a short-lived root service outside the
 read-only Nexus Core sandbox.
+
+Version 1.5 adds headless Raspberry Pi audio. Nexus automatically installs and
+detects `mpv`, renders its built-in procedural sounds to cached WAV files, and
+plays ambience, effects, uploads, USB files, and radio through ALSA without an
+open browser. Browser playback remains the automatic fallback.
 
 Initial development may use Raspberry Pi hardware.
 

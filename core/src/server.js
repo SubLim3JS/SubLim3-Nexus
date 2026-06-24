@@ -14,6 +14,7 @@ import { loadBundledExpansionPacks } from "./expansion-packs.js";
 import { normalizeCharacter } from "./character.js";
 import { AudioService } from "./audio.js";
 import { AudioFileService } from "./audio-files.js";
+import { BrowserAudioOutput, MpvAudioOutput } from "./platform/audio-output.js";
 import { PlayerSettingsService } from "./player-settings.js";
 import { RfidService } from "./rfid.js";
 
@@ -45,7 +46,14 @@ const usbRoots = process.env.NEXUS_USB_IMPORT_ROOTS
   ? process.env.NEXUS_USB_IMPORT_ROOTS.split(path.delimiter).filter(Boolean)
   : process.platform === "linux" ? ["/media", "/mnt"] : [];
 const audioFiles = new AudioFileService({ rootDirectory: path.join(dataDirectory, "audio", "files"), libraryStore: audioLibraryStore, usbRoots });
-const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: audioStateStore, files: audioFiles, preferences: await playerSettings.get() });
+const audioOutput = process.env.NEXUS_AUDIO_DRIVER === "browser"
+  ? new BrowserAudioOutput()
+  : new MpvAudioOutput({
+      command: process.env.NEXUS_MPV_PATH ?? "/usr/bin/mpv",
+      audioDevice: process.env.NEXUS_AUDIO_DEVICE ?? "auto",
+      cacheDirectory: path.join(dataDirectory, "audio", "cache"),
+    });
+const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: audioStateStore, files: audioFiles, output: audioOutput, preferences: await playerSettings.get() });
 await audio.initialize();
 const rfid = new RfidService({ cardStore: rfidCardStore, stateStore: rfidStateStore, audio, settings: () => playerSettings.get() });
 await rfid.initialize();

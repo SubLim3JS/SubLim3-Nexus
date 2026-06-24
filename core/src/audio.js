@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { DEFAULT_PLAYER_SETTINGS } from "./player-settings.js";
+import { BrowserAudioOutput } from "./platform/audio-output.js";
 
 export const BUILT_IN_AUDIO_ITEMS = [
   {
@@ -35,10 +36,10 @@ export const BUILT_IN_AUDIO_ITEMS = [
     loop: true,
     synthesis: { frequencies: [65.41, 98, 130.81], wave: "sawtooth", cutoff: 520, noise: 0.012, pulse: 0.68 },
   },
-  { item_id: "thunder", name: "Thunder", kind: "effect", description: "Low rolling impact", tags: ["Weather"], sort_order: 10 },
-  { item_id: "ancient-door", name: "Ancient Door", kind: "effect", description: "Stone and timber", tags: ["Dungeon"], sort_order: 20 },
-  { item_id: "blade-clash", name: "Blade Clash", kind: "effect", description: "Metallic strike", tags: ["Combat"], sort_order: 30 },
-  { item_id: "arcane-pulse", name: "Arcane Pulse", kind: "effect", description: "Resonant energy", tags: ["Magic"], sort_order: 40 },
+  { item_id: "thunder", name: "Thunder", kind: "effect", description: "Low rolling impact", tags: ["Weather"], sort_order: 10, synthesis: { frequencies: [38, 55], wave: "sine", noise: 0.14, duration_seconds: 2.4 } },
+  { item_id: "ancient-door", name: "Ancient Door", kind: "effect", description: "Stone and timber", tags: ["Dungeon"], sort_order: 20, synthesis: { frequencies: [72, 108], wave: "sawtooth", noise: 0.08, duration_seconds: 1.2 } },
+  { item_id: "blade-clash", name: "Blade Clash", kind: "effect", description: "Metallic strike", tags: ["Combat"], sort_order: 30, synthesis: { frequencies: [740, 1110, 1480], wave: "sine", noise: 0.04, duration_seconds: 0.55 } },
+  { item_id: "arcane-pulse", name: "Arcane Pulse", kind: "effect", description: "Resonant energy", tags: ["Magic"], sort_order: 40, synthesis: { frequencies: [220, 329.63, 493.88], wave: "sine", noise: 0.015, duration_seconds: 1.1 } },
 ];
 
 const STATE_ID = "global";
@@ -47,7 +48,7 @@ function audioError(message, statusCode = 422) {
   return Object.assign(new Error(message), { statusCode });
 }
 
-function initialState(now, preferences = DEFAULT_PLAYER_SETTINGS) {
+function initialState(now, preferences = DEFAULT_PLAYER_SETTINGS, output = { driver: "browser_preview", name: "Browser renderer", available: true, server_playback: false }) {
   return {
     state: "stopped",
     item_id: null,
@@ -57,16 +58,17 @@ function initialState(now, preferences = DEFAULT_PLAYER_SETTINGS) {
     volume: preferences.startup_volume,
     revision: 0,
     last_effect: null,
-    output: { driver: "browser_preview", name: "Browser renderer" },
+    output,
     updated_at: now.toISOString(),
   };
 }
 
 export class AudioService {
-  constructor({ libraryStore, stateStore, files = null, preferences = DEFAULT_PLAYER_SETTINGS, now = () => new Date() }) {
+  constructor({ libraryStore, stateStore, files = null, output = new BrowserAudioOutput(), preferences = DEFAULT_PLAYER_SETTINGS, now = () => new Date() }) {
     this.libraryStore = libraryStore;
     this.stateStore = stateStore;
     this.files = files;
+    this.output = output;
     this.now = now;
     this.preferences = { ...DEFAULT_PLAYER_SETTINGS, ...preferences };
     this.mutation = Promise.resolve();
@@ -74,7 +76,7 @@ export class AudioService {
   }
 
   async initialize() {
-    await Promise.all([this.libraryStore.initialize(), this.stateStore.initialize(), this.files?.initialize()]);
+    await Promise.all([this.libraryStore.initialize(), this.stateStore.initialize(), this.files?.initialize(), this.output.initialize()]);
     await Promise.all(BUILT_IN_AUDIO_ITEMS.map(async (item) => {
       const existing = await this.libraryStore.get(item.item_id);
       if (!existing || existing.built_in) {
@@ -82,13 +84,20 @@ export class AudioService {
       }
     }));
     const existingState = await this.stateStore.get(STATE_ID);
-    if (!existingState) await this.stateStore.put(STATE_ID, initialState(this.now(), this.preferences));
+    const output = this.output.info();
+    if (!existingState) await this.stateStore.put(STATE_ID, initialState(this.now(), this.preferences, output));
     else await this.stateStore.put(STATE_ID, {
       ...existingState,
       ...(existingState.external_item ? { state: "stopped", item_id: null, external_item: null, position_seconds: 0, started_at: null } : {}),
       volume: this.preferences.startup_volume,
+      output,
       updated_at: this.now().toISOString(),
     });
+  }
+
+  async outputCall(method, ...args) {
+    try { return await this.output[method]?.(...args); }
+    catch { return false; }
   }
 
   async library(kind = null) {
@@ -157,6 +166,7 @@ export class AudioService {
       position_seconds: current.item_id === item.item_id ? this.position(current, now) : 0,
       started_at: now.toISOString(),
     }));
+    await this.outputCall("play", item, { files: this.files, position: status.position_seconds, volume: status.volume });
     this.scheduleStop(status);
     return status;
   }
@@ -172,6 +182,7 @@ export class AudioService {
       position_seconds: 0,
       started_at: now.toISOString(),
     }));
+    await this.outputCall("play", item, { files: this.files, position: 0, volume: status.volume });
     this.scheduleStop(status);
     return status;
   }
@@ -204,6 +215,7 @@ export class AudioService {
       position_seconds: 0,
       started_at: now.toISOString(),
     }));
+    await this.outputCall("play", item, { files: this.files, position: 0, volume: status.volume });
     this.scheduleStop(status);
     return status;
   }
@@ -211,18 +223,20 @@ export class AudioService {
   async pause() {
     clearTimeout(this.stopTimer);
     this.stopTimer = null;
-    return this.change((current, now) => ({
+    const status = await this.change((current, now) => ({
       ...current,
       state: current.item_id ? "paused" : "stopped",
       position_seconds: this.position(current, now),
       started_at: null,
     }));
+    await this.outputCall("pause");
+    return status;
   }
 
   async stop() {
     clearTimeout(this.stopTimer);
     this.stopTimer = null;
-    return this.change((current) => ({
+    const status = await this.change((current) => ({
       ...current,
       state: "stopped",
       item_id: current.external_item ? null : current.item_id,
@@ -230,19 +244,25 @@ export class AudioService {
       position_seconds: 0,
       started_at: null,
     }));
+    await this.outputCall("stop");
+    return status;
   }
 
   async setVolume(value) {
     const volume = Number(value);
     if (!Number.isFinite(volume) || volume < 0 || volume > this.preferences.maximum_volume) throw audioError(`volume must be between 0 and ${this.preferences.maximum_volume}`);
-    return this.change((current) => ({ ...current, volume: Math.round(volume) }));
+    const status = await this.change((current) => ({ ...current, volume: Math.round(volume) }));
+    await this.outputCall("setVolume", status.volume);
+    return status;
   }
 
   async triggerEffect(itemId) {
     const item = await this.item(itemId, "effect");
-    return this.change((current, now) => ({
+    const status = await this.change((current, now) => ({
       ...current,
       last_effect: { event_id: randomUUID(), item_id: item.item_id, triggered_at: now.toISOString() },
     }));
+    await this.outputCall("triggerEffect", item, { files: this.files, volume: status.volume });
+    return status;
   }
 }
