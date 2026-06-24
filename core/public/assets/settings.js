@@ -4,7 +4,7 @@ const UPDATE_NOTICE_KEY = "nexus-update-notice";
 
 function alertMessage(message, type = "") { const alert = $("#settings-alert"); alert.textContent = message; alert.className = `settings-alert ${type}`; }
 function headers(json = false) { return { ...(json ? { "content-type": "application/json" } : {}), ...(adminToken ? { authorization: `Bearer ${adminToken}` } : {}) }; }
-async function api(path, options = {}) { const response = await fetch(path, options); const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.message || body.details?.join(". ") || body.error || "Request failed"); return body; }
+async function api(path, options = {}) { const response = await fetch(path, options); const body = await response.json().catch(() => ({})); if (!response.ok) { const error=new Error(body.message || body.details?.join(". ") || body.error || "Request failed");error.status=response.status;throw error; } return body; }
 function lockControls(locked) { document.querySelectorAll(".locked-control").forEach((element) => element.classList.toggle("is-locked", locked)); }
 function enablePlayerSettings(enabled) { document.querySelectorAll(".player-settings-panel input,.player-settings-panel select,.player-settings-panel button").forEach((element) => { element.disabled = !enabled; }); }
 
@@ -156,6 +156,6 @@ const updateNotice=takeUpdateNotice();
 history.scrollRestoration="manual";
 lockControls(!adminToken);
 const initialization=adminToken
-  ? loadSettingsPage().then((playerSettingsAvailable) => { lockControls(false);if(!playerSettingsAvailable)alertMessage("Settings unlocked. Restart Nexus Core to enable the new player settings."); }).catch(() => { adminToken="";localStorage.removeItem("nexus-admin-token");lockControls(true);alertMessage("Enter the Admin PIN to unlock settings controls."); })
-  : Promise.resolve(alertMessage("Enter the Admin PIN to unlock settings controls."));
+  ? loadSettingsPage().then((playerSettingsAvailable) => { lockControls(false);if(!playerSettingsAvailable)alertMessage("Settings unlocked. Restart Nexus Core to enable the new player settings."); }).catch((error) => { if([401,403].includes(error.status)){adminToken="";localStorage.removeItem("nexus-admin-token");alertMessage("Owner access has expired. Use the recovery PIN to reconnect this browser.");}else alertMessage(`Settings are temporarily unavailable: ${error.message}`,"error");lockControls(true); })
+  : Promise.resolve(alertMessage("Use the recovery PIN to connect this browser as Owner."));
 initialization.finally(()=>{if(updateNotice)alertMessage(updateNotice.message,updateNotice.type);window.scrollTo(0,0);});

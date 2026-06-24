@@ -13,9 +13,9 @@
     <section id="admin-gate" class="access-gate">
       <div class="access-gate-card">
         <span class="access-logo"><img src="/assets/nexus-logo.png" alt=""></span>
-        <p class="eyebrow">SYSTEM ADMIN</p><h1>Unlock Nexus Core</h1>
-        <p>Pair this browser with the Admin PIN printed by the Raspberry Pi installer.</p>
-        <form id="admin-pair-form"><label>Admin PIN<input id="admin-pin" type="password" inputmode="numeric" autocomplete="current-password" required placeholder="000000"></label><button class="primary-button" type="submit">Unlock command center <span>→</span></button></form>
+        <p class="eyebrow">OWNER RECOVERY</p><h1>Connect this browser</h1>
+        <p>Use the recovery PIN once. This browser stays connected as Owner for future visits.</p>
+        <form id="admin-pair-form"><label>Recovery PIN<input id="admin-pin" type="password" inputmode="numeric" autocomplete="current-password" required placeholder="000000"></label><button class="primary-button" type="submit">Connect Owner Console <span>→</span></button></form>
         <p id="admin-pair-message" class="form-message" role="status"></p>
         <div class="access-links"><a href="/gm/">GM / DM console</a><a href="/player/">Player view</a></div>
       </div>
@@ -26,7 +26,7 @@
           <span class="brand-mark" aria-hidden="true">
             <img src="/assets/nexus-logo.png" alt="">
           </span>
-          <span><strong>SubLim3</strong><small>NEXUS CORE</small></span>
+          <span><strong>SubLim3</strong><small>OWNER CONSOLE</small></span>
         </a>
 
         <nav aria-label="Primary navigation">
@@ -36,6 +36,7 @@
           <a class="nav-item" href="#systems"><span class="nav-icon">▦</span>Expansion Packs</a>
           <a class="nav-item" href="#characters"><span class="nav-icon">♙</span>Characters</a>
           <span class="nav-divider" role="separator" aria-label="Standalone pages"></span>
+          <a class="nav-item" href="/gm/"><span class="nav-icon">◈</span>GM Console</a>
           <a class="nav-item" href="/controllers/"><span class="nav-icon">⌁</span>Player Controllers</a>
           <a class="nav-item" href="/media/"><span class="nav-icon">♫</span>Media</a>
           <a class="nav-item" href="/rfid/"><span class="nav-icon">◇</span>RFID Cards</a>
@@ -98,7 +99,7 @@
           <div class="section-heading"><div><p class="eyebrow">ACCESS &amp; PAIRING</p><h2 id="access-heading">Connected clients</h2></div><span id="session-count" class="count-badge">0 sessions</span></div>
           <div class="access-admin-grid">
             <article class="pairing-card">
-              <div><p class="eyebrow">GM / DM PAIRING</p><h3>GM PIN</h3><p>Share this PIN with a Game Master. Rotating it immediately unpairs every GM device.</p></div>
+              <div><p class="eyebrow">GUEST GM RECOVERY</p><h3>Guest GM PIN</h3><p>Owner browsers never need this PIN. Use it only to pair a separate guest GM device.</p></div>
               <div class="gm-pin-display"><code id="gm-pin-display">••••••</code><button id="gm-pin-reveal" type="button">Reveal</button></div>
               <button id="gm-pin-rotate" class="secondary-button" type="button">Rotate GM PIN &amp; revoke GMs</button>
               <p id="access-message" class="form-message" role="status"></p>

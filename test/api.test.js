@@ -115,6 +115,11 @@ test("serves the dashboard with secure response headers", async () => {
   assert.match(page, /The table is ready/);
   assert.match(page, /ACCESS &amp; PAIRING/);
   assert.match(page, /class="nav-divider" role="separator"/);
+  assert.match(page, /Connect Owner Console/);
+  assert.match(page, /href="\/gm\/"/);
+  const adminScript = await fetch(`${baseUrl}/assets/app.js`).then((asset) => asset.text());
+  assert.match(adminScript, /\[401, 403\]\.includes\(error\.status\)/);
+  assert.match(adminScript, /some data could not be loaded/);
 });
 
 test("serves the Nexus logo asset", async () => {
@@ -150,6 +155,9 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, />Update<\/button>/);
   assert.match(page, /Playback defaults/);
   assert.match(page, /Card behavior/);
+  assert.match(page, /class="nav-item active" href="\/settings\/"/);
+  assert.match(page, /href="\/controllers\/"/);
+  assert.match(page, /href="\/library\/"/);
   const script = await fetch(`${baseUrl}/assets/settings.js`).then((asset) => asset.text());
   assert.match(script, /sessionStorage\.setItem\(UPDATE_NOTICE_KEY/);
   assert.match(script, /window\.location\.replace/);
@@ -224,6 +232,11 @@ test("serves the GM campaign invitation surface", async () => {
   const page = await response.text();
   assert.match(page, /Scan to join this campaign/);
   assert.match(page, /gm-player-qr/);
+  assert.match(page, /class="nav-item active" href="\/gm\/"/);
+  assert.match(page, /Owner devices open the console automatically/);
+  const gmScript = await fetch(`${baseUrl}/assets/gm.js`).then((asset) => asset.text());
+  assert.match(gmScript, /nexus-admin-token/);
+  assert.match(gmScript, /identity\.role/);
   const module = await fetch(`${baseUrl}/assets/qr.js`);
   assert.equal(module.status, 200);
   assert.match(module.headers.get("content-type"), /javascript/);

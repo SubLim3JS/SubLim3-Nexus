@@ -1,14 +1,14 @@
 # Client surfaces and Android wrappers
 
-SubLim3 Nexus has three role-specific browser surfaces. These responsive pages are the product interfaces and will later be wrapped by a shared Android WebView project with three product flavors rather than maintained as three unrelated apps.
+SubLim3 Nexus has one persistent Owner experience plus a scoped Player surface. The Command Center and focused GM workspace share the Owner credential and navigation shell; moving between them never requires another PIN.
 
 | Surface | Browser route | Scope |
 | --- | --- | --- |
-| System Admin | `/admin/` | Full system, settings, campaigns, characters, sessions, devices, and future diagnostics |
-| GM / DM | `/gm/` | One paired campaign: scenes, encounter building, initiative, health, conditions, and future companions |
+| Owner Console | `/admin/` | Full system, settings, campaigns, characters, sessions, devices, and future diagnostics |
+| GM workspace | `/gm/` | Owner campaign selection, scenes, encounter building, initiative, health, and conditions |
 | Player | `/player/` | One selected character with live table state, turn highlighting, and scoped health control |
 
-Admin and GM devices pair with installer-generated PINs. Their bearer tokens are random, stored only as hashes by Nexus Core, persisted across reboots, and expire after 90 days. Five failed PIN attempts temporarily lock pairing.
+An Owner browser uses the installer-generated recovery PIN once. Its random bearer token is stored only as a hash by Nexus Core, persists across reboots, and expires after 90 days. Routine navigation never asks for the PIN again, and transient page-loading failures do not discard the credential. A GM PIN remains only as a recovery path for pairing a separate guest GM device to one campaign.
 
 The Admin Access & Pairing panel lists active devices, their role scopes, and expiration dates. It can revoke a client or rotate the GM PIN; rotation immediately revokes all existing GM sessions.
 

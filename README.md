@@ -64,7 +64,8 @@ a shareable local player view that combines live resources, conditions, GM notes
 scene information, and battle turn state without requiring a cloud connection.
 
 Role-specific entry points are available at `/admin/`, `/gm/`, and `/player/`.
-Admin and GM devices pair with installer-generated PINs; Player devices select a
+An Owner browser uses the installer-generated recovery PIN once, then keeps a
+persistent session across the Command Center and GM workspace. Player devices select a
 campaign and character and receive a character-scoped session with a bounded
 self-service health adjustment.
 The Admin dashboard can inspect and revoke paired clients, rotate the GM PIN, and

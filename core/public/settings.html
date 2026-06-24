@@ -11,14 +11,21 @@
     <script type="module" src="/assets/settings.js?v=1.4.2"></script>
   </head>
   <body>
-    <main class="settings-main">
-      <header class="settings-header">
-        <a class="brand" href="/">
-          <span class="brand-mark" aria-hidden="true"><img src="/assets/nexus-logo.png" alt=""></span>
-          <span><strong>SubLim3</strong><small>NEXUS SETTINGS</small></span>
-        </a>
-        <a class="back-link" href="/">← Command center</a>
-      </header>
+    <div class="app-shell settings-shell">
+      <aside class="sidebar">
+        <a class="brand" href="/" aria-label="SubLim3 Nexus home"><span class="brand-mark" aria-hidden="true"><img src="/assets/nexus-logo.png" alt=""></span><span><strong>SubLim3</strong><small>NEXUS SETTINGS</small></span></a>
+        <nav aria-label="Media navigation">
+          <a class="nav-item" href="/"><span class="nav-icon">⌂</span>Overview</a>
+          <a class="nav-item" href="/gm/"><span class="nav-icon">◈</span>GM Console</a>
+          <a class="nav-item" href="/media/"><span class="nav-icon">♫</span>Media</a>
+          <a class="nav-item" href="/rfid/"><span class="nav-icon">◇</span>RFID Cards</a>
+          <a class="nav-item" href="/library/"><span class="nav-icon">▤</span>Media Library</a>
+          <a class="nav-item" href="/controllers/"><span class="nav-icon">⌁</span>Player Controllers</a>
+          <a class="nav-item active" href="/settings/"><span class="nav-icon">⚙</span>Settings</a>
+        </nav>
+        <div class="sidebar-status"><span class="pulse-dot"></span><div><strong>Core settings</strong><small>Admin controls protected</small></div></div>
+      </aside>
+      <main class="settings-main">
 
       <section class="settings-intro">
         <p class="eyebrow">CORE CONFIGURATION</p>
@@ -40,9 +47,9 @@
         </article>
 
         <article class="settings-card unlock-panel">
-          <p class="eyebrow">ADMIN ACCESS</p><h2>Unlock controls</h2>
-          <p class="settings-copy">Enter the six-digit Admin PIN printed by the Pi installer.</p>
-          <form id="pin-form"><label>Admin PIN<input id="settings-pin" inputmode="numeric" autocomplete="off" maxlength="12" required placeholder="000000"></label><button class="primary-button" type="submit">Unlock</button></form>
+          <p class="eyebrow">OWNER RECOVERY</p><h2>Reconnect controls</h2>
+          <p class="settings-copy">Only use the recovery PIN when this browser is not already connected as Owner.</p>
+          <form id="pin-form"><label>Recovery PIN<input id="settings-pin" inputmode="numeric" autocomplete="off" maxlength="12" required placeholder="000000"></label><button class="primary-button" type="submit">Reconnect</button></form>
         </article>
 
         <article class="settings-card local-panel locked-control">
@@ -102,6 +109,7 @@
           </div>
         </article>
       </section>
-    </main>
+      </main>
+    </div>
   </body>
 </html>

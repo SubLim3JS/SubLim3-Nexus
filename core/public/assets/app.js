@@ -33,7 +33,9 @@ async function request(path, options) {
   const response = await fetch(path, { ...options, headers });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.details?.join(". ") || body.message || body.error || "Request failed");
+    const error = new Error(body.details?.join(". ") || body.message || body.error || "Request failed");
+    error.status = response.status;
+    throw error;
   }
   return response.status === 204 ? null : response.json();
 }
@@ -187,7 +189,7 @@ function selectPreset(preset, button) {
 function renderCharacterTemplate(system, character = null) {
   currentCharacterSystem = system ?? null;
   selectedCharacterPreset = null;
-  const sheet = system?.character_sheet ?? { fields:[], resources:[], presets:[] };
+  const sheet = system?.character_sheet ?? { fields:[], resources:[], presets:[], conditions:[] };
   const quickStart = system?.pack?.experience === "quick_start" && sheet.presets.length > 0;
   $("#character-preset-panel").hidden = !quickStart;
   $("#character-template-editor").hidden = quickStart;
@@ -487,12 +489,16 @@ setInterval(updateClock, 30_000);
 
 async function openAdminApp() {
   const { data } = await request("/api/v1/auth/me");
-  if (data.role !== "admin") throw new Error("This browser is not paired for System Admin access.");
+  if (data.role !== "admin") { const error = new Error("This browser is not paired for Owner access."); error.status = 403; throw error; }
   currentAdminSessionId = data.session_id;
   $("#admin-gate").hidden = true;
   $("#admin-app").hidden = false;
-  await loadGameSystems();
-  await Promise.all([loadSystemInfo(), loadCampaigns(), loadAccessPanel()]);
+  try {
+    await loadGameSystems();
+    await Promise.all([loadSystemInfo(), loadCampaigns(), loadAccessPanel()]);
+  } catch (error) {
+    showMessage(`Console restored, but some data could not be loaded: ${error.message}`, "error");
+  }
 }
 
 $("#admin-pair-form").addEventListener("submit", async (event) => {
@@ -514,4 +520,10 @@ $("#admin-logout").addEventListener("click", async () => {
   window.location.reload();
 });
 
-if (authToken) openAdminApp().catch(() => { authToken = ""; localStorage.removeItem("nexus-admin-token"); $("#admin-gate").hidden = false; });
+if (authToken) openAdminApp().catch((error) => {
+  if ([401, 403].includes(error.status)) { authToken = ""; localStorage.removeItem("nexus-admin-token"); }
+  const message = $("#admin-pair-message");
+  message.textContent = [401, 403].includes(error.status) ? "Owner access has expired. Use the recovery PIN to reconnect this browser." : `Nexus Core is temporarily unavailable: ${error.message}`;
+  message.className = "form-message error";
+  $("#admin-gate").hidden = false;
+});
