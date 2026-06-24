@@ -106,6 +106,7 @@ export function createApp({
   access,
   liveEvents,
   audio,
+  rfid,
   connectivity,
   systemControl,
   playerSettings,
@@ -166,6 +167,32 @@ export function createApp({
           return sendJson(response, 200, { data: settings });
         }
         return sendJson(response, 405, { error: "method_not_allowed" });
+      }
+
+      if (rfid && request.method === "GET" && url.pathname === `${API_PREFIX}/rfid/cards`) {
+        if (access) await access.authorize(request, { roles: ["admin", "gm"] });
+        return sendJson(response, 200, { data: await rfid.cards() });
+      }
+
+      if (rfid && request.method === "POST" && url.pathname === `${API_PREFIX}/rfid/cards`) {
+        if (access) await access.authorize(request, { roles: ["admin", "gm"] });
+        return sendJson(response, 201, { data: await rfid.saveCard(await readJson(request)) });
+      }
+
+      const rfidCard = rfid && request.method === "DELETE" ? url.pathname.match(/^\/api\/v1\/rfid\/cards\/([^/]+)$/) : null;
+      if (rfidCard) {
+        if (access) await access.authorize(request, { roles: ["admin", "gm"] });
+        return (await rfid.deleteCard(decodeURIComponent(rfidCard[1])))
+          ? sendJson(response, 204, null)
+          : sendJson(response, 404, { error: "rfid_card_not_found" });
+      }
+
+      if (rfid && request.method === "GET" && url.pathname === `${API_PREFIX}/rfid/last-scan`) {
+        return sendJson(response, 200, { data: await rfid.lastScan() });
+      }
+
+      if (rfid && request.method === "POST" && url.pathname === `${API_PREFIX}/rfid/scan`) {
+        return sendJson(response, 200, { data: await rfid.scan(await readJson(request)) });
       }
 
       if (audio && request.method === "GET" && url.pathname === `${API_PREFIX}/audio/library`) {

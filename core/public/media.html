@@ -38,6 +38,27 @@
         <div id="audio-search-results" class="audio-search-results"></div>
       </section>
 
+      <section id="rfid-section" class="rfid-section">
+        <div class="section-heading"><div><p class="eyebrow">PHYSICAL MEDIA</p><h2>RFID Manager</h2></div><span class="count-badge" id="rfid-count">0 cards</span></div>
+        <div class="rfid-layout">
+          <form id="rfid-form" class="rfid-card-form">
+            <div><p class="eyebrow">CARD BINDING</p><h3>Assign a card</h3><p>Enter a UID or use the latest scan, then choose what happens at the table.</p></div>
+            <label><span>Card UID</span><div class="rfid-uid-field"><input id="rfid-uid" type="text" maxlength="80" required placeholder="04:A1:B2:C3" autocomplete="off" spellcheck="false"><button id="rfid-use-scan" type="button">Use last scan</button></div></label>
+            <label><span>Card name</span><input id="rfid-name" type="text" maxlength="100" required placeholder="Tavern ambience"></label>
+            <div class="rfid-form-pair">
+              <label><span>Action</span><select id="rfid-action"><option value="audio">Play audio or effect</option><option value="stop">Stop playback</option><option value="pause">Pause playback</option><option value="volume_up">Volume up</option><option value="volume_down">Volume down</option></select></label>
+              <label id="rfid-audio-field"><span>Audio item</span><select id="rfid-audio-item" required></select></label>
+            </div>
+            <div class="rfid-form-actions"><button class="rfid-primary" type="submit">Save binding</button><button id="rfid-clear" type="button">Clear</button></div>
+            <p id="rfid-message" class="library-message" role="status" aria-live="polite">Pair as Admin or GM to manage cards.</p>
+          </form>
+          <div class="rfid-card-list-panel">
+            <div class="rfid-live"><span class="rfid-pulse" aria-hidden="true"></span><div><small>LATEST READER EVENT</small><strong id="rfid-last-scan">Waiting for a card scan…</strong><span id="rfid-last-outcome">Reader adapters post scans to Nexus Core.</span></div><button id="rfid-simulate" type="button">Test entered UID</button></div>
+            <div id="rfid-card-list" class="rfid-card-list"></div>
+          </div>
+        </div>
+      </section>
+
       <section class="player-grid">
         <article id="now-playing" class="now-playing">
           <div class="album-art">
@@ -60,7 +81,7 @@
         <aside class="queue-panel">
           <div class="panel-heading"><div><p class="eyebrow">SCENE QUEUE</p><h2>Ambience</h2></div><span id="track-count">Loading…</span></div>
           <div id="queue-list"></div>
-          <div class="queue-note"><span>◇</span><p><strong>RFID ready</strong><small>Future cards can launch tracks and full scenes through the same media API.</small></p></div>
+          <div class="queue-note"><span>◇</span><p><strong>RFID ready</strong><small>Assigned cards can launch tracks and effects through the same media API.</small></p></div>
         </aside>
       </section>
 

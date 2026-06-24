@@ -10,6 +10,7 @@ import { loadBundledExpansionPacks } from "../core/src/expansion-packs.js";
 import { AudioService } from "../core/src/audio.js";
 import { AudioFileService } from "../core/src/audio-files.js";
 import { PlayerSettingsService } from "../core/src/player-settings.js";
+import { RfidService } from "../core/src/rfid.js";
 
 let baseUrl;
 let server;
@@ -34,6 +35,13 @@ before(async () => {
   const audioFiles = new AudioFileService({ rootDirectory: path.join(temporaryDirectory, "audio", "files"), libraryStore: audioLibraryStore, usbRoots: [usbRoot] });
   const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: audioStateStore, files: audioFiles });
   await audio.initialize();
+  const rfid = new RfidService({
+    cardStore: new JsonStore(path.join(temporaryDirectory, "rfid", "cards")),
+    stateStore: new JsonStore(path.join(temporaryDirectory, "rfid", "state")),
+    audio,
+    settings: () => playerSettings.get(),
+  });
+  await rfid.initialize();
   const expansionPacks = await loadBundledExpansionPacks();
   for (const { system, preinstalled } of expansionPacks) if (preinstalled) await systemStore.put(system.system_id, system);
   server = createServer(createApp({
@@ -43,6 +51,7 @@ before(async () => {
     systemStore,
     expansionPacks,
     audio,
+    rfid,
     playerSettings,
     settingsPin: "123456",
     connectivity: {
@@ -183,6 +192,8 @@ test("serves the offline media player demo", async () => {
   assert.match(page, /Core synced/);
   assert.match(page, /Live radio/);
   assert.match(page, /Search audio/);
+  assert.match(page, /RFID Manager/);
+  assert.match(page, /Use last scan/);
   assert.match(page, /Local · USB · Live/);
   assert.match(page, /stream\.revma\.ihrhls\.com\/zc2157/);
   assert.match(response.headers.get("content-security-policy"), /media-src 'self' http: https:/);
@@ -264,6 +275,60 @@ test("manages the persistent audio library and playback state", async () => {
     body: JSON.stringify({ name: "Unsafe", url: "file:///etc/passwd" }),
   });
   assert.equal(unsafeRadio.status, 422);
+});
+
+test("binds RFID cards to audio actions and records scans", async () => {
+  const assigned = await fetch(`${baseUrl}/api/v1/rfid/cards`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ uid: "04:A1-B2 C3", name: "Tavern card", action: { type: "audio", item_id: "lantern-and-oak" } }),
+  });
+  assert.equal(assigned.status, 201);
+  assert.equal((await assigned.json()).data.uid, "04a1b2c3");
+
+  const cards = await fetch(`${baseUrl}/api/v1/rfid/cards`).then((response) => response.json());
+  assert.equal(cards.data.length, 1);
+  assert.equal(cards.data[0].action.item_id, "lantern-and-oak");
+
+  const scan = await fetch(`${baseUrl}/api/v1/rfid/scan`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ uid: "04a1b2c3" }),
+  }).then((response) => response.json());
+  assert.equal(scan.data.outcome, "executed");
+  assert.equal(scan.data.audio.state, "playing");
+  assert.equal(scan.data.audio.item_id, "lantern-and-oak");
+
+  const repeated = await fetch(`${baseUrl}/api/v1/rfid/scan`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ uid: "04a1b2c3" }),
+  }).then((response) => response.json());
+  assert.equal(repeated.data.outcome, "ignored_delay");
+
+  const released = await fetch(`${baseUrl}/api/v1/rfid/scan`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ uid: "04a1b2c3", present: false }),
+  }).then((response) => response.json());
+  assert.equal(released.data.outcome, "released");
+  assert.equal(released.data.audio.state, "stopped");
+
+  const lastScan = await fetch(`${baseUrl}/api/v1/rfid/last-scan`).then((response) => response.json());
+  assert.equal(lastScan.data.uid, "04a1b2c3");
+  assert.equal(lastScan.data.present, false);
+
+  const missingAudio = await fetch(`${baseUrl}/api/v1/rfid/cards`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ uid: "deadbeef", name: "Missing", action: { type: "audio", item_id: "not-there" } }),
+  });
+  assert.equal(missingAudio.status, 404);
+
+  assert.equal((await fetch(`${baseUrl}/api/v1/rfid/cards/04a1b2c3`, { method: "DELETE" })).status, 204);
+  assert.equal((await fetch(`${baseUrl}/api/v1/rfid/cards/04a1b2c3`, { method: "DELETE" })).status, 404);
+  const emptyCards = await fetch(`${baseUrl}/api/v1/rfid/cards`).then((response) => response.json());
+  assert.equal(emptyCards.data.length, 0);
 });
 
 test("uploads, organizes, streams, and imports audio files", async () => {

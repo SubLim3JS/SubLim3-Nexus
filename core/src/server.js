@@ -15,6 +15,7 @@ import { normalizeCharacter } from "./character.js";
 import { AudioService } from "./audio.js";
 import { AudioFileService } from "./audio-files.js";
 import { PlayerSettingsService } from "./player-settings.js";
+import { RfidService } from "./rfid.js";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const dataDirectory = process.env.NEXUS_DATA_DIR ?? path.resolve(directory, "../data");
@@ -36,14 +37,18 @@ const accessSessionStore = new JsonStore(path.join(dataDirectory, "access-sessio
 const audioLibraryStore = new JsonStore(path.join(dataDirectory, "audio", "library"));
 const audioStateStore = new JsonStore(path.join(dataDirectory, "audio", "state"));
 const playerSettingsStore = new JsonStore(path.join(dataDirectory, "settings"));
+const rfidCardStore = new JsonStore(path.join(dataDirectory, "rfid", "cards"));
+const rfidStateStore = new JsonStore(path.join(dataDirectory, "rfid", "state"));
 const playerSettings = new PlayerSettingsService({ store: playerSettingsStore });
-await Promise.all([campaignStore.initialize(), sessionStore.initialize(), characterStore.initialize(), systemStore.initialize(), accessSessionStore.initialize(), audioLibraryStore.initialize(), audioStateStore.initialize(), playerSettings.initialize()]);
+await Promise.all([campaignStore.initialize(), sessionStore.initialize(), characterStore.initialize(), systemStore.initialize(), accessSessionStore.initialize(), audioLibraryStore.initialize(), audioStateStore.initialize(), playerSettings.initialize(), rfidCardStore.initialize(), rfidStateStore.initialize()]);
 const usbRoots = process.env.NEXUS_USB_IMPORT_ROOTS
   ? process.env.NEXUS_USB_IMPORT_ROOTS.split(path.delimiter).filter(Boolean)
   : process.platform === "linux" ? ["/media", "/mnt"] : [];
 const audioFiles = new AudioFileService({ rootDirectory: path.join(dataDirectory, "audio", "files"), libraryStore: audioLibraryStore, usbRoots });
 const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: audioStateStore, files: audioFiles, preferences: await playerSettings.get() });
 await audio.initialize();
+const rfid = new RfidService({ cardStore: rfidCardStore, stateStore: rfidStateStore, audio, settings: () => playerSettings.get() });
+await rfid.initialize();
 const expansionPacks = await loadBundledExpansionPacks();
 for (const { system, preinstalled } of expansionPacks) {
   const existing = await systemStore.get(system.system_id);
@@ -84,6 +89,7 @@ const server = createServer(createApp({
   access,
   liveEvents,
   audio,
+  rfid,
   connectivity,
   systemControl,
   playerSettings,

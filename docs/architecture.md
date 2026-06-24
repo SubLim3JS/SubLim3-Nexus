@@ -56,6 +56,10 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 | `GET` | `/api/v1/audio/usb` | Scan configured USB mount roots for supported audio (Admin or GM) |
 | `POST` | `/api/v1/audio/usb/play` | Play directly from an allowlisted USB file without importing (Admin or GM) |
 | `POST` | `/api/v1/audio/import` | Copy a validated USB audio file into the managed library (Admin or GM) |
+| `GET/POST` | `/api/v1/rfid/cards` | List or upsert persistent card-to-audio/function bindings (Admin or GM) |
+| `DELETE` | `/api/v1/rfid/cards/{uid}` | Delete a card binding (Admin or GM) |
+| `POST` | `/api/v1/rfid/scan` | Process a normalized reader scan and execute its bound action |
+| `GET` | `/api/v1/rfid/last-scan` | Read the latest scan, outcome, card, and resulting audio state |
 | `POST` | `/api/v1/campaigns/{campaign_id}/battle/reorder` | Set the complete initiative order |
 | `POST` | `/api/v1/campaigns/{campaign_id}/battle/end` | End the encounter and clear initiative |
 | `POST` | `/api/v1/campaigns/{campaign_id}/battle/combatants` | Add a combatant during an encounter |
@@ -103,7 +107,7 @@ System updates use the same allowlisted helper, but repository fetch and fast-fo
 
 The updater supplies Git with a repository-local home and configuration path because the Core service deliberately hides user home directories. The installer then re-launches through a short-lived root systemd unit, allowing system files to be replaced without weakening the Core service's read-only filesystem sandbox.
 
-The media surface at `/media/` is browser-first and fully offline. Nexus Core owns a persistent audio library, real folder hierarchy, global transport state, volume, and one-shot effect events through `/api/v1/audio`; Admin and GM sessions can upload audio, create folders, reorganize files, import supported files from allowlisted USB mount roots, or play from USB without copying. Direct USB items are transient and remain distinct from the managed library. Status, library metadata, and range-enabled audio content remain locally readable so playback drivers can stream without embedding access tokens in media URLs. The browser is the first playback driver and handles managed files, transient USB files, and built-in procedural soundscapes. Raspberry Pi/ALSA output, Bluetooth routing, playlists, and RFID bindings remain later driver and media-service boundaries.
+The media surface at `/media/` is browser-first and fully offline. Nexus Core owns a persistent audio library, real folder hierarchy, global transport state, volume, and one-shot effect events through `/api/v1/audio`; Admin and GM sessions can upload audio, create folders, reorganize files, import supported files from allowlisted USB mount roots, or play from USB without copying. Direct USB items are transient and remain distinct from the managed library. Status, library metadata, and range-enabled audio content remain locally readable so playback drivers can stream without embedding access tokens in media URLs. The browser is the first playback driver and handles managed files, transient USB files, and built-in procedural soundscapes. RFID bindings now drive that same audio state with swipe/place, rescan-delay, and second-scan behavior. Raspberry Pi/ALSA output, Bluetooth routing, playlists, and a physical reader adapter remain later driver and media-service boundaries.
 
 Character records are system-neutral: game-specific values live in flexible `fields` and `resources` objects while conditions and public notes have stable shared shapes. The GM manages campaign rosters on the dashboard. `/player/` combines one character with the campaign's live session, highlights that character's active turn, and provides the first phone/tablet view and the contract future companion hardware will consume.
 

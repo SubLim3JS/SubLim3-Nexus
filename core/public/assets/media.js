@@ -3,6 +3,8 @@ const authToken = localStorage.getItem("nexus-admin-token") ?? localStorage.getI
 const tracks = [];
 let libraryItems = [];
 let folders = [""];
+let rfidCards = [];
+let latestRfidScan = null;
 let audioContext;
 let fileAudio;
 let masterGain;
@@ -39,7 +41,7 @@ async function api(path, options = {}) {
   if (authToken) headers.set("authorization", `Bearer ${authToken}`);
   const response = await fetch(path, { ...options, headers });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(response.status === 401 ? "Pair this browser as Admin or GM to control table audio." : body.message ?? body.details?.join(", ") ?? body.error ?? "Audio request failed");
+  if (!response.ok) throw new Error(response.status === 401 ? "Pair this browser as Admin or GM to manage table media." : body.message ?? body.details?.join(", ") ?? body.error ?? "Nexus request failed");
   return body.data;
 }
 
@@ -563,7 +565,171 @@ async function reloadLibrary() {
   renderLibrary();
   renderTrack();
   renderManagedFiles();
+  renderRfidAudioOptions();
 }
+
+function rfidMessage(text = "", type = "") {
+  $("#rfid-message").textContent = text;
+  $("#rfid-message").className = `library-message ${type}`.trim();
+}
+
+function renderRfidAudioOptions(selected = $("#rfid-audio-item").value) {
+  const groups = [
+    ["Ambience", libraryItems.filter((item) => item.kind === "ambience")],
+    ["Effects", libraryItems.filter((item) => item.kind === "effect")],
+  ];
+  const nodes = [];
+  for (const [label, items] of groups) {
+    if (!items.length) continue;
+    const group = document.createElement("optgroup");
+    group.label = label;
+    for (const item of items) {
+      const option = document.createElement("option");
+      option.value = item.item_id;
+      option.textContent = item.name;
+      option.selected = item.item_id === selected;
+      group.append(option);
+    }
+    nodes.push(group);
+  }
+  $("#rfid-audio-item").replaceChildren(...nodes);
+}
+
+function rfidActionLabel(card) {
+  if (card.action.type === "audio") {
+    const item = libraryItems.find((entry) => entry.item_id === card.action.item_id);
+    return item ? `${item.kind === "effect" ? "Effect" : "Play"}: ${item.name}` : `Missing audio: ${card.action.item_id}`;
+  }
+  return { stop:"Stop playback", pause:"Pause playback", volume_up:"Volume up", volume_down:"Volume down" }[card.action.type] ?? card.action.type;
+}
+
+function clearRfidForm() {
+  $("#rfid-form").reset();
+  $("#rfid-action").value = "audio";
+  updateRfidActionField();
+  renderRfidAudioOptions();
+}
+
+function editRfidCard(card) {
+  $("#rfid-uid").value = card.uid;
+  $("#rfid-name").value = card.name;
+  $("#rfid-action").value = card.action.type;
+  updateRfidActionField();
+  if (card.action.item_id) renderRfidAudioOptions(card.action.item_id);
+  $("#rfid-uid").focus();
+  $("#rfid-section")?.scrollIntoView({ behavior:"smooth", block:"start" });
+}
+
+function renderRfidCards() {
+  $("#rfid-count").textContent = `${rfidCards.length} card${rfidCards.length === 1 ? "" : "s"}`;
+  if (!rfidCards.length) {
+    const empty = document.createElement("p");
+    empty.className = "rfid-empty";
+    empty.textContent = "No cards assigned yet. Scan a card and create the first binding.";
+    $("#rfid-card-list").replaceChildren(empty);
+    return;
+  }
+  $("#rfid-card-list").replaceChildren(...rfidCards.map((card) => {
+    const row = document.createElement("article");
+    row.className = "rfid-row";
+    const identity = document.createElement("span");
+    const name = document.createElement("strong");
+    name.textContent = card.name;
+    const uid = document.createElement("small");
+    uid.textContent = card.uid;
+    identity.append(name, uid);
+    const action = document.createElement("span");
+    action.className = "rfid-action-label";
+    action.textContent = rfidActionLabel(card);
+    const actions = document.createElement("span");
+    actions.className = "rfid-row-actions";
+    const test = document.createElement("button");
+    test.type = "button";
+    test.textContent = "Test";
+    test.addEventListener("click", () => testRfidUid(card.uid));
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.textContent = "Edit";
+    edit.addEventListener("click", () => editRfidCard(card));
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "danger";
+    remove.textContent = "Delete";
+    remove.addEventListener("click", () => deleteRfidCard(card));
+    actions.append(test, edit, remove);
+    row.append(identity, action, actions);
+    return row;
+  }));
+}
+
+async function reloadRfidCards() {
+  rfidCards = await api("/api/v1/rfid/cards");
+  renderRfidCards();
+}
+
+function renderLastRfidScan(scan) {
+  if (!scan) return;
+  latestRfidScan = scan;
+  $("#rfid-last-scan").textContent = scan.uid;
+  const cardName = scan.card?.name ? ` · ${scan.card.name}` : " · Unassigned card";
+  const outcomes = { executed:"Action executed", ignored_delay:"Repeat scan ignored", released:"Card removed", unassigned:"No binding assigned" };
+  $("#rfid-last-outcome").textContent = `${outcomes[scan.outcome] ?? scan.outcome}${cardName}`;
+}
+
+async function refreshRfidScan() {
+  try {
+    const scan = await api("/api/v1/rfid/last-scan");
+    if (scan?.scanned_at !== latestRfidScan?.scanned_at) renderLastRfidScan(scan);
+  } catch { /* Reader status should not interrupt audio playback. */ }
+}
+
+async function testRfidUid(uid) {
+  if (!uid.trim()) return rfidMessage("Enter or scan a card UID first.", "error");
+  try {
+    await ensureAudio();
+    const result = await api("/api/v1/rfid/scan", { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify({ uid }) });
+    renderLastRfidScan(result);
+    await applyStatus(result.audio, { allowAudio:true });
+    rfidMessage(result.outcome === "unassigned" ? "That card is not assigned yet." : `Scan result: ${result.outcome.replaceAll("_", " ")}.`, result.outcome === "executed" ? "success" : "");
+  } catch (error) { rfidMessage(error.message, "error"); }
+}
+
+async function deleteRfidCard(card) {
+  if (!window.confirm(`Delete the binding for ${card.name}?`)) return;
+  try {
+    await api(`/api/v1/rfid/cards/${encodeURIComponent(card.uid)}`, { method:"DELETE" });
+    await reloadRfidCards();
+    rfidMessage(`${card.name} deleted.`, "success");
+  } catch (error) { rfidMessage(error.message, "error"); }
+}
+
+function updateRfidActionField() {
+  const audioAction = $("#rfid-action").value === "audio";
+  $("#rfid-audio-field").hidden = !audioAction;
+  $("#rfid-audio-item").disabled = !audioAction;
+  $("#rfid-audio-item").required = audioAction;
+}
+
+$("#rfid-action").addEventListener("change", updateRfidActionField);
+$("#rfid-clear").addEventListener("click", clearRfidForm);
+$("#rfid-use-scan").addEventListener("click", () => {
+  if (!latestRfidScan) return rfidMessage("No card has been scanned yet.", "error");
+  $("#rfid-uid").value = latestRfidScan.uid;
+  if (latestRfidScan.card) editRfidCard(latestRfidScan.card);
+  else $("#rfid-name").focus();
+});
+$("#rfid-simulate").addEventListener("click", () => testRfidUid($("#rfid-uid").value));
+$("#rfid-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const actionType = $("#rfid-action").value;
+  const action = actionType === "audio" ? { type:actionType, item_id:$("#rfid-audio-item").value } : { type:actionType };
+  try {
+    const saved = await api("/api/v1/rfid/cards", { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify({ uid:$("#rfid-uid").value, name:$("#rfid-name").value, action }) });
+    await reloadRfidCards();
+    clearRfidForm();
+    rfidMessage(`${saved.name} is ready to scan.`, "success");
+  } catch (error) { rfidMessage(error.message, "error"); }
+});
 
 async function reloadFolders() {
   folders = await api("/api/v1/audio/folders");
@@ -643,13 +809,18 @@ async function initialize() {
     await reloadLibrary();
     try { await reloadFolders(); }
     catch (error) { libraryMessage(error.message, "error"); }
+    try { await reloadRfidCards(); }
+    catch (error) { rfidMessage(error.message, "error"); }
+    await refreshRfidScan();
     await refresh();
     setInterval(refresh, 1000);
+    setInterval(refreshRfidScan, 1000);
   } catch (error) {
     message(error.message, "error");
   }
 }
 
 renderPlayback();
+updateRfidActionField();
 requestAnimationFrame(updateProgress);
 initialize();

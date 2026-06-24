@@ -466,7 +466,24 @@ POST /api/v1/rfid/scan
 GET  /api/v1/rfid/last-scan
 POST /api/v1/rfid/cards
 GET  /api/v1/rfid/cards
+DELETE /api/v1/rfid/cards/{uid}
 ```
+
+Cards are upserted by normalized hexadecimal UID. Audio actions accept either an
+ambience item or a one-shot effect; function cards can stop, pause, or change the
+global volume by the configured step.
+
+```json
+{
+  "uid": "04:A1:B2:C3",
+  "name": "Tavern ambience",
+  "action": { "type": "audio", "item_id": "lantern-and-oak" }
+}
+```
+
+Supported action types are `audio`, `stop`, `pause`, `volume_up`, and
+`volume_down`. Reader adapters post `{ "uid": "04:A1:B2:C3" }`; place-mode
+readers post the same UID with `"present": false` when a card is removed.
 
 ---
 
