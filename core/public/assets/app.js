@@ -4,7 +4,6 @@ let currentAdminSessionId = "";
 let currentGmPin = "";
 let gmPinRevealed = false;
 let gameSystems = new Map();
-let expansionPacks = new Map();
 let currentCharacterSystem = null;
 let selectedCharacterPreset = null;
 let editingCharacterRecord = null;
@@ -109,25 +108,12 @@ async function loadCampaigns() {
 }
 
 async function loadGameSystems() {
-  const [{ data:systems }, { data:packs }] = await Promise.all([request("/api/v1/systems"), request("/api/v1/packs")]);
+  const { data:systems } = await request("/api/v1/systems");
   gameSystems = new Map(systems.map((system) => [system.system_id, system]));
-  expansionPacks = new Map(packs.map((pack) => [pack.system_id, pack]));
   const selector = $("#system-id");
   const selected = selector.value;
   selector.replaceChildren(...systems.map((system) => new Option(`${system.name} • v${system.version}`, system.system_id)));
   selector.value = gameSystems.has(selected) ? selected : gameSystems.has("custom") ? "custom" : systems[0]?.system_id ?? "";
-  $("#system-count").textContent = `${packs.length} ${packs.length === 1 ? "pack" : "packs"}`;
-  $("#system-list").replaceChildren(...packs.map((pack) => {
-    const card=document.createElement("article"),head=document.createElement("div"),copy=document.createElement("div"),badge=document.createElement("span"),title=document.createElement("h3"),description=document.createElement("p"),stats=document.createElement("dl"),meta=document.createElement("div"),action=document.createElement("button");
-    card.className="system-card";head.className="system-card-head";badge.className="role-badge";badge.textContent=pack.preinstalled?"Ready to play":pack.installed?"Installed":"Optional";title.textContent=pack.name;description.textContent=pack.description||"No pack description.";
-    const values=[["Version",pack.version],["Fields",pack.field_count],["Resources",pack.resource_count],["Cube pages",pack.page_count]];
-    for(const [label,value] of values){const wrapper=document.createElement("div"),term=document.createElement("dt"),definition=document.createElement("dd");term.textContent=label;definition.textContent=value;wrapper.append(term,definition);stats.append(wrapper);}
-    meta.className="pack-meta";
-    for(const value of [pack.availability,pack.experience==="quick_start"?"Quick start":"Advanced",...(pack.tags??[]).slice(0,2)]){if(!value)continue;const chip=document.createElement("span");chip.textContent=value;meta.append(chip);}
-    action.type="button";action.className=pack.installed&&!pack.preinstalled?"pack-action remove":"pack-action";action.textContent=pack.preinstalled?"Included and ready":pack.installed?"Remove pack":"Install free pack";action.disabled=pack.preinstalled;
-    if(!pack.preinstalled)action.addEventListener("click",async()=>{const message=$("#system-message");if(pack.installed&&!window.confirm(`Remove ${pack.name}? Existing campaigns must be removed first.`))return;action.disabled=true;message.textContent=pack.installed?`Removing ${pack.name}…`:`Installing ${pack.name}…`;try{await request(`/api/v1/packs/${encodeURIComponent(pack.pack_id)}${pack.installed?"":"/install"}`,{method:pack.installed?"DELETE":"POST"});message.textContent=pack.installed?`${pack.name} removed.`:`${pack.name} installed and ready for new campaigns.`;message.className="form-message pack-message success";await loadGameSystems();}catch(error){message.textContent=error.message==="pack_in_use"?`${pack.name} is used by a campaign and cannot be removed.`:error.message;message.className="form-message pack-message error";action.disabled=false;}});
-    copy.append(title,description);head.append(copy,badge);card.append(head,stats,meta,action);return card;
-  }));
 }
 
 let editingCharacterId = null;

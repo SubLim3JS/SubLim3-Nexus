@@ -208,6 +208,21 @@ test("serves the offline media player demo", async () => {
   assert.match(response.headers.get("content-security-policy"), /media-src 'self' http: https:/);
 });
 
+test("serves Expansion Packs on a dedicated management page", async () => {
+  const overview = await fetch(`${baseUrl}/`).then((response) => response.text());
+  assert.match(overview, /href="\/packs\/"/);
+  assert.match(overview, /Manage Expansion Packs/);
+  assert.doesNotMatch(overview, /id="system-list"/);
+
+  const response = await fetch(`${baseUrl}/packs/`);
+  assert.equal(response.status, 200);
+  const page = await response.text();
+  assert.match(page, /class="nav-item active" href="\/packs\/"/);
+  assert.match(page, /Choose what your table needs/);
+  assert.match(page, /id="system-list"/);
+  assert.equal((await fetch(`${baseUrl}/assets/packs.js`)).status, 200);
+});
+
 test("serves separate RFID and media library management pages", async () => {
   const rfidPage = await fetch(`${baseUrl}/rfid/`).then((response) => response.text());
   assert.match(rfidPage, /RFID Cards/);

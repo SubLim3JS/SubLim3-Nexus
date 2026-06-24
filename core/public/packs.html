@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#090b12">
+    <title>Expansion Packs • SubLim3 Nexus</title>
+    <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
+    <link rel="stylesheet" href="/assets/styles.css?v=1.4.1">
+    <script type="module" src="/assets/packs.js?v=1.0.0"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="/" aria-label="SubLim3 Nexus home"><span class="brand-mark" aria-hidden="true"><img src="/assets/nexus-logo.png" alt=""></span><span><strong>SubLim3</strong><small>EXPANSION PACKS</small></span></a>
+        <nav aria-label="Primary navigation">
+          <a class="nav-item" href="/"><span class="nav-icon">⌂</span>Overview</a>
+          <a class="nav-item active" href="/packs/"><span class="nav-icon">▦</span>Expansion Packs</a>
+          <a class="nav-item" href="/gm/"><span class="nav-icon">◈</span>GM Console</a>
+          <a class="nav-item" href="/controllers/"><span class="nav-icon">⌁</span>Player Controllers</a>
+          <a class="nav-item" href="/media/"><span class="nav-icon">♫</span>Media</a>
+          <a class="nav-item" href="/rfid/"><span class="nav-icon">◇</span>RFID Cards</a>
+          <a class="nav-item" href="/library/"><span class="nav-icon">▤</span>Media Library</a>
+          <a class="nav-item" href="/settings/"><span class="nav-icon">⚙</span>Settings</a>
+        </nav>
+        <div class="sidebar-status"><span class="pulse-dot"></span><div><strong>Pack catalog ready</strong><small>Optional system content</small></div></div>
+      </aside>
+      <main>
+        <header class="topbar">
+          <div><p class="eyebrow">CONTENT LIBRARY</p><h1>Expansion Packs</h1></div>
+          <a class="secondary-button" href="/">← Back to Overview</a>
+        </header>
+        <section class="system-section" aria-labelledby="system-heading">
+          <div class="section-heading"><div><p class="eyebrow">AVAILABLE SYSTEMS</p><h2 id="system-heading">Choose what your table needs</h2></div><span id="system-count" class="count-badge">Loading</span></div>
+          <p id="system-message" class="form-message pack-message" role="status">Custom RPG is ready. Install advanced packs only when your table needs them.</p>
+          <div id="system-list" class="system-list" aria-live="polite"></div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
