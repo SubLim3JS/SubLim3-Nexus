@@ -7,7 +7,7 @@ import { after, before, test } from "node:test";
 import { AccessService } from "../core/src/access.js";
 import { createApp } from "../core/src/app.js";
 import { JsonStore } from "../core/src/storage/json-store.js";
-import { BUILT_IN_GAME_SYSTEMS } from "../core/src/game-system.js";
+import { loadBundledExpansionPacks } from "../core/src/expansion-packs.js";
 import { AudioService } from "../core/src/audio.js";
 import { AudioFileService } from "../core/src/audio-files.js";
 import { PlayerSettingsService } from "../core/src/player-settings.js";
@@ -40,13 +40,14 @@ before(async () => {
   const playerSettings = new PlayerSettingsService({ store: new JsonStore(path.join(temporaryDirectory, "settings")) });
   await playerSettings.initialize();
   await audio.initialize();
-  for (const system of BUILT_IN_GAME_SYSTEMS) await systemStore.put(system.system_id, system);
+  const expansionPacks = await loadBundledExpansionPacks();
+  for (const { system, preinstalled } of expansionPacks) if (preinstalled) await systemStore.put(system.system_id, system);
   await campaignStore.put("green_realm", { campaign_id: "green_realm", name: "Green Realm", system_id: "custom" });
   await campaignStore.put("red_realm", { campaign_id: "red_realm", name: "Red Realm", system_id: "custom" });
   await characterStore.put("nyra", { character_id: "nyra", campaign_id: "green_realm", character_name: "Nyra", player_name: "Jordan", fields: {}, resources: { health: { label: "Health", current: 10, maximum: 10 } }, conditions: [], public_notes: "", created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
   await characterStore.put("orin", { character_id: "orin", campaign_id: "green_realm", character_name: "Orin", player_name: "Sam", fields: {}, resources: {}, conditions: [], public_notes: "", created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
   const access = new AccessService({ sessionStore: accessSessionStore, adminPin: "111111", gmPin: "222222", persistGmPin: async (pin) => { persistedGmPin = pin; } });
-  server = createServer(createApp({ campaignStore, sessionStore, characterStore, systemStore, access, audio, playerSettings }));
+  server = createServer(createApp({ campaignStore, sessionStore, characterStore, systemStore, expansionPacks, access, audio, playerSettings }));
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
@@ -59,10 +60,12 @@ after(async () => {
 test("exposes discovery while protecting administrative APIs", async () => {
   assert.equal((await fetch(`${baseUrl}/api/v1/discovery/campaigns`)).status, 200);
   assert.equal((await fetch(`${baseUrl}/api/v1/campaigns`)).status, 401);
+  assert.equal((await fetch(`${baseUrl}/api/v1/packs`)).status, 401);
   assert.equal((await pair({ role: "admin", pin: "wrong" })).response.status, 401);
   const admin = await pair({ role: "admin", pin: "111111" });
   assert.equal(admin.response.status, 201);
   assert.equal((await fetch(`${baseUrl}/api/v1/campaigns`, { headers: bearer(admin.body.token) })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/v1/packs`, { headers: bearer(admin.body.token) })).status, 200);
   const sessions = await fetch(`${baseUrl}/api/v1/auth/sessions`, { headers: bearer(admin.body.token) }).then((response) => response.json());
   assert.equal(sessions.data[0].role, "admin");
 });
@@ -77,6 +80,7 @@ test("scopes GM access to one campaign and permits table mutations", async () =>
   assert.equal((await fetch(`${baseUrl}/api/v1/auth/pairing`, { headers: bearer(gm.body.token) })).status, 403);
   assert.equal((await fetch(`${baseUrl}/api/v1/settings/player`, { headers: bearer(gm.body.token) })).status, 403);
   assert.equal((await fetch(`${baseUrl}/api/v1/systems`, { headers: bearer(gm.body.token) })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/v1/packs`, { headers: bearer(gm.body.token) })).status, 403);
   assert.equal((await fetch(`${baseUrl}/api/v1/systems`, { method: "POST", headers: { ...bearer(gm.body.token), "content-type": "application/json" }, body: JSON.stringify({ system_id: "forbidden", name: "Forbidden" }) })).status, 403);
   assert.equal((await fetch(`${baseUrl}/api/v1/audio/play`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ item_id: "lantern-and-oak" }) })).status, 401);
   assert.equal((await fetch(`${baseUrl}/api/v1/audio/play`, { method: "POST", headers: { ...bearer(gm.body.token), "content-type": "application/json" }, body: JSON.stringify({ item_id: "lantern-and-oak" }) })).status, 200);

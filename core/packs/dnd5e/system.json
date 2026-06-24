@@ -1,0 +1,34 @@
+{
+  "system_id": "dnd5e",
+  "name": "Dungeons & Dragons 5e",
+  "version": "1.2",
+  "description": "A customizable 5e foundation with abilities, resources, death saves, and controller pages.",
+  "character_sheet": {
+    "fields": [
+      { "field_id": "role", "label": "Class", "type": "text", "section": "Identity", "default_value": "", "player_visible": true },
+      { "field_id": "level", "label": "Level", "type": "number", "section": "Identity", "default_value": 1, "player_visible": true },
+      { "field_id": "defense", "label": "Armor Class", "type": "number", "section": "Combat", "default_value": 10, "player_visible": true },
+      { "field_id": "strength", "label": "Strength", "type": "number", "section": "Abilities", "default_value": 10, "player_visible": true },
+      { "field_id": "dexterity", "label": "Dexterity", "type": "number", "section": "Abilities", "default_value": 10, "player_visible": true },
+      { "field_id": "constitution", "label": "Constitution", "type": "number", "section": "Abilities", "default_value": 10, "player_visible": true },
+      { "field_id": "intelligence", "label": "Intelligence", "type": "number", "section": "Abilities", "default_value": 10, "player_visible": true },
+      { "field_id": "wisdom", "label": "Wisdom", "type": "number", "section": "Abilities", "default_value": 10, "player_visible": true },
+      { "field_id": "charisma", "label": "Charisma", "type": "number", "section": "Abilities", "default_value": 10, "player_visible": true }
+    ],
+    "resources": [
+      { "resource_id": "health", "label": "Hit Points", "default_current": 10, "default_maximum": 10, "player_visible": true, "companion_visible": true },
+      { "resource_id": "hit_dice", "label": "Hit Dice", "default_current": 1, "default_maximum": 1, "player_visible": true, "companion_visible": true }
+    ],
+    "trackers": [{ "tracker_id": "death_saves", "label": "Death Saves", "success_target": 3, "failure_target": 3, "critical_success_restores": 1, "critical_failure_count": 2, "reset_on_resource_positive": true, "visible_when": { "resource_id": "health", "operator": "lte", "value": 0 } }],
+    "conditions": ["Blinded", "Charmed", "Deafened", "Frightened", "Grappled", "Incapacitated", "Invisible", "Paralyzed", "Poisoned", "Prone", "Restrained", "Stunned", "Unconscious"],
+    "pages": [
+      { "page_id": "status", "title": "Status", "bindings": ["health", "defense", "death_saves", "conditions"] },
+      { "page_id": "abilities", "title": "Abilities", "bindings": ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"] }
+    ],
+    "actions": [
+      { "action_id": "damage", "label": "Damage", "kind": "decrement", "target": "health" },
+      { "action_id": "heal", "label": "Heal", "kind": "increment", "target": "health" }
+    ],
+    "presets": []
+  }
+}

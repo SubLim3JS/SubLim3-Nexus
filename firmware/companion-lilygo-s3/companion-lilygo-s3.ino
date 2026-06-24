@@ -503,7 +503,7 @@ void renderConditions() {
 }
 
 void renderTable() {
-  heading("TABLE", C_CYAN);
+  heading("TABLE OVERVIEW", C_CYAN);
   display->setTextSize(2);
   display->setCursor(10, 42);
   display->println(sceneTitle.length() ? sceneTitle : "No active scene");

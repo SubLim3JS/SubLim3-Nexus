@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#090b12">
     <title>SubLim3 Nexus</title>
     <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
-    <link rel="stylesheet" href="/assets/styles.css?v=1.3.0">
-    <script type="module" src="/assets/app.js?v=1.3.0"></script>
+    <link rel="stylesheet" href="/assets/styles.css?v=1.4.0">
+    <script type="module" src="/assets/app.js?v=1.4.0"></script>
   </head>
   <body>
     <section id="admin-gate" class="access-gate">
@@ -33,7 +33,7 @@
           <a class="nav-item active" href="#overview"><span class="nav-icon">⌂</span>Overview</a>
           <a class="nav-item" href="#access"><span class="nav-icon">◎</span>Access</a>
           <a class="nav-item" href="#campaigns"><span class="nav-icon">◈</span>Campaigns</a>
-          <a class="nav-item" href="#systems"><span class="nav-icon">▦</span>Systems</a>
+          <a class="nav-item" href="#systems"><span class="nav-icon">▦</span>Expansion Packs</a>
           <a class="nav-item" href="#characters"><span class="nav-icon">♙</span>Characters</a>
           <a class="nav-item" href="/controllers/"><span class="nav-icon">⌁</span>Player Controllers</a>
           <a class="nav-item" href="/media/"><span class="nav-icon">♫</span>Media</a>
@@ -134,7 +134,8 @@
         </section>
 
         <section id="systems" class="system-section" aria-labelledby="system-heading">
-          <div class="section-heading"><div><p class="eyebrow">TEMPLATE LIBRARY</p><h2 id="system-heading">Game Systems</h2></div><span id="system-count" class="count-badge">0 systems</span></div>
+          <div class="section-heading"><div><p class="eyebrow">INCLUDED CONTENT</p><h2 id="system-heading">Expansion Packs</h2></div><span id="system-count" class="count-badge">0 packs</span></div>
+          <p id="system-message" class="form-message pack-message" role="status">Custom RPG is ready. Install advanced packs only when your table needs them.</p>
           <div id="system-list" class="system-list" aria-live="polite"></div>
         </section>
 
@@ -155,10 +156,15 @@
               <div><p id="character-form-eyebrow" class="eyebrow">NEW CHARACTER</p><h3 id="character-form-title">Add to the party</h3></div>
               <label>Character name<input id="character-name" required maxlength="80" placeholder="Nyra Vale"></label>
               <label>Player name<input id="player-name" maxlength="80" placeholder="Jordan"></label>
-              <div class="form-pair"><label>Role / archetype<input id="character-role" maxlength="80" placeholder="Warden"></label><label>Level<input id="character-level" type="number" min="0" max="999" value="1"></label></div>
-              <div class="form-pair"><label>Health<input id="health-current" type="number" value="10"></label><label>Maximum<input id="health-maximum" type="number" min="0" value="10"></label></div>
-              <div class="form-pair"><label>Secondary resource<input id="resource-label" maxlength="40" placeholder="Resolve"></label><label>Current / max<input id="resource-values" placeholder="3 / 5"></label></div>
-              <label>Defense / armor<input id="character-defense" maxlength="40" placeholder="15"></label>
+              <section id="character-preset-panel" class="character-preset-panel" hidden>
+                <div><p class="eyebrow">QUICK START</p><h4>Choose a ready-made hero</h4><p>Pick an archetype and presentation. You can rename the character before saving.</p></div>
+                <div id="character-preset-list" class="character-preset-list"></div>
+                <p id="character-preset-message" class="preset-message">Choose one of the eight heroes.</p>
+              </section>
+              <div id="character-template-editor" class="character-template-editor">
+                <div id="character-template-fields" class="template-fields"></div>
+                <div id="character-template-resources" class="template-resources"></div>
+              </div>
               <label>Conditions<input id="character-conditions" placeholder="Inspired, Hidden"></label>
               <label>Public notes<textarea id="character-notes" rows="3" maxlength="2000" placeholder="Visible to this player…"></textarea></label>
               <label>Character ID<input id="character-id" required pattern="[a-z0-9][a-z0-9_-]*[a-z0-9]|[a-z0-9]" placeholder="nyra_vale"></label>

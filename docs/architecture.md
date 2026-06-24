@@ -23,6 +23,9 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 | `GET` | `/api/v1/system/status` | Health and version information |
 | `GET` | `/api/v1/system/info` | Host, runtime, memory, and storage information |
 | `GET` | `/api/v1/systems` | List installed game-system templates |
+| `GET` | `/api/v1/packs` | List included expansion packs and installation state |
+| `POST` | `/api/v1/packs/{pack_id}/install` | Enable an optional bundled expansion pack |
+| `DELETE` | `/api/v1/packs/{pack_id}` | Remove an unused optional expansion pack |
 | `POST` | `/api/v1/systems` | Install a game-system template (Admin) |
 | `GET` | `/api/v1/systems/{system_id}` | Read a character-sheet and companion contract |
 | `PUT` | `/api/v1/systems/{system_id}` | Replace a game-system template (Admin) |
@@ -84,7 +87,9 @@ The GM dashboard and player views share one system-neutral session record per ca
 
 ## Template model
 
-Game systems are versioned records stored separately from character values. A template defines typed fields, tracked resources, success/failure trackers, suggested conditions, page bindings, and abstract actions. Campaigns reference one installed `system_id`; character creation applies that template's defaults and snapshots its `system_id` and `template_version`. Companion pages bind only to stable field/resource/tracker IDs, keeping future cube firmware free of D&D-specific logic. Built-in templates are seeded on first startup, cannot be deleted, and custom templates cannot be deleted while a campaign references them.
+Expansion packs are versioned bundles under `core/packs/<pack_id>/`. Each bundle contains a manifest for catalog, licensing, compatibility, availability, and preinstallation metadata plus a system template defining typed fields, tracked resources, success/failure trackers, suggested conditions, page bindings, abstract actions, and optional quick-start presets. Campaigns reference one installed `system_id`; character creation applies that template's defaults and snapshots its `system_id` and `template_version`. Player Controller pages bind only to stable field/resource/tracker IDs, keeping firmware free of game-specific logic. Only the Custom RPG core pack is seeded on a fresh Nexus. Optional bundles stay dormant until installed, cannot be removed while a campaign references them, and can later be replaced by downloaded and verified marketplace packages without changing the campaign contract.
+
+Custom RPG is deliberately the simple path: its pack exposes eight editable presets covering Warrior, Rogue, Mage, and Healer archetypes with male and female presentations. D&D 5e and the other included packs use the fully dynamic character editor generated from their field and resource definitions.
 
 Tracker definitions carry their thresholds, critical-result behavior, visibility condition, and resource-reset rule. Concrete progress lives on the character and is copied into battle state, where the existing combatant patch route applies actions and synchronizes the result back to the character. D&D 5e's `death_saves` tracker appears at zero HP, counts natural 1 as two failures, restores one HP on natural 20, and resets when HP becomes positive. Startup migration adds new built-in trackers to existing characters and active encounters without replacing their other values.
 

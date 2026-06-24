@@ -1,0 +1,24 @@
+{
+  "system_id": "post-apocalyptic", "name": "Post-Apocalyptic Survival", "version": "1.0",
+  "description": "Create a survivor and track injury, radiation, and dwindling supplies.",
+  "character_sheet": {
+    "fields": [
+      { "field_id": "role", "label": "Survivor Type", "type": "text", "section": "Identity", "default_value": "Scavenger" },
+      { "field_id": "origin", "label": "Origin", "type": "text", "section": "Identity", "default_value": "" },
+      { "field_id": "level", "label": "Experience", "type": "number", "section": "Identity", "default_value": 1 },
+      { "field_id": "defense", "label": "Armor", "type": "number", "section": "Combat", "default_value": 0 },
+      { "field_id": "grit", "label": "Grit", "type": "number", "section": "Attributes", "default_value": 2 },
+      { "field_id": "wits", "label": "Wits", "type": "number", "section": "Attributes", "default_value": 2 },
+      { "field_id": "tech", "label": "Tech", "type": "number", "section": "Attributes", "default_value": 2 }
+    ],
+    "resources": [
+      { "resource_id": "health", "label": "Health", "default_current": 10, "default_maximum": 10 },
+      { "resource_id": "radiation", "label": "Radiation", "default_current": 0, "default_maximum": 10 },
+      { "resource_id": "supply", "label": "Supply", "default_current": 5, "default_maximum": 5 }
+    ],
+    "trackers": [], "conditions": ["Dehydrated", "Exhausted", "Irradiated", "Wounded"],
+    "pages": [{ "page_id": "survival", "title": "Survival", "bindings": ["health", "radiation", "supply", "defense", "conditions"] }, { "page_id": "abilities", "title": "Abilities", "bindings": ["grit", "wits", "tech"] }],
+    "actions": [{ "action_id": "take_damage", "label": "Take Damage", "kind": "decrement", "target": "health" }, { "action_id": "gain_radiation", "label": "Gain Radiation", "kind": "increment", "target": "radiation" }],
+    "presets": []
+  }
+}

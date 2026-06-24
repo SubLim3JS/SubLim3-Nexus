@@ -101,12 +101,40 @@ export function normalizeGameSystem(input, existing = null, { builtIn = false } 
       target: typeof action.target === "string" && bindingIds.has(action.target) ? action.target : null,
     };
   }).slice(0, 20);
+  const presets = uniqueDefinitions(sheet.presets, "preset_id", "Preset", (value) => {
+    const preset = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const presetFields = Object.fromEntries(fields.map((field) => {
+      const supplied = preset.fields?.[field.field_id];
+      if (supplied === undefined) return [field.field_id, field.default_value];
+      if (field.type === "number") return [field.field_id, finiteNumber(supplied, field.default_value)];
+      if (field.type === "boolean") return [field.field_id, Boolean(supplied)];
+      return [field.field_id, String(supplied).slice(0, 120)];
+    }));
+    const presetResources = Object.fromEntries(resources.map((resource) => {
+      const supplied = preset.resources?.[resource.resource_id] ?? {};
+      const maximum = Math.max(0, finiteNumber(supplied.maximum, resource.default_maximum));
+      return [resource.resource_id, {
+        label: resource.label,
+        current: Math.max(0, Math.min(maximum, finiteNumber(supplied.current, resource.default_current))),
+        maximum,
+      }];
+    }));
+    return {
+      preset_id: cleanId(preset.preset_id, "preset_id"),
+      label: String(preset.label ?? preset.preset_id).trim().slice(0, 60),
+      archetype: String(preset.archetype ?? "Adventurer").trim().slice(0, 40),
+      presentation: ["female", "male", "neutral"].includes(preset.presentation) ? preset.presentation : "neutral",
+      suggested_name: String(preset.suggested_name ?? "").trim().slice(0, 80),
+      fields: presetFields,
+      resources: presetResources,
+    };
+  }).slice(0, 24);
   return {
     system_id: existing?.system_id ?? input.system_id,
     name: String(input.name).trim().slice(0, 80),
     version: String(input.version ?? existing?.version ?? "1.0").trim().slice(0, 20),
     description: String(input.description ?? "").trim().slice(0, 500),
-    character_sheet: { fields, resources, trackers, conditions, pages, actions },
+    character_sheet: { fields, resources, trackers, conditions, pages, actions, presets },
     built_in: Boolean(existing?.built_in ?? builtIn),
     created_at: existing?.created_at ?? now,
     updated_at: now,
@@ -129,46 +157,3 @@ export function applyGameSystemDefaults(input, system) {
   }]));
   return { ...input, fields: { ...fields, ...(input.fields ?? {}) }, resources: { ...resources, ...(input.resources ?? {}) }, trackers: { ...trackers, ...(input.trackers ?? {}) } };
 }
-
-export const BUILT_IN_GAME_SYSTEMS = [
-  normalizeGameSystem({
-    system_id: "custom", name: "Custom RPG", version: "1.0", built_in: true,
-    description: "A lightweight system-neutral sheet for original and unsupported games.",
-    character_sheet: {
-      fields: [
-        { field_id: "role", label: "Role / archetype", type: "text", section: "Identity" },
-        { field_id: "level", label: "Level", type: "number", default_value: 1, section: "Identity" },
-        { field_id: "defense", label: "Defense / armor", type: "text", section: "Combat" },
-      ],
-      resources: [{ resource_id: "health", label: "Health", default_current: 10, default_maximum: 10 }],
-      pages: [{ page_id: "status", title: "Status", bindings: ["health", "conditions"] }],
-      trackers: [], actions: [], conditions: [],
-    },
-  }, null, { builtIn: true }),
-  normalizeGameSystem({
-    system_id: "dnd5e", name: "Dungeons & Dragons 5e", version: "1.1", built_in: true,
-    description: "A practical 5e foundation with core stats, health, and companion-ready pages.",
-    character_sheet: {
-      fields: [
-        { field_id: "role", label: "Class", type: "text", section: "Identity" },
-        { field_id: "level", label: "Level", type: "number", default_value: 1, section: "Identity" },
-        { field_id: "defense", label: "Armor Class", type: "number", default_value: 10, section: "Combat" },
-        ...["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"].map((fieldId) => ({ field_id: fieldId, label: fieldId[0].toUpperCase() + fieldId.slice(1), type: "number", default_value: 10, section: "Abilities" })),
-      ],
-      resources: [
-        { resource_id: "health", label: "Hit Points", default_current: 10, default_maximum: 10 },
-        { resource_id: "hit_dice", label: "Hit Dice", default_current: 1, default_maximum: 1 },
-      ],
-      trackers: [{ tracker_id: "death_saves", label: "Death Saves", success_target: 3, failure_target: 3, critical_success_restores: 1, critical_failure_count: 2, reset_on_resource_positive: true, visible_when: { resource_id: "health", operator: "lte", value: 0 } }],
-      conditions: ["Blinded", "Charmed", "Deafened", "Frightened", "Grappled", "Incapacitated", "Invisible", "Paralyzed", "Poisoned", "Prone", "Restrained", "Stunned", "Unconscious"],
-      pages: [
-        { page_id: "status", title: "Status", bindings: ["health", "defense", "death_saves", "conditions"] },
-        { page_id: "abilities", title: "Abilities", bindings: ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"] },
-      ],
-      actions: [
-        { action_id: "damage", label: "Damage", kind: "decrement", target: "health" },
-        { action_id: "heal", label: "Heal", kind: "increment", target: "health" },
-      ],
-    },
-  }, null, { builtIn: true }),
-];

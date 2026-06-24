@@ -1,0 +1,6 @@
+{
+  "pack_id": "scifi-dice-pool", "system_id": "scifi-dice-pool", "name": "Sci-Fi Dice Pool",
+  "version": "1.0", "description": "An original dice-pool toolkit for crews, colonies, and deep-space missions.",
+  "publisher": "SubLim3", "license": "Included with Nexus", "experience": "customizable",
+  "tags": ["science fiction", "dice pool", "crew"]
+}

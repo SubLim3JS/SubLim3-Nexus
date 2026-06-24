@@ -1,0 +1,6 @@
+{
+  "pack_id": "percentile-horror", "system_id": "percentile-horror", "name": "Percentile Horror",
+  "version": "1.0", "description": "An original investigative horror toolkit using percentile attributes.",
+  "publisher": "SubLim3", "license": "Included with Nexus", "experience": "customizable",
+  "tags": ["horror", "percentile", "investigation"]
+}

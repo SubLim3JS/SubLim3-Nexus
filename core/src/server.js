@@ -9,7 +9,8 @@ import { ConnectivityService } from "./platform/connectivity.js";
 import { SystemControlService } from "./platform/system-control.js";
 import { AccessService } from "./access.js";
 import { LiveEvents } from "./live-events.js";
-import { applyGameSystemDefaults, BUILT_IN_GAME_SYSTEMS } from "./game-system.js";
+import { applyGameSystemDefaults } from "./game-system.js";
+import { loadBundledExpansionPacks } from "./expansion-packs.js";
 import { normalizeCharacter } from "./character.js";
 import { AudioService } from "./audio.js";
 import { AudioFileService } from "./audio-files.js";
@@ -43,9 +44,10 @@ const usbRoots = process.env.NEXUS_USB_IMPORT_ROOTS
 const audioFiles = new AudioFileService({ rootDirectory: path.join(dataDirectory, "audio", "files"), libraryStore: audioLibraryStore, usbRoots });
 const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: audioStateStore, files: audioFiles, preferences: await playerSettings.get() });
 await audio.initialize();
-for (const system of BUILT_IN_GAME_SYSTEMS) {
+const expansionPacks = await loadBundledExpansionPacks();
+for (const { system, preinstalled } of expansionPacks) {
   const existing = await systemStore.get(system.system_id);
-  if (!existing || (existing.built_in && existing.version !== system.version)) await systemStore.put(system.system_id, system);
+  if ((existing?.built_in && existing.version !== system.version) || (!existing && preinstalled)) await systemStore.put(system.system_id, system);
 }
 for (const character of await characterStore.list()) {
   const campaign = await campaignStore.get(character.campaign_id);
@@ -78,6 +80,7 @@ const server = createServer(createApp({
   sessionStore,
   characterStore,
   systemStore,
+  expansionPacks,
   access,
   liveEvents,
   audio,

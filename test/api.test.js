@@ -6,7 +6,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { createApp } from "../core/src/app.js";
 import { JsonStore } from "../core/src/storage/json-store.js";
-import { BUILT_IN_GAME_SYSTEMS } from "../core/src/game-system.js";
+import { loadBundledExpansionPacks } from "../core/src/expansion-packs.js";
 import { AudioService } from "../core/src/audio.js";
 import { AudioFileService } from "../core/src/audio-files.js";
 import { PlayerSettingsService } from "../core/src/player-settings.js";
@@ -34,12 +34,14 @@ before(async () => {
   const audioFiles = new AudioFileService({ rootDirectory: path.join(temporaryDirectory, "audio", "files"), libraryStore: audioLibraryStore, usbRoots: [usbRoot] });
   const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: audioStateStore, files: audioFiles });
   await audio.initialize();
-  for (const system of BUILT_IN_GAME_SYSTEMS) await systemStore.put(system.system_id, system);
+  const expansionPacks = await loadBundledExpansionPacks();
+  for (const { system, preinstalled } of expansionPacks) if (preinstalled) await systemStore.put(system.system_id, system);
   server = createServer(createApp({
     campaignStore: store,
     sessionStore,
     characterStore,
     systemStore,
+    expansionPacks,
     audio,
     playerSettings,
     settingsPin: "123456",
@@ -80,7 +82,7 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
-  assert.equal(body.version, "1.3.0");
+  assert.equal(body.version, "1.4.0");
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
@@ -338,13 +340,32 @@ test("uploads, organizes, streams, and imports audio files", async () => {
 });
 
 test("manages versioned game-system and character-sheet templates", async () => {
-  const builtIns = await fetch(`${baseUrl}/api/v1/systems`).then((response) => response.json());
-  assert.deepEqual(builtIns.data.map((system) => system.system_id).sort(), ["custom", "dnd5e"]);
-  const dnd = builtIns.data.find((system) => system.system_id === "dnd5e");
-  assert.equal(dnd.version, "1.1");
+  const initialSystems = await fetch(`${baseUrl}/api/v1/systems`).then((response) => response.json());
+  assert.deepEqual(initialSystems.data.map((system) => system.system_id), ["custom"]);
+  const custom = initialSystems.data[0];
+  assert.equal(custom.character_sheet.presets.length, 8);
+  assert.deepEqual(new Set(custom.character_sheet.presets.map((preset) => preset.archetype)), new Set(["Warrior", "Rogue", "Mage", "Healer"]));
+  const initialCatalog = await fetch(`${baseUrl}/api/v1/packs`).then((response) => response.json());
+  assert.equal(initialCatalog.data.length, 8);
+  assert.equal(initialCatalog.data.filter((pack) => pack.installed).length, 1);
+  assert.equal(initialCatalog.data.find((pack) => pack.pack_id === "custom").preinstalled, true);
+  assert.equal(initialCatalog.data.find((pack) => pack.pack_id === "custom").experience, "quick_start");
+  assert.equal((await fetch(`${baseUrl}/api/v1/packs/custom`, { method: "DELETE" })).status, 409);
+  assert.equal((await fetch(`${baseUrl}/api/v1/packs/missing/install`, { method: "POST" })).status, 404);
+
+  assert.equal((await fetch(`${baseUrl}/api/v1/packs/dnd5e/install`, { method: "POST" })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/v1/packs/d20-fantasy/install`, { method: "POST" })).status, 200);
+  const installedSystems = await fetch(`${baseUrl}/api/v1/systems`).then((response) => response.json());
+  assert.deepEqual(installedSystems.data.map((system) => system.system_id).sort(), ["custom", "d20-fantasy", "dnd5e"]);
+  const dnd = installedSystems.data.find((system) => system.system_id === "dnd5e");
+  assert.equal(dnd.version, "1.2");
   assert.equal(dnd.character_sheet.pages[0].page_id, "status");
   assert.equal(dnd.character_sheet.trackers[0].tracker_id, "death_saves");
   assert.ok(dnd.character_sheet.pages[0].bindings.includes("death_saves"));
+  await fetch(`${baseUrl}/api/v1/campaigns`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ campaign_id: "optional_pack_test", name: "Optional Pack", system_id: "d20-fantasy" }) });
+  assert.equal((await fetch(`${baseUrl}/api/v1/packs/d20-fantasy`, { method: "DELETE" })).status, 409);
+  await fetch(`${baseUrl}/api/v1/campaigns/optional_pack_test`, { method: "DELETE" });
+  assert.equal((await fetch(`${baseUrl}/api/v1/packs/d20-fantasy`, { method: "DELETE" })).status, 204);
   const unknownCampaign = await fetch(`${baseUrl}/api/v1/campaigns`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -402,6 +423,7 @@ test("manages versioned game-system and character-sheet templates", async () => 
 });
 
 test("runs template-defined D&D death saves and syncs the character", async () => {
+  await fetch(`${baseUrl}/api/v1/packs/dnd5e/install`, { method: "POST" });
   await fetch(`${baseUrl}/api/v1/campaigns`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -447,6 +469,28 @@ test("runs template-defined D&D death saves and syncs the character", async () =
 
   await fetch(`${baseUrl}/api/v1/campaigns/death_save_test/characters/fallen_hero`, { method: "DELETE" });
   await fetch(`${baseUrl}/api/v1/campaigns/death_save_test`, { method: "DELETE" });
+});
+
+test("creates a Custom RPG hero from a quick-start preset", async () => {
+  const systems = await fetch(`${baseUrl}/api/v1/systems`).then((response) => response.json());
+  const custom = systems.data.find((system) => system.system_id === "custom");
+  const preset = custom.character_sheet.presets.find((item) => item.preset_id === "mage_female");
+  await fetch(`${baseUrl}/api/v1/campaigns`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ campaign_id: "quick_start_test", name: "Quick Start", system_id: "custom" }),
+  });
+  const created = await fetch(`${baseUrl}/api/v1/campaigns/quick_start_test/characters`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ character_id: "elara", character_name: preset.suggested_name, fields: preset.fields, resources: preset.resources }),
+  }).then((response) => response.json());
+  assert.equal(created.data.fields.role, "Mage");
+  assert.equal(created.data.fields.defense, 11);
+  assert.equal(created.data.resources.health.maximum, 8);
+  assert.equal(created.data.template_version, "1.1");
+  await fetch(`${baseUrl}/api/v1/campaigns/quick_start_test/characters/elara`, { method: "DELETE" });
+  await fetch(`${baseUrl}/api/v1/campaigns/quick_start_test`, { method: "DELETE" });
 });
 
 test("creates, reads, updates, lists, and deletes campaign characters", async () => {

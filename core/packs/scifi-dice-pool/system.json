@@ -1,0 +1,24 @@
+{
+  "system_id": "scifi-dice-pool", "name": "Sci-Fi Dice Pool", "version": "1.0",
+  "description": "Build a specialist and track health, strain, and mission supply.",
+  "character_sheet": {
+    "fields": [
+      { "field_id": "role", "label": "Specialty", "type": "text", "section": "Identity", "default_value": "Crewmember" },
+      { "field_id": "level", "label": "Rank", "type": "number", "section": "Identity", "default_value": 1 },
+      { "field_id": "defense", "label": "Armor", "type": "number", "section": "Combat", "default_value": 0 },
+      { "field_id": "force", "label": "Force", "type": "number", "section": "Attributes", "default_value": 2 },
+      { "field_id": "mobility", "label": "Mobility", "type": "number", "section": "Attributes", "default_value": 2 },
+      { "field_id": "systems", "label": "Systems", "type": "number", "section": "Attributes", "default_value": 2 },
+      { "field_id": "command", "label": "Command", "type": "number", "section": "Attributes", "default_value": 2 }
+    ],
+    "resources": [
+      { "resource_id": "health", "label": "Health", "default_current": 8, "default_maximum": 8 },
+      { "resource_id": "strain", "label": "Strain", "default_current": 0, "default_maximum": 6 },
+      { "resource_id": "supply", "label": "Supply", "default_current": 5, "default_maximum": 5 }
+    ],
+    "trackers": [], "conditions": ["Exposed", "Injured", "Panicked", "Vacuum"],
+    "pages": [{ "page_id": "status", "title": "Status", "bindings": ["health", "strain", "supply", "defense", "conditions"] }, { "page_id": "systems", "title": "Systems", "bindings": ["force", "mobility", "systems", "command"] }],
+    "actions": [{ "action_id": "damage", "label": "Damage", "kind": "decrement", "target": "health" }, { "action_id": "add_strain", "label": "Add Strain", "kind": "increment", "target": "strain" }],
+    "presets": []
+  }
+}

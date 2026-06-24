@@ -1,0 +1,23 @@
+{
+  "system_id": "superheroes", "name": "Superhero Adventures", "version": "1.0",
+  "description": "Define a hero concept, power source, ratings, and dramatic resources.",
+  "character_sheet": {
+    "fields": [
+      { "field_id": "role", "label": "Hero Archetype", "type": "text", "section": "Identity", "default_value": "Protector" },
+      { "field_id": "power_source", "label": "Power Source", "type": "text", "section": "Identity", "default_value": "" },
+      { "field_id": "level", "label": "Power Tier", "type": "number", "section": "Identity", "default_value": 1 },
+      { "field_id": "defense", "label": "Defense", "type": "number", "section": "Conflict", "default_value": 10 },
+      { "field_id": "power", "label": "Power", "type": "number", "section": "Ratings", "default_value": 2 },
+      { "field_id": "control", "label": "Control", "type": "number", "section": "Ratings", "default_value": 2 },
+      { "field_id": "heart", "label": "Heart", "type": "number", "section": "Ratings", "default_value": 2 }
+    ],
+    "resources": [
+      { "resource_id": "health", "label": "Stamina", "default_current": 10, "default_maximum": 10 },
+      { "resource_id": "resolve", "label": "Resolve", "default_current": 3, "default_maximum": 5 }
+    ],
+    "trackers": [], "conditions": ["Dazed", "Exhausted", "Restrained", "Vulnerable"],
+    "pages": [{ "page_id": "hero", "title": "Hero", "bindings": ["health", "resolve", "defense", "conditions"] }, { "page_id": "powers", "title": "Powers", "bindings": ["power_source", "power", "control", "heart"] }],
+    "actions": [{ "action_id": "take_hit", "label": "Take Hit", "kind": "decrement", "target": "health" }, { "action_id": "rally", "label": "Rally", "kind": "increment", "target": "resolve" }],
+    "presets": []
+  }
+}

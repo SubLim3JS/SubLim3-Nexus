@@ -1,0 +1,6 @@
+{
+  "pack_id": "d20-fantasy", "system_id": "d20-fantasy", "name": "d20 Fantasy",
+  "version": "1.0", "description": "An original, customizable fantasy d20 toolkit.",
+  "publisher": "SubLim3", "license": "Included with Nexus", "experience": "customizable",
+  "tags": ["fantasy", "d20", "customizable"]
+}

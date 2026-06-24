@@ -4,6 +4,9 @@ let currentAdminSessionId = "";
 let currentGmPin = "";
 let gmPinRevealed = false;
 let gameSystems = new Map();
+let expansionPacks = new Map();
+let currentCharacterSystem = null;
+let selectedCharacterPreset = null;
 let editingCharacterRecord = null;
 
 function formatBytes(bytes) {
@@ -104,19 +107,24 @@ async function loadCampaigns() {
 }
 
 async function loadGameSystems() {
-  const { data } = await request("/api/v1/systems");
-  gameSystems = new Map(data.map((system) => [system.system_id, system]));
+  const [{ data:systems }, { data:packs }] = await Promise.all([request("/api/v1/systems"), request("/api/v1/packs")]);
+  gameSystems = new Map(systems.map((system) => [system.system_id, system]));
+  expansionPacks = new Map(packs.map((pack) => [pack.system_id, pack]));
   const selector = $("#system-id");
   const selected = selector.value;
-  selector.replaceChildren(...data.map((system) => new Option(`${system.name} • v${system.version}`, system.system_id)));
-  selector.value = gameSystems.has(selected) ? selected : gameSystems.has("custom") ? "custom" : data[0]?.system_id ?? "";
-  $("#system-count").textContent = `${data.length} ${data.length === 1 ? "system" : "systems"}`;
-  $("#system-list").replaceChildren(...data.map((system) => {
-    const card=document.createElement("article"),head=document.createElement("div"),copy=document.createElement("div"),badge=document.createElement("span"),title=document.createElement("h3"),description=document.createElement("p"),stats=document.createElement("dl");
-    card.className="system-card";head.className="system-card-head";badge.className="role-badge";badge.textContent=system.built_in?"Built in":"Custom";title.textContent=system.name;description.textContent=system.description||"No template description.";
-    const values=[["Version",system.version],["Fields",system.character_sheet.fields.length],["Resources",system.character_sheet.resources.length],["Cube pages",system.character_sheet.pages.length]];
+  selector.replaceChildren(...systems.map((system) => new Option(`${system.name} • v${system.version}`, system.system_id)));
+  selector.value = gameSystems.has(selected) ? selected : gameSystems.has("custom") ? "custom" : systems[0]?.system_id ?? "";
+  $("#system-count").textContent = `${packs.length} ${packs.length === 1 ? "pack" : "packs"}`;
+  $("#system-list").replaceChildren(...packs.map((pack) => {
+    const card=document.createElement("article"),head=document.createElement("div"),copy=document.createElement("div"),badge=document.createElement("span"),title=document.createElement("h3"),description=document.createElement("p"),stats=document.createElement("dl"),meta=document.createElement("div"),action=document.createElement("button");
+    card.className="system-card";head.className="system-card-head";badge.className="role-badge";badge.textContent=pack.preinstalled?"Ready to play":pack.installed?"Installed":"Optional";title.textContent=pack.name;description.textContent=pack.description||"No pack description.";
+    const values=[["Version",pack.version],["Fields",pack.field_count],["Resources",pack.resource_count],["Cube pages",pack.page_count]];
     for(const [label,value] of values){const wrapper=document.createElement("div"),term=document.createElement("dt"),definition=document.createElement("dd");term.textContent=label;definition.textContent=value;wrapper.append(term,definition);stats.append(wrapper);}
-    copy.append(title,description);head.append(copy,badge);card.append(head,stats);return card;
+    meta.className="pack-meta";
+    for(const value of [pack.availability,pack.experience==="quick_start"?"Quick start":"Advanced",...(pack.tags??[]).slice(0,2)]){if(!value)continue;const chip=document.createElement("span");chip.textContent=value;meta.append(chip);}
+    action.type="button";action.className=pack.installed&&!pack.preinstalled?"pack-action remove":"pack-action";action.textContent=pack.preinstalled?"Included and ready":pack.installed?"Remove pack":"Install free pack";action.disabled=pack.preinstalled;
+    if(!pack.preinstalled)action.addEventListener("click",async()=>{const message=$("#system-message");if(pack.installed&&!window.confirm(`Remove ${pack.name}? Existing campaigns must be removed first.`))return;action.disabled=true;message.textContent=pack.installed?`Removing ${pack.name}…`:`Installing ${pack.name}…`;try{await request(`/api/v1/packs/${encodeURIComponent(pack.pack_id)}${pack.installed?"":"/install"}`,{method:pack.installed?"DELETE":"POST"});message.textContent=pack.installed?`${pack.name} removed.`:`${pack.name} installed and ready for new campaigns.`;message.className="form-message pack-message success";await loadGameSystems();}catch(error){message.textContent=error.message==="pack_in_use"?`${pack.name} is used by a campaign and cannot be removed.`:error.message;message.className="form-message pack-message error";action.disabled=false;}});
+    copy.append(title,description);head.append(copy,badge);card.append(head,stats,meta,action);return card;
   }));
 }
 
@@ -154,18 +162,62 @@ function resourceLine(resource) {
   return wrapper;
 }
 
+function templateInput(definition, value) {
+  const label = document.createElement("label");
+  const input = document.createElement("input");
+  label.append(definition.label, input);
+  input.dataset.fieldId = definition.field_id;
+  input.dataset.fieldType = definition.type;
+  input.type = definition.type === "boolean" ? "checkbox" : definition.type === "number" ? "number" : "text";
+  if (definition.type === "boolean") input.checked = Boolean(value);
+  else input.value = value ?? "";
+  return label;
+}
+
+function selectPreset(preset, button) {
+  selectedCharacterPreset = preset;
+  document.querySelectorAll(".character-preset-button").forEach((item) => item.classList.toggle("selected", item === button));
+  $("#character-preset-message").textContent = `${preset.label} selected • ${preset.resources.health.current} health • ${preset.fields.defense} defense`;
+  if (!$("#character-name").value.trim()) {
+    $("#character-name").value = preset.suggested_name;
+    if (!$("#character-id").dataset.edited) $("#character-id").value = slugify(preset.suggested_name);
+  }
+}
+
+function renderCharacterTemplate(system, character = null) {
+  currentCharacterSystem = system ?? null;
+  selectedCharacterPreset = null;
+  const sheet = system?.character_sheet ?? { fields:[], resources:[], presets:[] };
+  const quickStart = system?.pack?.experience === "quick_start" && sheet.presets.length > 0;
+  $("#character-preset-panel").hidden = !quickStart;
+  $("#character-template-editor").hidden = quickStart;
+  $("#character-preset-list").replaceChildren(...sheet.presets.map((preset) => {
+    const button=document.createElement("button"),icon=document.createElement("i"),copy=document.createElement("span"),title=document.createElement("strong"),detail=document.createElement("small");
+    button.type="button";button.className="character-preset-button";icon.textContent=preset.archetype.slice(0,1);title.textContent=preset.archetype;detail.textContent=preset.presentation[0].toUpperCase()+preset.presentation.slice(1);copy.append(title,detail);button.append(icon,copy);button.addEventListener("click",()=>selectPreset(preset,button));return button;
+  }));
+  $("#character-preset-message").textContent = character ? `${character.fields?.role ?? "Hero"} template • rename or reassign the player as needed.` : "Choose one of the eight heroes.";
+
+  const fieldNodes=[];
+  let previousSection="";
+  for(const field of sheet.fields){if(field.section!==previousSection){const heading=document.createElement("p");heading.className="template-section-title";heading.textContent=field.section;fieldNodes.push(heading);previousSection=field.section;}fieldNodes.push(templateInput(field,character?.fields?.[field.field_id]??field.default_value));}
+  $("#character-template-fields").replaceChildren(...fieldNodes);
+  $("#character-template-resources").replaceChildren(...sheet.resources.map((resource)=>{
+    const wrapper=document.createElement("div"),heading=document.createElement("strong"),currentLabel=document.createElement("label"),maximumLabel=document.createElement("label"),current=document.createElement("input"),maximum=document.createElement("input"),saved=character?.resources?.[resource.resource_id];
+    wrapper.className="template-resource";heading.textContent=resource.label;currentLabel.append("Current",current);maximumLabel.append("Maximum",maximum);current.type=maximum.type="number";current.dataset.resourceId=maximum.dataset.resourceId=resource.resource_id;current.dataset.resourceValue="current";maximum.dataset.resourceValue="maximum";current.value=saved?.current??resource.default_current;maximum.value=saved?.maximum??resource.default_maximum;wrapper.append(heading,currentLabel,maximumLabel);return wrapper;
+  }));
+  $("#character-conditions").placeholder = sheet.conditions.length ? sheet.conditions.slice(0,3).join(", ") : "Inspired, Hidden";
+}
+
 function resetCharacterForm() {
   editingCharacterId = null;
   editingCharacterRecord = null;
   $("#character-form").reset();
-  $("#character-level").value = "1";
-  $("#health-current").value = "10";
-  $("#health-maximum").value = "10";
   $("#character-id").disabled = false;
   $("#character-id").dataset.edited = "";
   $("#character-form-eyebrow").textContent = "NEW CHARACTER";
   $("#character-form-title").textContent = "Add to the party";
   $("#cancel-character-edit").hidden = true;
+  renderCharacterTemplate(currentCharacterSystem);
 }
 
 function editCharacter(character) {
@@ -173,14 +225,7 @@ function editCharacter(character) {
   editingCharacterRecord = character;
   $("#character-name").value = character.character_name;
   $("#player-name").value = character.player_name;
-  $("#character-role").value = character.fields?.role ?? "";
-  $("#character-level").value = character.fields?.level ?? "";
-  $("#character-defense").value = character.fields?.defense ?? "";
-  $("#health-current").value = character.resources?.health?.current ?? 0;
-  $("#health-maximum").value = character.resources?.health?.maximum ?? 0;
-  const secondary = Object.values(character.resources ?? {}).find((resource) => resource.resource_id !== "health");
-  $("#resource-label").value = secondary?.label ?? "";
-  $("#resource-values").value = secondary ? `${secondary.current} / ${secondary.maximum}` : "";
+  renderCharacterTemplate(currentCharacterSystem, character);
   $("#character-conditions").value = character.conditions.join(", ");
   $("#character-notes").value = character.public_notes;
   $("#character-id").value = character.character_id;
@@ -243,6 +288,8 @@ async function loadCharacters() {
   const campaignId = $("#character-campaign").value;
   const list = $("#character-list");
   if (!campaignId) {
+    currentCharacterSystem = null;
+    renderCharacterTemplate(null);
     $("#character-template-summary").textContent = "Select a campaign to load its character-sheet template.";
     $("#character-count").textContent = "0 characters";
     list.replaceChildren(characterEmpty("Select a campaign", "Choose a world to manage its party."));
@@ -250,6 +297,8 @@ async function loadCharacters() {
   }
   const campaign = (await request(`/api/v1/campaigns/${encodeURIComponent(campaignId)}`)).data;
   const system = gameSystems.get(campaign.system_id);
+  currentCharacterSystem = system ?? null;
+  if (!editingCharacterId) renderCharacterTemplate(currentCharacterSystem);
   $("#character-template-summary").textContent = system
     ? `${system.name} v${system.version} • ${system.character_sheet.fields.length} fields • ${system.character_sheet.resources.length} resources • ${system.character_sheet.pages.length} companion pages`
     : `Template ${campaign.system_id} is unavailable.`;
@@ -258,12 +307,27 @@ async function loadCharacters() {
   list.replaceChildren(...(data.length ? data.map(characterCard) : [characterEmpty("No characters—yet.", "Add the first hero, rival, or investigator to this campaign.")]));
 }
 
-function parseResourceValues(value) {
-  const [current, maximum] = value.split("/").map((part) => Number(part.trim()));
-  return { current: Number.isFinite(current) ? current : 0, maximum: Number.isFinite(maximum) ? maximum : (Number.isFinite(current) ? current : 0) };
+function collectTemplateValues() {
+  const quickStart = currentCharacterSystem?.pack?.experience === "quick_start";
+  if (quickStart) {
+    if (editingCharacterRecord) return { fields:{ ...editingCharacterRecord.fields }, resources:{ ...editingCharacterRecord.resources } };
+    if (!selectedCharacterPreset) throw new Error("Choose a ready-made hero first.");
+    return { fields:{ ...selectedCharacterPreset.fields }, resources:Object.fromEntries(Object.entries(selectedCharacterPreset.resources).map(([id,resource])=>[id,{ ...resource }])) };
+  }
+  const fields = { ...(editingCharacterRecord?.fields ?? {}) };
+  document.querySelectorAll("#character-template-fields input[data-field-id]").forEach((input) => {
+    fields[input.dataset.fieldId] = input.dataset.fieldType === "boolean" ? input.checked : input.dataset.fieldType === "number" ? Number(input.value) || 0 : input.value;
+  });
+  const resources = { ...(editingCharacterRecord?.resources ?? {}) };
+  for (const definition of currentCharacterSystem?.character_sheet.resources ?? []) {
+    const current = document.querySelector(`[data-resource-id="${definition.resource_id}"][data-resource-value="current"]`);
+    const maximum = document.querySelector(`[data-resource-id="${definition.resource_id}"][data-resource-value="maximum"]`);
+    resources[definition.resource_id] = { label:definition.label, current:Number(current?.value)||0, maximum:Math.max(0,Number(maximum?.value)||0) };
+  }
+  return { fields, resources };
 }
 
-$("#character-campaign").addEventListener("change", () => { resetCharacterForm(); loadCharacters().catch((error) => { $("#character-message").textContent = error.message; }); });
+$("#character-campaign").addEventListener("change", () => { editingCharacterId=null;editingCharacterRecord=null;loadCharacters().then(resetCharacterForm).catch((error) => { $("#character-message").textContent = error.message; }); });
 $("#cancel-character-edit").addEventListener("click", resetCharacterForm);
 $("#character-name").addEventListener("input", (event) => { const id = $("#character-id"); if (!id.dataset.edited && !editingCharacterId) id.value = slugify(event.target.value); });
 $("#character-id").addEventListener("input", (event) => { event.target.dataset.edited = "true"; });
@@ -272,16 +336,15 @@ $("#character-form").addEventListener("submit", async (event) => {
   const campaignId = $("#character-campaign").value;
   const message = $("#character-message");
   if (!campaignId) { message.textContent = "Select a campaign first."; message.className = "form-message error"; return; }
-  const resourceLabel = $("#resource-label").value.trim();
-  const resources = { ...(editingCharacterRecord?.resources ?? {}), health: { label: "Health", current: Number($("#health-current").value), maximum: Number($("#health-maximum").value) } };
-  if (resourceLabel) resources.secondary = { label: resourceLabel, ...parseResourceValues($("#resource-values").value) };
-  else delete resources.secondary;
+  let templateValues;
+  try { templateValues=collectTemplateValues(); }
+  catch(error){message.textContent=error.message;message.className="form-message error";return;}
   const payload = {
     character_id: $("#character-id").value,
     character_name: $("#character-name").value,
     player_name: $("#player-name").value,
-    fields: { ...(editingCharacterRecord?.fields ?? {}), role: $("#character-role").value, level: Number($("#character-level").value) || 0, defense: $("#character-defense").value },
-    resources,
+    fields: templateValues.fields,
+    resources: templateValues.resources,
     trackers: editingCharacterRecord?.trackers ?? {},
     conditions: $("#character-conditions").value.split(",").map((condition) => condition.trim()).filter(Boolean),
     public_notes: $("#character-notes").value,

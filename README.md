@@ -96,6 +96,13 @@ the character dead, a natural 20 restores one HP, and healing clears the tracker
 Players see the live read-only result, and existing D&D characters are migrated
 when Nexus Core starts.
 
+Version 1.4 introduces the expansion-pack catalog. A fresh Nexus starts with only
+Custom RPG enabled: eight editable Warrior, Rogue, Mage, and Healer presets across
+male and female presentations. D&D 5e and six original advanced packs remain
+optional until an Admin installs them from the local catalog. Installed packs use
+a dynamic editor generated from their fields and resources. Pack manifests already
+carry availability and licensing metadata; every current optional pack is free.
+
 Initial development may use Raspberry Pi hardware.
 
 Long-term production hardware may use either:

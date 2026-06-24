@@ -102,6 +102,7 @@ export function createApp({
   sessionStore,
   characterStore,
   systemStore = null,
+  expansionPacks = [],
   access,
   liveEvents,
   audio,
@@ -111,7 +112,7 @@ export function createApp({
   settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "1.3.0",
+  version = "1.4.0",
   startedAt = new Date(),
 }) {
   const settingsGuard = { failures: 0, blockedUntil: 0 };
@@ -346,6 +347,45 @@ export function createApp({
         if (typeof input.visible !== "boolean") return sendJson(response, 422, { error: "validation_failed", details: ["visible must be boolean"] });
         await connectivity.setBluetoothVisible(input.visible);
         return sendJson(response, 200, { success: true, visible: input.visible });
+      }
+
+      if (systemStore && request.method === "GET" && url.pathname === `${API_PREFIX}/packs`) {
+        if (access) await access.authorize(request, { roles: ["admin"] });
+        const data = await Promise.all(expansionPacks.map(async ({ system, ...pack }) => {
+          const installed = Boolean(await systemStore.get(pack.system_id));
+          return {
+            ...pack,
+            installed,
+            enabled: installed,
+            field_count: system.character_sheet.fields.length,
+            resource_count: system.character_sheet.resources.length,
+            page_count: system.character_sheet.pages.length,
+          };
+        }));
+        return sendJson(response, 200, { data });
+      }
+
+      const packRoute = systemStore ? url.pathname.match(/^\/api\/v1\/packs\/([^/]+)(\/install)?$/) : null;
+      if (packRoute) {
+        if (access) await access.authorize(request, { roles: ["admin"] });
+        const packId = decodeURIComponent(packRoute[1]);
+        const pack = expansionPacks.find((item) => item.pack_id === packId);
+        if (!pack) return sendJson(response, 404, { error: "pack_not_found" });
+        const existing = await systemStore.get(pack.system_id);
+        if (request.method === "POST" && packRoute[2] === "/install") {
+          if (existing && existing.pack?.pack_id !== pack.pack_id) return sendJson(response, 409, { error: "system_id_conflict" });
+          if (!existing || existing.version !== pack.system.version) await systemStore.put(pack.system_id, pack.system);
+          return sendJson(response, 200, { success: true, data: { pack_id: pack.pack_id, system_id: pack.system_id, installed: true } });
+        }
+        if (request.method === "DELETE" && !packRoute[2]) {
+          if (pack.preinstalled) return sendJson(response, 409, { error: "core_pack" });
+          if (!existing) return sendJson(response, 204, null);
+          if (existing.pack?.pack_id !== pack.pack_id) return sendJson(response, 409, { error: "system_id_conflict" });
+          if ((await campaignStore.list()).some((campaign) => campaign.system_id === pack.system_id)) return sendJson(response, 409, { error: "pack_in_use" });
+          await systemStore.delete(pack.system_id);
+          return sendJson(response, 204, null);
+        }
+        return sendJson(response, 405, { error: "method_not_allowed" });
       }
 
       const systemRoute = systemStore ? systemRouteFrom(url.pathname) : null;

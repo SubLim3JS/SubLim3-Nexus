@@ -1,0 +1,6 @@
+{
+  "pack_id": "post-apocalyptic", "system_id": "post-apocalyptic", "name": "Post-Apocalyptic Survival",
+  "version": "1.0", "description": "An original survival toolkit for wastelands, bunkers, and scarce resources.",
+  "publisher": "SubLim3", "license": "Included with Nexus", "experience": "customizable",
+  "tags": ["survival", "post-apocalyptic", "resources"]
+}

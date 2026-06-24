@@ -12,7 +12,7 @@ Admin and GM devices pair with installer-generated PINs. Their bearer tokens are
 
 The Admin Access & Pairing panel lists active devices, their role scopes, and expiration dates. It can revoke a client or rotate the GM PIN; rotation immediately revokes all existing GM sessions.
 
-The Admin template library lists installed game systems and their character-field, resource, and companion-page counts. Campaign creation selects from this library rather than a hard-coded game list. The first slice is read-only in the browser; custom template authoring will build on the versioned `/api/v1/systems` contract.
+The Admin Expansion Packs catalog lists optional packs, installation state, creation experience, character-field and resource counts, and Player Controller page counts. Custom RPG is the only fresh-install system and offers eight quick-start character presets. An Admin can enable D&D 5e or another advanced pack when the table needs it; installed packs render editable fields and resources directly from their templates and can be removed only when no campaign uses them. Custom template authoring builds on the versioned `/api/v1/systems` contract.
 
 The Player flow intentionally asks only for a campaign and character. That selection creates a character-scoped session whose only mutation is a bounded adjustment to that character's health; it is an isolation boundary for the simple local-table experience, not proof of a player's real-world identity. A campaign can add a player PIN later if a game requires stronger privacy.
 

@@ -1,0 +1,12 @@
+{
+  "pack_id": "custom",
+  "system_id": "custom",
+  "name": "Custom RPG",
+  "version": "1.1",
+  "description": "A quick-start fantasy mode with eight editable pre-made heroes.",
+  "publisher": "SubLim3",
+  "license": "Included with Nexus",
+  "experience": "quick_start",
+  "preinstalled": true,
+  "tags": ["core", "fantasy", "quick start"]
+}

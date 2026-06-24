@@ -1,0 +1,23 @@
+{
+  "system_id": "narrative-adventure", "name": "Narrative Adventure", "version": "1.0",
+  "description": "A lightweight customizable sheet for fiction-led campaigns.",
+  "character_sheet": {
+    "fields": [
+      { "field_id": "role", "label": "High Concept", "type": "text", "section": "Identity", "default_value": "Unlikely Hero" },
+      { "field_id": "trouble", "label": "Complication", "type": "text", "section": "Identity", "default_value": "" },
+      { "field_id": "level", "label": "Milestones", "type": "number", "section": "Growth", "default_value": 0 },
+      { "field_id": "defense", "label": "Guard", "type": "number", "section": "Conflict", "default_value": 1 },
+      { "field_id": "bold", "label": "Bold", "type": "number", "section": "Approaches", "default_value": 1 },
+      { "field_id": "careful", "label": "Careful", "type": "number", "section": "Approaches", "default_value": 1 },
+      { "field_id": "clever", "label": "Clever", "type": "number", "section": "Approaches", "default_value": 1 }
+    ],
+    "resources": [
+      { "resource_id": "health", "label": "Stress", "default_current": 3, "default_maximum": 3 },
+      { "resource_id": "momentum", "label": "Momentum", "default_current": 2, "default_maximum": 5 }
+    ],
+    "trackers": [], "conditions": ["Compromised", "Exhausted", "Marked"],
+    "pages": [{ "page_id": "story", "title": "Story", "bindings": ["role", "trouble", "momentum", "conditions"] }, { "page_id": "conflict", "title": "Conflict", "bindings": ["health", "defense", "bold", "careful", "clever"] }],
+    "actions": [{ "action_id": "take_stress", "label": "Take Stress", "kind": "decrement", "target": "health" }, { "action_id": "gain_momentum", "label": "Gain Momentum", "kind": "increment", "target": "momentum" }],
+    "presets": []
+  }
+}

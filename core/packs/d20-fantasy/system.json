@@ -1,0 +1,23 @@
+{
+  "system_id": "d20-fantasy", "name": "d20 Fantasy", "version": "1.0",
+  "description": "A flexible fantasy d20 sheet for original campaigns.",
+  "character_sheet": {
+    "fields": [
+      { "field_id": "role", "label": "Calling", "type": "text", "section": "Identity", "default_value": "Adventurer" },
+      { "field_id": "level", "label": "Level", "type": "number", "section": "Identity", "default_value": 1 },
+      { "field_id": "defense", "label": "Defense", "type": "number", "section": "Combat", "default_value": 10 },
+      { "field_id": "might", "label": "Might", "type": "number", "section": "Attributes", "default_value": 10 },
+      { "field_id": "agility", "label": "Agility", "type": "number", "section": "Attributes", "default_value": 10 },
+      { "field_id": "insight", "label": "Insight", "type": "number", "section": "Attributes", "default_value": 10 },
+      { "field_id": "presence", "label": "Presence", "type": "number", "section": "Attributes", "default_value": 10 }
+    ],
+    "resources": [
+      { "resource_id": "health", "label": "Health", "default_current": 12, "default_maximum": 12 },
+      { "resource_id": "hero_points", "label": "Hero Points", "default_current": 2, "default_maximum": 3 }
+    ],
+    "trackers": [], "conditions": ["Burning", "Frightened", "Poisoned", "Prone", "Stunned"],
+    "pages": [{ "page_id": "status", "title": "Status", "bindings": ["health", "hero_points", "defense", "conditions"] }, { "page_id": "attributes", "title": "Attributes", "bindings": ["might", "agility", "insight", "presence"] }],
+    "actions": [{ "action_id": "damage", "label": "Damage", "kind": "decrement", "target": "health" }, { "action_id": "recover", "label": "Recover", "kind": "increment", "target": "health" }],
+    "presets": []
+  }
+}

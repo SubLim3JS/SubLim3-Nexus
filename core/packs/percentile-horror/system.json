@@ -1,0 +1,24 @@
+{
+  "system_id": "percentile-horror", "name": "Percentile Horror", "version": "1.0",
+  "description": "Investigators balance health, composure, and fortune against the unknown.",
+  "character_sheet": {
+    "fields": [
+      { "field_id": "role", "label": "Occupation", "type": "text", "section": "Identity", "default_value": "Investigator" },
+      { "field_id": "level", "label": "Experience", "type": "number", "section": "Identity", "default_value": 0 },
+      { "field_id": "defense", "label": "Protection", "type": "number", "section": "Combat", "default_value": 0 },
+      { "field_id": "brawn", "label": "Brawn %", "type": "number", "section": "Attributes", "default_value": 50 },
+      { "field_id": "reflex", "label": "Reflex %", "type": "number", "section": "Attributes", "default_value": 50 },
+      { "field_id": "reason", "label": "Reason %", "type": "number", "section": "Attributes", "default_value": 50 },
+      { "field_id": "will", "label": "Will %", "type": "number", "section": "Attributes", "default_value": 50 }
+    ],
+    "resources": [
+      { "resource_id": "health", "label": "Health", "default_current": 10, "default_maximum": 10 },
+      { "resource_id": "composure", "label": "Composure", "default_current": 60, "default_maximum": 60 },
+      { "resource_id": "fortune", "label": "Fortune", "default_current": 40, "default_maximum": 40 }
+    ],
+    "trackers": [], "conditions": ["Panicked", "Shaken", "Wounded", "Unconscious"],
+    "pages": [{ "page_id": "status", "title": "Status", "bindings": ["health", "composure", "fortune", "conditions"] }, { "page_id": "attributes", "title": "Attributes", "bindings": ["brawn", "reflex", "reason", "will"] }],
+    "actions": [{ "action_id": "harm", "label": "Harm", "kind": "decrement", "target": "health" }, { "action_id": "steady", "label": "Steady", "kind": "increment", "target": "composure" }],
+    "presets": []
+  }
+}

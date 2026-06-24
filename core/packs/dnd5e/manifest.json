@@ -1,0 +1,11 @@
+{
+  "pack_id": "dnd5e",
+  "system_id": "dnd5e",
+  "name": "Dungeons & Dragons 5e",
+  "version": "1.2",
+  "description": "A customizable 5e character and Player Controller pack.",
+  "publisher": "SubLim3",
+  "license": "Review publisher terms before commercial distribution",
+  "experience": "customizable",
+  "tags": ["fantasy", "d20", "customizable"]
+}

@@ -1,0 +1,6 @@
+{
+  "pack_id": "superheroes", "system_id": "superheroes", "name": "Superhero Adventures",
+  "version": "1.0", "description": "An original customizable toolkit for heroes, teams, and comic-book action.",
+  "publisher": "SubLim3", "license": "Included with Nexus", "experience": "customizable",
+  "tags": ["superhero", "cinematic", "teams"]
+}

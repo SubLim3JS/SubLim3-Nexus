@@ -1,0 +1,6 @@
+{
+  "pack_id": "narrative-adventure", "system_id": "narrative-adventure", "name": "Narrative Adventure",
+  "version": "1.0", "description": "A story-first toolkit built around aspects, stress, and momentum.",
+  "publisher": "SubLim3", "license": "Included with Nexus", "experience": "customizable",
+  "tags": ["narrative", "rules light", "genre neutral"]
+}
