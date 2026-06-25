@@ -5,11 +5,15 @@ import json
 import os
 import signal
 import sys
-import threading
 import time
 
 from gpiozero import Button, OutputDevice
 import spidev
+
+try:
+    from mfrc522 import MFRC522
+except Exception:
+    MFRC522 = None
 
 
 RUNNING = True
@@ -19,7 +23,50 @@ def emit(event):
     print(json.dumps(event, separators=(",", ":")), flush=True)
 
 
-class RC522:
+class LibraryRC522:
+    """MFRC522 adapter matching the library used by earlier SubLim3 hardware."""
+
+    def __init__(self, bus=0, device=0, reset_gpio=25):
+        if MFRC522 is None:
+            raise RuntimeError("mfrc522 Python package is not installed")
+        self.reader = self.create_reader(bus, device, reset_gpio)
+
+    @staticmethod
+    def create_reader(bus, device, reset_gpio):
+        attempts = (
+            {"bus": bus, "device": device, "pin_rst": reset_gpio},
+            {"bus": bus, "device": device},
+            {},
+        )
+        last_error = None
+        for kwargs in attempts:
+            try:
+                return MFRC522(**kwargs)
+            except TypeError as error:
+                last_error = error
+        raise last_error
+
+    def uid(self):
+        status, _tag_type = self.reader.MFRC522_Request(self.reader.PICC_REQIDL)
+        if status != self.reader.MI_OK:
+            return None
+        status, uid = self.reader.MFRC522_Anticoll()
+        if status != self.reader.MI_OK or not uid:
+            return None
+        uid_bytes = uid[:4] if len(uid) >= 5 and (uid[0] ^ uid[1] ^ uid[2] ^ uid[3]) == uid[4] else uid
+        try:
+            self.reader.MFRC522_Halt()
+        except Exception:
+            pass
+        return "".join(f"{byte:02x}" for byte in uid_bytes)
+
+    def close(self):
+        cleanup = getattr(self.reader, "GPIO_CLEEN", None) or getattr(self.reader, "GPIO_CLEAN", None)
+        if cleanup:
+            cleanup()
+
+
+class BuiltInRC522:
     IDLE = 0x00
     CALC_CRC = 0x03
     TRANSCEIVE = 0x0C
@@ -163,14 +210,20 @@ def main():
         if pin < 0:
             continue
         try:
-            button = Button(pin, pull_up=True, bounce_time=0.03)
+            button = Button(pin, pull_up=True, bounce_time=0.2)
             button.when_pressed = lambda key=name: emit({"type": "button", "name": key, "pressed": True})
             button.when_released = lambda key=name: emit({"type": "button", "name": key, "pressed": False})
             buttons.append(button)
         except Exception as error:
             print(f"Button {name} on GPIO{pin} disabled: {error}", file=sys.stderr, flush=True)
 
-    reader = RC522(gpio("NEXUS_RFID_SPI_BUS", 0), gpio("NEXUS_RFID_SPI_DEVICE", 0), gpio("NEXUS_RFID_RESET_GPIO", 25))
+    reader_arguments = (gpio("NEXUS_RFID_SPI_BUS", 0), gpio("NEXUS_RFID_SPI_DEVICE", 0), gpio("NEXUS_RFID_RESET_GPIO", 25))
+    try:
+        reader = LibraryRC522(*reader_arguments)
+        print("RFID reader using mfrc522 library", file=sys.stderr, flush=True)
+    except Exception as error:
+        print(f"RFID mfrc522 library unavailable; using built-in driver: {error}", file=sys.stderr, flush=True)
+        reader = BuiltInRC522(*reader_arguments)
     current = None
     misses = 0
     try:

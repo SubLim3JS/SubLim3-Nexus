@@ -75,7 +75,10 @@ fi
 
 if grep -qi "Raspberry Pi" /proc/device-tree/model 2>/dev/null; then
   echo "Installing Raspberry Pi RFID and GPIO support..."
-  if command -v apt-get >/dev/null 2>&1 && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3-gpiozero python3-spidev; then
+  if command -v apt-get >/dev/null 2>&1 && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3-gpiozero python3-spidev python3-rpi.gpio; then
+    if apt-cache show python3-mfrc522 >/dev/null 2>&1; then
+      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3-mfrc522 || true
+    fi
     if command -v raspi-config >/dev/null 2>&1; then
       raspi-config nonint do_spi 0
     fi

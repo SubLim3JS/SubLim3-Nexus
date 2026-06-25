@@ -9,7 +9,7 @@ const BUTTONS = Object.freeze({
 });
 
 export class ButtonGestureInterpreter {
-  constructor({ onAction, doubleTapMs = 350, holdMs = 700, setTimer = setTimeout, clearTimer = clearTimeout }) {
+  constructor({ onAction, doubleTapMs = 350, holdMs = 1000, setTimer = setTimeout, clearTimer = clearTimeout }) {
     this.onAction = onAction;
     this.doubleTapMs = doubleTapMs;
     this.holdMs = holdMs;
