@@ -7,8 +7,8 @@
     <title>Settings • SubLim3 Nexus</title>
     <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
     <link rel="stylesheet" href="/assets/styles.css?v=1.4.2">
-    <link rel="stylesheet" href="/assets/settings.css?v=1.5.4">
-    <script type="module" src="/assets/settings.js?v=1.5.4"></script>
+    <link rel="stylesheet" href="/assets/settings.css?v=1.5.6">
+    <script type="module" src="/assets/settings.js?v=1.5.6"></script>
   </head>
   <body>
     <div class="app-shell settings-shell">
@@ -115,7 +115,7 @@
           <p class="settings-copy">Install the latest release from GitHub, restart the Pi, or shut it down safely.</p>
           <div id="update-progress-panel" class="update-progress-panel" hidden>
             <div class="update-progress-header">
-              <span id="update-progress-stage">Preparing update…</span>
+              <span><span id="update-progress-stage">Preparing update…</span><small id="update-progress-warning">Do not leave this page.</small></span>
               <strong id="update-progress-time">0:00</strong>
             </div>
             <div class="update-progress-track" aria-hidden="true"><span id="update-progress-bar"></span></div>

@@ -92,7 +92,7 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
-  assert.equal(body.version, "1.5.4");
+  assert.equal(body.version, "1.5.6");
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
@@ -164,6 +164,7 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, />Update<\/button>[\s\S]*>Reboot<\/button>[\s\S]*>Shut Down<\/button>/);
   assert.match(page, /id="update-progress-panel"/);
   assert.match(page, /id="update-progress-stage"/);
+  assert.match(page, /Do not leave this page/);
   assert.match(page, /Playback defaults/);
   assert.match(page, /Card behavior/);
   assert.match(page, /Network tools/);
@@ -177,10 +178,13 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /Update succeeded\. Nexus Core v/);
   assert.match(script, /Took \$\{updateDurationText\(\)\}/);
   assert.match(script, /function updateDurationText/);
+  assert.match(script, /Please keep this page open/);
   assert.match(script, /beginUpdateProgress/);
   assert.match(script, /showUpdateProgress\("Restarting Nexus Core/);
   assert.match(script, /audio\/effects\/\$\{effect\}\/trigger/);
   assert.match(script, /playUpdateCue\("system-update-success"\)/);
+  assert.match(script, /function playBrowserUpdateCue/);
+  assert.match(script, /window\.AudioContext\|\|window\.webkitAudioContext/);
   assert.match(script, /connectivity\/tools\/ping/);
 });
 
