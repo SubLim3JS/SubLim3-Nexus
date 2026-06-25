@@ -17,6 +17,7 @@ import { AudioFileService } from "./audio-files.js";
 import { BrowserAudioOutput, MpvAudioOutput } from "./platform/audio-output.js";
 import { PlayerSettingsService } from "./player-settings.js";
 import { RfidService } from "./rfid.js";
+import { HardwareInputService, shouldStartHardware } from "./platform/hardware-input.js";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const dataDirectory = process.env.NEXUS_DATA_DIR ?? path.resolve(directory, "../data");
@@ -57,6 +58,9 @@ const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: au
 await audio.initialize();
 const rfid = new RfidService({ cardStore: rfidCardStore, stateStore: rfidStateStore, audio, settings: () => playerSettings.get() });
 await rfid.initialize();
+const hardware = shouldStartHardware()
+  ? new HardwareInputService({ rfid, audio, settings: () => playerSettings.get() })
+  : null;
 const expansionPacks = await loadBundledExpansionPacks();
 for (const { system, preinstalled } of expansionPacks) {
   const existing = await systemStore.get(system.system_id);
@@ -105,4 +109,12 @@ const server = createServer(createApp({
 }));
 server.listen(port, host, () => {
   console.log(`Nexus Core listening on http://${host}:${port}`);
+  hardware?.start();
 });
+
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.once(signal, () => {
+    hardware?.stop();
+    server.close(() => process.exit(0));
+  });
+}

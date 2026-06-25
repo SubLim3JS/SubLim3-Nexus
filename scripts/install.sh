@@ -58,6 +58,11 @@ fi
 if getent group audio >/dev/null 2>&1; then
   usermod -a -G audio "${SERVICE_USER}"
 fi
+for hardware_group in gpio spi; do
+  if getent group "${hardware_group}" >/dev/null 2>&1; then
+    usermod -a -G "${hardware_group}" "${SERVICE_USER}"
+  fi
+done
 
 if ! command -v mpv >/dev/null 2>&1; then
   echo "Installing the Raspberry Pi audio driver (mpv)..."
@@ -65,6 +70,17 @@ if ! command -v mpv >/dev/null 2>&1; then
     echo "mpv installed. Nexus Core will provide server-side audio output."
   else
     echo "Warning: mpv could not be installed. Nexus will keep using browser audio until mpv is available." >&2
+  fi
+fi
+
+if grep -qi "Raspberry Pi" /proc/device-tree/model 2>/dev/null; then
+  echo "Installing Raspberry Pi RFID and GPIO support..."
+  if command -v apt-get >/dev/null 2>&1 && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3-gpiozero python3-spidev; then
+    if command -v raspi-config >/dev/null 2>&1; then
+      raspi-config nonint do_spi 0
+    fi
+  else
+    echo "Warning: Raspberry Pi RFID/GPIO dependencies could not be installed." >&2
   fi
 fi
 
@@ -108,6 +124,13 @@ ensure_setting NEXUS_HOTSPOT_CONNECTION sublim3-hotspot
 ensure_setting NEXUS_HOME_CONNECTION sublim3-home
 ensure_setting NEXUS_HOTSPOT_SSID SubLim3-Nexus
 ensure_setting NEXUS_WIFI_MODE local
+ensure_setting NEXUS_HARDWARE_DRIVER auto
+ensure_setting NEXUS_RFID_SPI_BUS 0
+ensure_setting NEXUS_RFID_SPI_DEVICE 0
+ensure_setting NEXUS_RFID_RESET_GPIO 25
+ensure_setting NEXUS_RFID_IRQ_GPIO 24
+ensure_setting NEXUS_BUTTON_DOWN_GPIO 15
+ensure_setting NEXUS_BUTTON_UP_GPIO 5
 chown root:"${SERVICE_USER}" /etc/default/sublim3-nexus
 chmod 0640 /etc/default/sublim3-nexus
 

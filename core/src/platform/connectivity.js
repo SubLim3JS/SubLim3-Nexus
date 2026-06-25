@@ -95,4 +95,20 @@ export class ConnectivityService {
     if (this.platform !== "linux") throw Object.assign(new Error("Bluetooth control is only available on the Raspberry Pi"), { statusCode: 409 });
     return this.runner.runPrivileged("bluetooth-visible", [visible ? "on" : "off"]);
   }
+
+  async ping(target) {
+    const normalizedTarget = String(target ?? "").trim();
+    if (!normalizedTarget || normalizedTarget.length > 253 || normalizedTarget.startsWith("-") || !/^[a-zA-Z0-9_.:-]+$/.test(normalizedTarget)) {
+      throw Object.assign(new Error("A valid hostname or IP address is required"), { statusCode: 422 });
+    }
+    if (this.platform !== "linux") {
+      return { target: normalizedTarget, ok: false, output: "Network diagnostics are available when Nexus Core runs on Raspberry Pi." };
+    }
+    try {
+      const output = await this.runner.runPrivileged("diagnostic-ping", [normalizedTarget]);
+      return { target: normalizedTarget, ok: true, output };
+    } catch (error) {
+      return { target: normalizedTarget, ok: false, output: error.message || "Ping failed" };
+    }
+  }
 }

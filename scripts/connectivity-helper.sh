@@ -43,11 +43,23 @@ set_wifi_mode() {
   chmod 0640 "${CONFIG_FILE}"
 }
 
+stop_hotspot() {
+  nmcli connection down "${HOTSPOT_CONNECTION}" >/dev/null 2>&1 || true
+  nmcli connection delete "${HOTSPOT_CONNECTION}" >/dev/null 2>&1 || true
+}
+
 start_hotspot() {
   [[ ${#HOTSPOT_SSID} -ge 1 && ${#HOTSPOT_SSID} -le 32 ]] || { echo "Hotspot SSID must be 1-32 characters." >&2; exit 2; }
   [[ ${#HOTSPOT_PASSWORD} -ge 8 && ${#HOTSPOT_PASSWORD} -le 63 ]] || { echo "Hotspot password must be 8-63 characters." >&2; exit 2; }
-  nmcli connection delete "${HOTSPOT_CONNECTION}" >/dev/null 2>&1 || true
+  stop_hotspot
   nmcli device wifi hotspot ifname "${WIFI_INTERFACE}" con-name "${HOTSPOT_CONNECTION}" ssid "${HOTSPOT_SSID}" password "${HOTSPOT_PASSWORD}"
+}
+
+restore_hotspot_after_home_failure() {
+  echo "$1" >&2
+  set_wifi_mode local
+  start_hotspot
+  exit 1
 }
 
 connect_home() {
@@ -57,12 +69,26 @@ connect_home() {
   [[ ${#ssid} -ge 1 && ${#ssid} -le 32 && "$ssid" != -* && "$ssid" != *$'\n'* && "$ssid" != *$'\r'* && "$ssid" != *$'\t'* ]] || { echo "Invalid home SSID." >&2; exit 2; }
   [[ ${#password} -le 64 && "$password" != *$'\n'* ]] || { echo "Invalid Wi-Fi password." >&2; exit 2; }
   set_wifi_mode home
+  stop_hotspot
+  nmcli radio wifi on >/dev/null
+  nmcli device set "${WIFI_INTERFACE}" managed yes >/dev/null 2>&1 || true
+  nmcli device wifi rescan ifname "${WIFI_INTERFACE}" >/dev/null 2>&1 || true
+  sleep 2
+  nmcli connection down "${HOME_CONNECTION}" >/dev/null 2>&1 || true
   nmcli connection delete "${HOME_CONNECTION}" >/dev/null 2>&1 || true
   if [[ -n "${password}" ]]; then
-    nmcli device wifi connect "${ssid}" password "${password}" ifname "${WIFI_INTERFACE}" name "${HOME_CONNECTION}" || { start_hotspot; exit 1; }
+    nmcli device wifi connect "${ssid}" password "${password}" ifname "${WIFI_INTERFACE}" name "${HOME_CONNECTION}" || restore_hotspot_after_home_failure "Unable to join home Wi-Fi. Restored Local Mode."
   else
-    nmcli device wifi connect "${ssid}" ifname "${WIFI_INTERFACE}" name "${HOME_CONNECTION}" || { start_hotspot; exit 1; }
+    nmcli device wifi connect "${ssid}" ifname "${WIFI_INTERFACE}" name "${HOME_CONNECTION}" || restore_hotspot_after_home_failure "Unable to join open home Wi-Fi. Restored Local Mode."
   fi
+  for _ in {1..20}; do
+    local active_connection addresses
+    active_connection="$(nmcli -g GENERAL.CONNECTION device show "${WIFI_INTERFACE}" 2>/dev/null || true)"
+    addresses="$(nmcli -g IP4.ADDRESS device show "${WIFI_INTERFACE}" 2>/dev/null || true)"
+    [[ "${active_connection}" == "${HOME_CONNECTION}" && -n "${addresses}" ]] && exit 0
+    sleep 1
+  done
+  restore_hotspot_after_home_failure "Joined home Wi-Fi but did not receive an IPv4 address. Restored Local Mode."
 }
 
 ensure_connected() {
@@ -76,13 +102,28 @@ ensure_connected() {
   fi
   [[ "${state}" == 100* && "${active_connection}" != "${HOTSPOT_CONNECTION}" ]] && exit 0
   if nmcli connection show "${HOME_CONNECTION}" >/dev/null 2>&1 && nmcli connection up "${HOME_CONNECTION}" >/dev/null 2>&1; then exit 0; fi
+  set_wifi_mode local
   start_hotspot
+}
+
+diagnostic_ping() {
+  [[ $# -eq 1 ]] || { echo "diagnostic-ping requires one target." >&2; exit 2; }
+  local target="$1" output=""
+  [[ ${#target} -ge 1 && ${#target} -le 253 && "$target" != -* && "$target" =~ ^[a-zA-Z0-9_.:-]+$ ]] || { echo "Invalid ping target." >&2; exit 2; }
+  if output="$(ping -c 3 -W 2 "${target}" 2>&1)"; then
+    printf '%s\n' "${output}"
+  else
+    local code=$?
+    printf '%s\n' "${output}" >&2
+    exit "${code}"
+  fi
 }
 
 case "${1:-}" in
   wifi-local) [[ $# -eq 1 ]] || exit 2; set_wifi_mode local; start_hotspot ;;
   wifi-home) shift; connect_home "$@" ;;
   wifi-scan) [[ $# -eq 1 ]] || exit 2; nmcli -t --escape yes -f SSID,SIGNAL,SECURITY device wifi list ifname "${WIFI_INTERFACE}" --rescan yes ;;
+  diagnostic-ping) shift; diagnostic_ping "$@" ;;
   ensure-connected) [[ $# -eq 1 ]] || exit 2; ensure_connected ;;
   bluetooth-visible)
     [[ $# -eq 2 && ( "$2" == "on" || "$2" == "off" ) ]] || { echo "Visibility must be on or off." >&2; exit 2; }

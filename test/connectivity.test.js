@@ -29,11 +29,15 @@ test("delegates only validated connectivity mutations", async () => {
   const service = new ConnectivityService({ runner, platform: "linux" });
   await service.switchWifi({ mode: "home", ssid: "Table WiFi", password: "secret-pass" });
   await service.setBluetoothVisible(true);
+  const ping = await service.ping("192.168.1.1");
   assert.deepEqual(runner.privileged, [
     { action: "wifi-home", args: ["Table WiFi"], input: "secret-pass\n" },
     { action: "bluetooth-visible", args: ["on"], input: "" },
+    { action: "diagnostic-ping", args: ["192.168.1.1"], input: "" },
   ]);
+  assert.equal(ping.ok, true);
   await assert.rejects(() => service.switchWifi({ mode: "home", ssid: "", password: "" }), /Valid home Wi-Fi/);
+  await assert.rejects(() => service.ping("-bad"), /valid hostname/);
 });
 
 test("parses and orders escaped Wi-Fi scan results", async () => {

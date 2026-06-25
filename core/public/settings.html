@@ -7,8 +7,8 @@
     <title>Settings • SubLim3 Nexus</title>
     <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
     <link rel="stylesheet" href="/assets/styles.css?v=1.4.2">
-    <link rel="stylesheet" href="/assets/settings.css?v=1.4.2">
-    <script type="module" src="/assets/settings.js?v=1.4.2"></script>
+    <link rel="stylesheet" href="/assets/settings.css?v=1.5.1">
+    <script type="module" src="/assets/settings.js?v=1.5.1"></script>
   </head>
   <body>
     <div class="app-shell settings-shell">
@@ -74,6 +74,16 @@
           <p class="settings-copy">Make Nexus visible and pairable. Bluetooth audio profiles will be added with the music engine.</p>
           <label class="toggle-row"><span>Visible to nearby devices</span><input id="bluetooth-visible" type="checkbox" role="switch"></label>
           <div id="bluetooth-devices" class="device-list">No connected devices</div>
+        </article>
+
+        <article class="settings-card wide-panel locked-control tools-panel">
+          <p class="eyebrow">DIAGNOSTICS</p><h2>Network tools</h2>
+          <p class="settings-copy">Ping a router, LAN device, or internet host from Nexus Core to verify Home Wi-Fi and upstream connectivity.</p>
+          <form id="ping-form" class="tool-form">
+            <label>Ping target<input id="ping-target" maxlength="253" placeholder="192.168.1.1 or google.com" value="192.168.1.1"></label>
+            <button class="secondary-button" type="submit">Run Ping</button>
+          </form>
+          <pre id="ping-output" class="tool-output">No diagnostics run yet.</pre>
         </article>
 
         <article class="settings-card wide-panel locked-control player-settings-panel">

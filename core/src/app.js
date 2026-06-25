@@ -113,7 +113,7 @@ export function createApp({
   settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "1.5.0",
+  version = "1.5.1",
   startedAt = new Date(),
 }) {
   const settingsGuard = { failures: 0, blockedUntil: 0 };
@@ -374,6 +374,12 @@ export function createApp({
         if (typeof input.visible !== "boolean") return sendJson(response, 422, { error: "validation_failed", details: ["visible must be boolean"] });
         await connectivity.setBluetoothVisible(input.visible);
         return sendJson(response, 200, { success: true, visible: input.visible });
+      }
+
+      if (connectivity && request.method === "POST" && url.pathname === `${API_PREFIX}/connectivity/tools/ping`) {
+        if (access) await access.authorize(request, { roles: ["admin"] }); else requireSettingsAccess(request, settingsPin, settingsGuard);
+        const input = await readJson(request);
+        return sendJson(response, 200, { data: await connectivity.ping(input.target) });
       }
 
       if (systemStore && request.method === "GET" && url.pathname === `${API_PREFIX}/packs`) {

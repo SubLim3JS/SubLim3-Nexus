@@ -623,6 +623,11 @@ Consumables
 * Optional touchscreen
 * Local storage
 
+The supported RC522 and physical media-button wiring is documented in
+[`docs/hardware.md`](docs/hardware.md). Raspberry Pi installs automatically
+enable the SPI/GPIO adapter; other development systems use the hardware-free
+path.
+
 ### Companion Development Hardware
 
 Primary:

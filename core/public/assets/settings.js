@@ -86,6 +86,20 @@ $("#bluetooth-visible").addEventListener("change", async (event) => {
   finally { event.target.disabled = false; }
 });
 
+$("#ping-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const target = $("#ping-target").value.trim();
+  $("#ping-output").textContent = `Pinging ${target} from Nexus Core…`;
+  try {
+    const { data } = await api("/api/v1/connectivity/tools/ping", { method:"POST", headers:headers(true), body:JSON.stringify({ target }) });
+    $("#ping-output").textContent = `${data.ok ? "Reachable" : "Not reachable"}: ${data.target}\n\n${data.output || "No output returned."}`;
+    alertMessage(data.ok ? `${data.target} is reachable from Nexus.` : `${data.target} did not respond from Nexus.`, data.ok ? "success" : "error");
+  } catch (error) {
+    $("#ping-output").textContent = error.message;
+    alertMessage(error.message, "error");
+  }
+});
+
 $("#playback-settings-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {

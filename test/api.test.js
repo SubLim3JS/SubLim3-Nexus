@@ -59,6 +59,7 @@ before(async () => {
       scanWifi: async () => [{ ssid: "Table WiFi", signal: 88, security: "WPA2" }],
       switchWifi: async (input) => { connectivityActions.push(["wifi", input]); },
       setBluetoothVisible: async (visible) => { connectivityActions.push(["bluetooth", visible]); },
+      ping: async (target) => { connectivityActions.push(["ping", target]); return { target, ok: true, output: "64 bytes from test" }; },
     },
     systemControl: {
       shutdown: async () => { systemActions.push("shutdown"); },
@@ -91,7 +92,7 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
-  assert.equal(body.version, "1.5.0");
+  assert.equal(body.version, "1.5.1");
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
@@ -145,6 +146,14 @@ test("protects connectivity controls with the Settings PIN", async () => {
   });
   assert.equal(switched.status, 202);
   assert.deepEqual(connectivityActions.at(-1), ["wifi", { mode: "local" }]);
+
+  const ping = await fetch(`${baseUrl}/api/v1/connectivity/tools/ping`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-nexus-settings-pin": "123456" },
+    body: JSON.stringify({ target: "192.168.1.1" }),
+  }).then((response) => response.json());
+  assert.equal(ping.data.ok, true);
+  assert.deepEqual(connectivityActions.at(-1), ["ping", "192.168.1.1"]);
 });
 
 test("serves the connectivity Settings page", async () => {
@@ -155,6 +164,7 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, />Update<\/button>/);
   assert.match(page, /Playback defaults/);
   assert.match(page, /Card behavior/);
+  assert.match(page, /Network tools/);
   assert.match(page, /class="nav-item active" href="\/settings\/"/);
   assert.match(page, /href="\/controllers\/"/);
   assert.match(page, /href="\/library\/"/);
@@ -163,6 +173,7 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /window\.location\.replace/);
   assert.match(script, /window\.scrollTo\(0,0\)/);
   assert.match(script, /Update succeeded\. Nexus Core v/);
+  assert.match(script, /connectivity\/tools\/ping/);
 });
 
 test("protects and persists player settings", async () => {
