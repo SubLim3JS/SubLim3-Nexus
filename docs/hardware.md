@@ -51,13 +51,16 @@ NEXUS_RFID_SPI_BUS=0
 NEXUS_RFID_SPI_DEVICE=0
 NEXUS_RFID_RESET_GPIO=25
 NEXUS_RFID_IRQ_GPIO=24
+NEXUS_RFID_ENABLED=true
 NEXUS_BUTTON_DOWN_GPIO=15
 NEXUS_BUTTON_UP_GPIO=5
 ```
 
 `auto` starts the helper only when Raspberry Pi hardware is detected. Use
 `NEXUS_HARDWARE_DRIVER=disabled` to turn it off, or `raspberry-pi` to force it
-on. After changing the wiring configuration, restart the service:
+on. Set `NEXUS_RFID_ENABLED=false` to temporarily test the physical media
+buttons without starting the RFID reader. After changing the wiring
+configuration, restart the service:
 
 ```bash
 sudo systemctl restart sublim3-nexus

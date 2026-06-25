@@ -28,6 +28,13 @@ def emit(event):
     print(json.dumps(event, separators=(",", ":")), flush=True)
 
 
+def enabled(name, default=True):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() not in ("0", "false", "off", "no", "disabled")
+
+
 class LibraryRC522:
     """MFRC522 adapter matching the library used by earlier SubLim3 hardware."""
 
@@ -227,7 +234,8 @@ class ButtonInputs:
                 "pressed": GPIO.input(pin) == GPIO.LOW,
                 "changed_at": time.monotonic(),
             }
-            print(f"Button {name} using physical pin {pin}", file=sys.stderr, flush=True)
+            state_label = "pressed" if self.states[name]["pressed"] else "released"
+            print(f"Button {name} using physical pin {pin}; initial state {state_label}", file=sys.stderr, flush=True)
 
     def poll(self):
         if self.closed:
@@ -239,6 +247,7 @@ class ButtonInputs:
                 continue
             state["pressed"] = pressed
             state["changed_at"] = now
+            print(f"Button {name} {'pressed' if pressed else 'released'}", file=sys.stderr, flush=True)
             emit({"type": "button", "name": name, "pressed": pressed})
 
     def close(self):
@@ -272,17 +281,21 @@ def stop(_signal, _frame):
 def main():
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    reader_arguments = (gpio("NEXUS_RFID_SPI_BUS", 0), gpio("NEXUS_RFID_SPI_DEVICE", 0), gpio("NEXUS_RFID_RESET_GPIO", 25))
-    try:
-        reader = LibraryRC522(*reader_arguments)
-        print("RFID reader using mfrc522 library", file=sys.stderr, flush=True)
-    except Exception as error:
-        print(f"RFID mfrc522 library unavailable; using built-in driver: {error}", file=sys.stderr, flush=True)
+    if enabled("NEXUS_RFID_ENABLED"):
+        reader_arguments = (gpio("NEXUS_RFID_SPI_BUS", 0), gpio("NEXUS_RFID_SPI_DEVICE", 0), gpio("NEXUS_RFID_RESET_GPIO", 25))
         try:
-            reader = BuiltInRC522(*reader_arguments)
-        except Exception as built_in_error:
-            print(f"RFID disabled: {built_in_error}", file=sys.stderr, flush=True)
-            reader = DisabledRC522()
+            reader = LibraryRC522(*reader_arguments)
+            print("RFID reader using mfrc522 library", file=sys.stderr, flush=True)
+        except Exception as error:
+            print(f"RFID mfrc522 library unavailable; using built-in driver: {error}", file=sys.stderr, flush=True)
+            try:
+                reader = BuiltInRC522(*reader_arguments)
+            except Exception as built_in_error:
+                print(f"RFID disabled: {built_in_error}", file=sys.stderr, flush=True)
+                reader = DisabledRC522()
+    else:
+        print("RFID disabled by NEXUS_RFID_ENABLED", file=sys.stderr, flush=True)
+        reader = DisabledRC522()
     try:
         buttons = ButtonInputs((("volume_down", gpio("NEXUS_BUTTON_DOWN_GPIO", 15)), ("volume_up", gpio("NEXUS_BUTTON_UP_GPIO", 5))))
     except Exception as error:

@@ -122,7 +122,12 @@ export class HardwareInputService {
     this.stopped = true;
     this.restartTimer = null;
     this.pending = Promise.resolve();
-    this.gestures = new ButtonGestureInterpreter({ onAction: (action) => this.enqueue(() => applyHardwareAction(action, this)) });
+    this.gestures = new ButtonGestureInterpreter({
+      onAction: (action) => {
+        this.logger.error(`Hardware button action: ${action}`);
+        return this.enqueue(() => applyHardwareAction(action, this));
+      },
+    });
   }
 
   enqueue(operation) {
