@@ -113,7 +113,7 @@ export function createApp({
   settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "1.5.3",
+  version = "1.5.4",
   startedAt = new Date(),
 }) {
   const settingsGuard = { failures: 0, blockedUntil: 0 };

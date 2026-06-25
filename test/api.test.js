@@ -92,7 +92,7 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
-  assert.equal(body.version, "1.5.3");
+  assert.equal(body.version, "1.5.4");
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
@@ -161,7 +161,7 @@ test("serves the connectivity Settings page", async () => {
   assert.equal(response.status, 200);
   const page = await response.text();
   assert.match(page, /Bluetooth visibility/);
-  assert.match(page, />Update<\/button>/);
+  assert.match(page, />Update<\/button>[\s\S]*>Reboot<\/button>[\s\S]*>Shut Down<\/button>/);
   assert.match(page, /id="update-progress-panel"/);
   assert.match(page, /id="update-progress-stage"/);
   assert.match(page, /Playback defaults/);
@@ -175,6 +175,8 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /window\.location\.replace/);
   assert.match(script, /window\.scrollTo\(0,0\)/);
   assert.match(script, /Update succeeded\. Nexus Core v/);
+  assert.match(script, /Took \$\{updateDurationText\(\)\}/);
+  assert.match(script, /function updateDurationText/);
   assert.match(script, /beginUpdateProgress/);
   assert.match(script, /showUpdateProgress\("Restarting Nexus Core/);
   assert.match(script, /audio\/effects\/\$\{effect\}\/trigger/);
@@ -271,6 +273,9 @@ test("serves the GM campaign invitation surface", async () => {
   const gmScript = await fetch(`${baseUrl}/assets/gm.js`).then((asset) => asset.text());
   assert.match(gmScript, /nexus-admin-token/);
   assert.match(gmScript, /identity\.role/);
+  assert.match(gmScript, /function copyText/);
+  assert.match(gmScript, /document\.execCommand\("copy"\)/);
+  assert.match(gmScript, /Share is unavailable here, so the Player link was copied instead/);
   const module = await fetch(`${baseUrl}/assets/qr.js`);
   assert.equal(module.status, 200);
   assert.match(module.headers.get("content-type"), /javascript/);
