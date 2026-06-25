@@ -92,7 +92,7 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
-  assert.equal(body.version, "1.5.1");
+  assert.equal(body.version, "1.5.2");
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
@@ -162,6 +162,8 @@ test("serves the connectivity Settings page", async () => {
   const page = await response.text();
   assert.match(page, /Bluetooth visibility/);
   assert.match(page, />Update<\/button>/);
+  assert.match(page, /id="update-progress-panel"/);
+  assert.match(page, /id="update-progress-stage"/);
   assert.match(page, /Playback defaults/);
   assert.match(page, /Card behavior/);
   assert.match(page, /Network tools/);
@@ -173,6 +175,8 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /window\.location\.replace/);
   assert.match(script, /window\.scrollTo\(0,0\)/);
   assert.match(script, /Update succeeded\. Nexus Core v/);
+  assert.match(script, /beginUpdateProgress/);
+  assert.match(script, /showUpdateProgress\("Restarting Nexus Core/);
   assert.match(script, /connectivity\/tools\/ping/);
 });
 
