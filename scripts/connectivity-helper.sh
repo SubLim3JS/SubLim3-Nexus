@@ -119,6 +119,47 @@ diagnostic_ping() {
   fi
 }
 
+play_update_tone() {
+  local result="$1" mpv_command="${NEXUS_MPV_PATH:-/usr/bin/mpv}" tone_file
+  command -v python3 >/dev/null 2>&1 || return 0
+  [[ -x "${mpv_command}" ]] || command -v mpv >/dev/null 2>&1 || return 0
+  tone_file="$(mktemp /tmp/sublim3-nexus-update-tone.XXXXXX.wav)" || return 0
+  python3 - "${result}" "${tone_file}" <<'PY' || { rm -f "${tone_file}"; return 0; }
+import math
+import struct
+import sys
+import wave
+
+result, destination = sys.argv[1], sys.argv[2]
+sample_rate = 44100
+sequence = [(660, 0.16), (0, 0.04), (880, 0.22)] if result == "success" else [(220, 0.22), (0, 0.04), (185, 0.32)]
+with wave.open(destination, "wb") as output:
+    output.setnchannels(1)
+    output.setsampwidth(2)
+    output.setframerate(sample_rate)
+    for frequency, duration in sequence:
+        samples = max(1, int(sample_rate * duration))
+        for index in range(samples):
+            fade = min(1.0, index / 320, (samples - index - 1) / 320)
+            sample = 0 if frequency == 0 else math.sin(2 * math.pi * frequency * index / sample_rate) * 0.35 * fade
+            output.writeframes(struct.pack("<h", int(max(-1, min(1, sample)) * 32767)))
+PY
+  if [[ -x "${mpv_command}" ]]; then
+    "${mpv_command}" --no-config --no-video --really-quiet --no-terminal --ao=alsa --volume=70 -- "${tone_file}" >/dev/null 2>&1 || true
+  else
+    mpv --no-config --no-video --really-quiet --no-terminal --ao=alsa --volume=70 -- "${tone_file}" >/dev/null 2>&1 || true
+  fi
+  rm -f "${tone_file}"
+}
+
+run_system_update() {
+  [[ -d "${APP_DIR}/.git" ]] || { echo "Nexus repository was not found at ${APP_DIR}." >&2; return 1; }
+  [[ -z "$(git_as_repository_owner status --porcelain)" ]] || { echo "Update refused because the Nexus installation has local changes." >&2; return 1; }
+  git_as_repository_owner fetch --quiet "${REPOSITORY_URL}" main
+  git_as_repository_owner merge --ff-only FETCH_HEAD
+  "${APP_DIR}/scripts/install.sh"
+}
+
 case "${1:-}" in
   wifi-local) [[ $# -eq 1 ]] || exit 2; set_wifi_mode local; start_hotspot ;;
   wifi-home) shift; connect_home "$@" ;;
@@ -149,11 +190,13 @@ case "${1:-}" in
     ;;
   system-update)
     [[ $# -eq 1 ]] || exit 2
-    [[ -d "${APP_DIR}/.git" ]] || { echo "Nexus repository was not found at ${APP_DIR}." >&2; exit 1; }
-    [[ -z "$(git_as_repository_owner status --porcelain)" ]] || { echo "Update refused because the Nexus installation has local changes." >&2; exit 1; }
-    git_as_repository_owner fetch --quiet "${REPOSITORY_URL}" main
-    git_as_repository_owner merge --ff-only FETCH_HEAD
-    "${APP_DIR}/scripts/install.sh"
+    if run_system_update; then
+      play_update_tone success
+    else
+      status=$?
+      play_update_tone failure
+      exit "${status}"
+    fi
     ;;
   *) echo "Unsupported connectivity action." >&2; exit 2 ;;
 esac

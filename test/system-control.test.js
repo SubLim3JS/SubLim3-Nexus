@@ -43,6 +43,8 @@ test("runs updates with an isolated Git environment outside the Core sandbox", a
   assert.match(helper, /GIT_CONFIG_GLOBAL=\/dev\/null/);
   assert.match(helper, /git_as_repository_owner fetch/);
   assert.match(helper, /git_as_repository_owner merge --ff-only FETCH_HEAD/);
+  assert.match(helper, /play_update_tone success/);
+  assert.match(helper, /play_update_tone failure/);
   assert.match(installer, /NEXUS_INSTALL_TRANSIENT/);
   assert.match(installer, /systemd-run --quiet --wait --pipe --collect/);
   assert.match(installer, /--unit=sublim3-nexus-install/);

@@ -153,8 +153,14 @@ export function createApp({
           return sendJson(response, 202, { success: true, message: "Reboot requested" });
         }
         if (url.pathname === `${API_PREFIX}/system/update`) {
-          const output = await systemControl.update();
-          return sendJson(response, 202, { success: true, message: "Update installed; Nexus Core is restarting", output });
+          try {
+            const output = await systemControl.update();
+            await audio?.triggerEffect("system-update-success");
+            return sendJson(response, 202, { success: true, message: "Update installed; Nexus Core is restarting", output });
+          } catch (error) {
+            await audio?.triggerEffect("system-update-failure");
+            throw error;
+          }
         }
       }
 

@@ -201,6 +201,8 @@ test("protects and delegates system controls", async () => {
     assert.equal(response.status, 202);
   }
   assert.deepEqual(systemActions, ["shutdown", "reboot", "update"]);
+  const audioStatus = await fetch(`${baseUrl}/api/v1/audio/status`).then((response) => response.json());
+  assert.equal(audioStatus.data.last_effect.item_id, "system-update-success");
 });
 
 test("serves the offline media player demo", async () => {
@@ -285,7 +287,7 @@ test("serves the Player Controllers management page", async () => {
 test("manages the persistent audio library and playback state", async () => {
   const library = await fetch(`${baseUrl}/api/v1/audio/library`).then((response) => response.json());
   assert.equal(library.data.filter((item) => item.kind === "ambience").length, 3);
-  assert.equal(library.data.filter((item) => item.kind === "effect").length, 4);
+  assert.equal(library.data.filter((item) => item.kind === "effect").length, 6);
 
   const played = await fetch(`${baseUrl}/api/v1/audio/play`, {
     method: "POST",

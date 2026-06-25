@@ -40,6 +40,8 @@ export const BUILT_IN_AUDIO_ITEMS = [
   { item_id: "ancient-door", name: "Ancient Door", kind: "effect", description: "Stone and timber", tags: ["Dungeon"], sort_order: 20, synthesis: { frequencies: [72, 108], wave: "sawtooth", noise: 0.08, duration_seconds: 1.2 } },
   { item_id: "blade-clash", name: "Blade Clash", kind: "effect", description: "Metallic strike", tags: ["Combat"], sort_order: 30, synthesis: { frequencies: [740, 1110, 1480], wave: "sine", noise: 0.04, duration_seconds: 0.55 } },
   { item_id: "arcane-pulse", name: "Arcane Pulse", kind: "effect", description: "Resonant energy", tags: ["Magic"], sort_order: 40, synthesis: { frequencies: [220, 329.63, 493.88], wave: "sine", noise: 0.015, duration_seconds: 1.1 } },
+  { item_id: "system-update-success", name: "Update Success", kind: "effect", description: "Bright confirmation tone", tags: ["System"], sort_order: 900, synthesis: { frequencies: [660, 880], wave: "sine", noise: 0, duration_seconds: 0.45 } },
+  { item_id: "system-update-failure", name: "Update Failure", kind: "effect", description: "Low warning tone", tags: ["System"], sort_order: 910, synthesis: { frequencies: [220, 185], wave: "sawtooth", noise: 0.01, duration_seconds: 0.65 } },
 ];
 
 const STATE_ID = "global";
