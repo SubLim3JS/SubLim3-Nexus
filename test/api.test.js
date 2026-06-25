@@ -92,7 +92,7 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
-  assert.equal(body.version, "1.5.2");
+  assert.equal(body.version, "1.5.3");
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
@@ -177,6 +177,8 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /Update succeeded\. Nexus Core v/);
   assert.match(script, /beginUpdateProgress/);
   assert.match(script, /showUpdateProgress\("Restarting Nexus Core/);
+  assert.match(script, /audio\/effects\/\$\{effect\}\/trigger/);
+  assert.match(script, /playUpdateCue\("system-update-success"\)/);
   assert.match(script, /connectivity\/tools\/ping/);
 });
 

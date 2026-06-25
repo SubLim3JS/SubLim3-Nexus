@@ -14,6 +14,7 @@ function saveUpdateNotice(message, type) { sessionStorage.setItem(UPDATE_NOTICE_
 function takeUpdateNotice() { try { const notice=JSON.parse(sessionStorage.getItem(UPDATE_NOTICE_KEY));sessionStorage.removeItem(UPDATE_NOTICE_KEY);return notice?.message?notice:null; } catch { sessionStorage.removeItem(UPDATE_NOTICE_KEY);return null; } }
 function refreshSettingsPage(message, type) { saveUpdateNotice(message,type);window.location.replace(`/settings/?update=${Date.now()}`); }
 async function waitForCore(timeoutMs=120_000) { const deadline=Date.now()+timeoutMs;while(Date.now()<deadline){try{const response=await fetch("/api/v1/system/status",{cache:"no-store"});if(response.ok)return response.json();}catch{/* Restart in progress. */}await new Promise((resolve)=>setTimeout(resolve,1_000));}throw new Error("Nexus Core did not return before the update timeout."); }
+async function playUpdateCue(effect) { try { await api(`/api/v1/audio/effects/${effect}/trigger`, { method:"POST" }); } catch { /* Completion cues should never block the update flow. */ } }
 function updateElapsedTime() { const elapsed=Math.max(0,Math.floor((Date.now()-updateProgressStartedAt)/1000));$("#update-progress-time").textContent=`${Math.floor(elapsed/60)}:${String(elapsed%60).padStart(2,"0")}`; }
 function showUpdateProgress(stage, detail, state = "running") { const panel=$("#update-progress-panel");panel.hidden=false;panel.classList.toggle("is-complete",state==="complete");panel.classList.toggle("is-error",state==="error");$("#update-progress-stage").textContent=stage;$("#update-progress-detail").textContent=detail;updateElapsedTime(); }
 function beginUpdateProgress() { updateProgressStartedAt=Date.now();clearInterval(updateProgressTimer);showUpdateProgress("Starting update…","Nexus is contacting the updater.");updateProgressTimer=setInterval(updateElapsedTime,1_000); }
@@ -146,13 +147,14 @@ async function updateSystem() {
   beginUpdateProgress();
   document.querySelectorAll(".system-actions button").forEach((button) => { button.disabled=true; });
   let requestSucceeded=false;
-  try { showUpdateProgress("Downloading and installing…","This may take a few minutes while GitHub updates, install checks, and service files finish.");await api("/api/v1/system/update",{method:"POST",headers:headers(true),body:"{}"});requestSucceeded=true; }
+  try { showUpdateProgress("Downloading and installing…","This may take a few minutes while Nexus applies the update, checks dependencies, and refreshes services.");await api("/api/v1/system/update",{method:"POST",headers:headers(true),body:"{}"});requestSucceeded=true; }
   catch(error){
-    if(!(error instanceof TypeError)){finishUpdateProgress("Update failed",error.message,"error");return refreshSettingsPage(error.message,"error");}
+    if(!(error instanceof TypeError)){await playUpdateCue("system-update-failure");finishUpdateProgress("Update failed",error.message,"error");return refreshSettingsPage(error.message,"error");}
   }
   try {
     showUpdateProgress("Restarting Nexus Core…","The update request finished. Waiting for the service to come back online.");
     const status=await waitForCore();
+    await playUpdateCue("system-update-success");
     finishUpdateProgress("Update complete",`Nexus Core v${status.version} is online.`,"complete");
     refreshSettingsPage(`Update succeeded. Nexus Core v${status.version} is online.`,"success");
   } catch(error) {
