@@ -7,13 +7,18 @@ import signal
 import sys
 import time
 
-from gpiozero import Button, OutputDevice
+from gpiozero import OutputDevice
 import spidev
 
 try:
     from mfrc522 import MFRC522
 except Exception:
     MFRC522 = None
+
+try:
+    import RPi.GPIO as GPIO
+except Exception:
+    GPIO = None
 
 
 RUNNING = True
@@ -193,6 +198,55 @@ class BuiltInRC522:
         self.reset.close()
 
 
+class DisabledRC522:
+    def uid(self):
+        return None
+
+    def close(self):
+        pass
+
+
+class ButtonInputs:
+    """Active-low media buttons using the physical BOARD pins from DnD Book."""
+
+    def __init__(self, definitions, debounce_seconds=0.2):
+        self.definitions = [(name, physical_pin(pin)) for name, pin in definitions if pin >= 0]
+        self.debounce_seconds = debounce_seconds
+        self.states = {}
+        self.closed = False
+        if not self.definitions:
+            return
+        if GPIO is None:
+            raise RuntimeError("RPi.GPIO Python package is not installed")
+        GPIO.setwarnings(False)
+        GPIO.setmode(GPIO.BOARD)
+        for name, pin in self.definitions:
+            GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            self.states[name] = {
+                "pin": pin,
+                "pressed": GPIO.input(pin) == GPIO.LOW,
+                "changed_at": time.monotonic(),
+            }
+            print(f"Button {name} using physical pin {pin}", file=sys.stderr, flush=True)
+
+    def poll(self):
+        if self.closed:
+            return
+        now = time.monotonic()
+        for name, state in self.states.items():
+            pressed = GPIO.input(state["pin"]) == GPIO.LOW
+            if pressed == state["pressed"] or now - state["changed_at"] < self.debounce_seconds:
+                continue
+            state["pressed"] = pressed
+            state["changed_at"] = now
+            emit({"type": "button", "name": name, "pressed": pressed})
+
+    def close(self):
+        self.closed = True
+        if GPIO and self.definitions:
+            GPIO.cleanup([pin for _name, pin in self.definitions])
+
+
 def gpio(name, default):
     return int(os.environ.get(name, default))
 
@@ -218,29 +272,28 @@ def stop(_signal, _frame):
 def main():
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    buttons = []
-    for name, pin in (("volume_down", gpio("NEXUS_BUTTON_DOWN_GPIO", 15)), ("volume_up", gpio("NEXUS_BUTTON_UP_GPIO", 5))):
-        if pin < 0:
-            continue
-        try:
-            button = Button(pin, pull_up=True, bounce_time=0.2)
-            button.when_pressed = lambda key=name: emit({"type": "button", "name": key, "pressed": True})
-            button.when_released = lambda key=name: emit({"type": "button", "name": key, "pressed": False})
-            buttons.append(button)
-        except Exception as error:
-            print(f"Button {name} on GPIO{pin} disabled: {error}", file=sys.stderr, flush=True)
-
     reader_arguments = (gpio("NEXUS_RFID_SPI_BUS", 0), gpio("NEXUS_RFID_SPI_DEVICE", 0), gpio("NEXUS_RFID_RESET_GPIO", 25))
     try:
         reader = LibraryRC522(*reader_arguments)
         print("RFID reader using mfrc522 library", file=sys.stderr, flush=True)
     except Exception as error:
         print(f"RFID mfrc522 library unavailable; using built-in driver: {error}", file=sys.stderr, flush=True)
-        reader = BuiltInRC522(*reader_arguments)
+        try:
+            reader = BuiltInRC522(*reader_arguments)
+        except Exception as built_in_error:
+            print(f"RFID disabled: {built_in_error}", file=sys.stderr, flush=True)
+            reader = DisabledRC522()
+    try:
+        buttons = ButtonInputs((("volume_down", gpio("NEXUS_BUTTON_DOWN_GPIO", 15)), ("volume_up", gpio("NEXUS_BUTTON_UP_GPIO", 5))))
+    except Exception as error:
+        print(f"Buttons disabled: {error}", file=sys.stderr, flush=True)
+        buttons = None
     current = None
     misses = 0
     try:
         while RUNNING:
+            if buttons:
+                buttons.poll()
             uid = reader.uid()
             if uid:
                 misses = 0
@@ -258,8 +311,8 @@ def main():
             time.sleep(0.08)
     finally:
         reader.close()
-        for button in buttons:
-            button.close()
+        if buttons:
+            buttons.close()
 
 
 if __name__ == "__main__":
