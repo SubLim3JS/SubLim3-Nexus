@@ -29,12 +29,12 @@ class LibraryRC522:
     def __init__(self, bus=0, device=0, reset_gpio=25):
         if MFRC522 is None:
             raise RuntimeError("mfrc522 Python package is not installed")
-        self.reader = self.create_reader(bus, device, reset_gpio)
+        self.reader = self.create_reader(bus, device, physical_pin(reset_gpio))
 
     @staticmethod
-    def create_reader(bus, device, reset_gpio):
+    def create_reader(bus, device, reset_pin):
         attempts = (
-            {"bus": bus, "device": device, "pin_rst": reset_gpio},
+            {"bus": bus, "device": device, "pin_rst": reset_pin},
             {"bus": bus, "device": device},
             {},
         )
@@ -42,7 +42,7 @@ class LibraryRC522:
         for kwargs in attempts:
             try:
                 return MFRC522(**kwargs)
-            except TypeError as error:
+            except Exception as error:
                 last_error = error
         raise last_error
 
@@ -195,6 +195,19 @@ class BuiltInRC522:
 
 def gpio(name, default):
     return int(os.environ.get(name, default))
+
+
+def physical_pin(bcm_gpio):
+    return {
+        5: 29,
+        8: 24,
+        9: 21,
+        10: 19,
+        11: 23,
+        15: 10,
+        24: 18,
+        25: 22,
+    }.get(bcm_gpio, bcm_gpio)
 
 
 def stop(_signal, _frame):
