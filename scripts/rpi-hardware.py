@@ -160,10 +160,15 @@ def main():
     signal.signal(signal.SIGINT, stop)
     buttons = []
     for name, pin in (("volume_down", gpio("NEXUS_BUTTON_DOWN_GPIO", 15)), ("volume_up", gpio("NEXUS_BUTTON_UP_GPIO", 5))):
-        button = Button(pin, pull_up=True, bounce_time=0.03)
-        button.when_pressed = lambda key=name: emit({"type": "button", "name": key, "pressed": True})
-        button.when_released = lambda key=name: emit({"type": "button", "name": key, "pressed": False})
-        buttons.append(button)
+        if pin < 0:
+            continue
+        try:
+            button = Button(pin, pull_up=True, bounce_time=0.03)
+            button.when_pressed = lambda key=name: emit({"type": "button", "name": key, "pressed": True})
+            button.when_released = lambda key=name: emit({"type": "button", "name": key, "pressed": False})
+            buttons.append(button)
+        except Exception as error:
+            print(f"Button {name} on GPIO{pin} disabled: {error}", file=sys.stderr, flush=True)
 
     reader = RC522(gpio("NEXUS_RFID_SPI_BUS", 0), gpio("NEXUS_RFID_SPI_DEVICE", 0), gpio("NEXUS_RFID_RESET_GPIO", 25))
     current = None

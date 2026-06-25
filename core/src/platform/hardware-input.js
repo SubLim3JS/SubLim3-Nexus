@@ -109,12 +109,13 @@ export function shouldStartHardware(driver = process.env.NEXUS_HARDWARE_DRIVER ?
 }
 
 export class HardwareInputService {
-  constructor({ rfid, audio, settings, scriptPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../scripts/rpi-hardware.py"), python = process.env.NEXUS_PYTHON_PATH ?? "/usr/bin/python3", spawnProcess = spawn, logger = console }) {
+  constructor({ rfid, audio, settings, scriptPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../scripts/rpi-hardware.py"), python = process.env.NEXUS_PYTHON_PATH ?? "/usr/bin/python3", cwd = process.env.NEXUS_DATA_DIR ?? "/tmp", spawnProcess = spawn, logger = console }) {
     this.rfid = rfid;
     this.audio = audio;
     this.settings = settings;
     this.scriptPath = scriptPath;
     this.python = python;
+    this.cwd = cwd;
     this.spawnProcess = spawnProcess;
     this.logger = logger;
     this.child = null;
@@ -143,7 +144,7 @@ export class HardwareInputService {
 
   launch() {
     if (this.stopped) return;
-    const child = this.spawnProcess(this.python, [this.scriptPath], { env: process.env, stdio: ["ignore", "pipe", "pipe"] });
+    const child = this.spawnProcess(this.python, [this.scriptPath], { cwd: this.cwd, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
     this.child = child;
     let buffer = "";
     child.stdout.setEncoding("utf8");
