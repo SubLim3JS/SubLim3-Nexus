@@ -11,6 +11,7 @@ let pulseTimer;
 let currentTrack = 0;
 let isPlaying = false;
 let activeQueueFolder = "";
+let explicitQueueItems = null;
 let renderedItemId = null;
 let serverStatus = null;
 let statusReceivedAt = 0;
@@ -149,26 +150,11 @@ function renderLibrary() {
     $("#queue-list").replaceChildren(empty);
     return;
   }
-  $("#queue-list").replaceChildren(...tracks.map((track, index) => {
-    const button = document.createElement("button");
-    button.className = "queue-track";
-    button.type = "button";
-    button.dataset.track = String(index);
-    const number = document.createElement("span");
-    number.className = "track-number";
-    number.textContent = String(index + 1).padStart(2, "0");
-    const copy = document.createElement("span");
-    const strong = document.createElement("strong");
-    strong.textContent = track.name;
-    const small = document.createElement("small");
-    small.textContent = track.folder_path || track.tags?.join(" • ") || "Library root";
-    copy.append(strong, small);
-    const duration = document.createElement("em");
-    duration.textContent = track.source?.type === "radio" ? "LIVE" : formatTime(track.duration_seconds);
-    button.append(number, copy, duration);
-    button.addEventListener("click", () => playTrack(index));
-    return button;
-  }));
+  if (explicitQueueItems) {
+    $("#queue-list").replaceChildren(...tracks.map((track, index) => trackButton(track, index)));
+    return;
+  }
+  $("#queue-list").replaceChildren(renderTree(buildFolderTree(tracks, activeQueueFolder), { expandRoot: true }));
 }
 
 function folderName(folder) {
@@ -181,6 +167,7 @@ function folderMatches(folderPath, selectedFolder) {
 }
 
 function ambienceItemsForFolder(folderPath = activeQueueFolder) {
+  if (explicitQueueItems) return explicitQueueItems;
   return libraryItems.filter((item) => item.kind === "ambience" && folderMatches(item.folder_path || "", folderPath));
 }
 
@@ -211,6 +198,107 @@ function rebuildQueue({ keepItemId = serverStatus?.item_id } = {}) {
   renderTrack();
 }
 
+function pathSegments(folderPath = "") {
+  return String(folderPath || "").split("/").filter(Boolean);
+}
+
+function buildFolderTree(items, rootPath = "") {
+  const root = { name: rootPath ? pathSegments(rootPath).at(-1) : "All ambience", path: rootPath, folders: new Map(), items: [] };
+  const rootSegments = pathSegments(rootPath);
+  for (const item of items) {
+    const folderSegments = pathSegments(item.folder_path || "");
+    const relativeSegments = rootSegments.length && folderSegments.slice(0, rootSegments.length).join("/") === rootSegments.join("/")
+      ? folderSegments.slice(rootSegments.length)
+      : folderSegments;
+    let node = root;
+    let currentPath = rootPath;
+    for (const segment of relativeSegments) {
+      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+      if (!node.folders.has(segment)) node.folders.set(segment, { name: segment, path: currentPath, folders: new Map(), items: [] });
+      node = node.folders.get(segment);
+    }
+    node.items.push(item);
+  }
+  return root;
+}
+
+function countTreeTracks(node) {
+  let count = node.items.length;
+  for (const child of node.folders.values()) count += countTreeTracks(child);
+  return count;
+}
+
+function trackButton(track, index = tracks.findIndex((candidate) => candidate.item_id === track.item_id), { singleOnly = false } = {}) {
+  const button = document.createElement("button");
+  button.className = "queue-track";
+  button.type = "button";
+  button.dataset.track = String(index);
+  const number = document.createElement("span");
+  number.className = "track-number";
+  number.textContent = index >= 0 ? String(index + 1).padStart(2, "0") : "♪";
+  const copy = document.createElement("span");
+  const strong = document.createElement("strong");
+  strong.textContent = track.name;
+  const small = document.createElement("small");
+  small.textContent = track.folder_path || track.tags?.join(" • ") || "Library root";
+  copy.append(strong, small);
+  const duration = document.createElement("em");
+  duration.textContent = track.source?.type === "radio" ? "LIVE" : formatTime(track.duration_seconds);
+  button.append(number, copy, duration);
+  button.addEventListener("click", () => {
+    if (singleOnly) return queueSingleTrack(track.item_id);
+    const queuedIndex = tracks.findIndex((candidate) => candidate.item_id === track.item_id);
+    if (queuedIndex >= 0) playTrack(queuedIndex);
+    else queueSingleTrack(track.item_id);
+  });
+  return button;
+}
+
+function renderTree(node, { expandRoot = false, mode = "queue", depth = 0 } = {}) {
+  const details = document.createElement("details");
+  details.className = "folder-node";
+  details.open = expandRoot;
+  const summary = document.createElement("summary");
+  const toggle = document.createElement("span");
+  toggle.className = "folder-toggle";
+  toggle.textContent = "▸";
+  const folderButton = document.createElement("button");
+  folderButton.type = "button";
+  folderButton.className = "folder-queue-button";
+  folderButton.style.setProperty("--depth", String(depth));
+  const count = countTreeTracks(node);
+  const icon = document.createElement("span");
+  icon.className = "folder-icon";
+  icon.textContent = "▦";
+  const copy = document.createElement("span");
+  const title = document.createElement("strong");
+  title.textContent = node.name;
+  const meta = document.createElement("small");
+  meta.textContent = `${count} track${count === 1 ? "" : "s"}`;
+  copy.append(title, meta);
+  folderButton.append(icon, copy);
+  folderButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    queueFolder(node.path, { playFirst: mode === "expansion" });
+  });
+  summary.append(toggle, folderButton);
+  details.append(summary);
+
+  const children = document.createElement("div");
+  children.className = "folder-children";
+  for (const child of [...node.folders.values()].sort((left, right) => left.name.localeCompare(right.name))) {
+    children.append(renderTree(child, { mode, depth: depth + 1 }));
+  }
+  for (const item of [...node.items].sort((left, right) => left.name.localeCompare(right.name))) {
+    const row = trackButton(item, tracks.findIndex((candidate) => candidate.item_id === item.item_id), { singleOnly: mode === "expansion" });
+    row.classList.add("tree-track");
+    row.style.setProperty("--depth", String(depth + 1));
+    children.append(row);
+  }
+  details.append(children);
+  return details;
+}
+
 function coverUrlFor(track) {
   return track?.artwork?.type === "file" ? `/api/v1/audio/files/${encodeURIComponent(track.item_id)}/cover` : "/assets/nexus-logo.png";
 }
@@ -238,6 +326,39 @@ function renderTrack() {
   $("#duration").textContent = track.source?.type === "radio" ? "LIVE" : formatTime(track.duration_seconds);
   renderAlbumArt(track);
   document.querySelectorAll(".queue-track").forEach((button) => button.classList.toggle("active", Number(button.dataset.track) === currentTrack));
+}
+
+function queueFolder(folderPath = "", { playFirst = false } = {}) {
+  activeQueueFolder = folderPath;
+  explicitQueueItems = null;
+  renderQueueFolders();
+  rebuildQueue();
+  message(activeQueueFolder ? `${activeQueueFolder} is now the scene queue.` : "All ambience is now the scene queue.", "success");
+  if (playFirst && tracks.length) playTrack(0);
+}
+
+function queueSingleTrack(itemId) {
+  const item = libraryItems.find((candidate) => candidate.item_id === itemId && candidate.kind === "ambience");
+  if (!item) return message("That track is not available as ambience.", "error");
+  activeQueueFolder = item.folder_path || "";
+  explicitQueueItems = [item];
+  renderQueueFolders();
+  rebuildQueue({ keepItemId: item.item_id });
+  message(`${item.name} is now the only queued track.`, "success");
+  playTrack(0);
+}
+
+function renderExpansionAudioTree() {
+  const expansionItems = libraryItems.filter((item) => item.kind === "ambience" && (item.folder_path || "").startsWith("Expansion Audio/"));
+  $("#expansion-audio-count").textContent = `${expansionItems.length} track${expansionItems.length === 1 ? "" : "s"}`;
+  if (!expansionItems.length) {
+    const empty = document.createElement("p");
+    empty.className = "library-empty";
+    empty.textContent = "No expansion audio is installed yet. Install Audio Packs from Expansion Packs first.";
+    $("#expansion-audio-tree").replaceChildren(empty);
+    return;
+  }
+  $("#expansion-audio-tree").replaceChildren(renderTree(buildFolderTree(expansionItems, "Expansion Audio"), { expandRoot: false, mode: "expansion" }));
 }
 
 function renderPlayback() {
@@ -403,9 +524,7 @@ $("#stop-track").addEventListener("click", () => control("/api/v1/audio/stop"));
 $("#previous-track").addEventListener("click", () => playTrack(currentTrack - 1));
 $("#next-track").addEventListener("click", () => playTrack(currentTrack + 1));
 $("#queue-folder").addEventListener("change", (event) => {
-  activeQueueFolder = event.target.value;
-  rebuildQueue();
-  message(activeQueueFolder ? `${activeQueueFolder} is now the scene queue.` : "All ambience is now the scene queue.", "success");
+  queueFolder(event.target.value);
 });
 document.querySelectorAll("[data-sfx]").forEach((button) => button.addEventListener("click", () => control(`/api/v1/audio/effects/${encodeURIComponent(button.dataset.sfx)}/trigger`)));
 $("#master-volume").addEventListener("input", (event) => {
@@ -544,6 +663,7 @@ async function reloadLibrary() {
   libraryItems = await api("/api/v1/audio/library");
   renderQueueFolders();
   rebuildQueue();
+  renderExpansionAudioTree();
 }
 
 async function playFromUsb(sourcePath) {

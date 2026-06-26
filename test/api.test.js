@@ -245,6 +245,8 @@ test("serves the offline media player demo", async () => {
   assert.match(page, /Live radio/);
   assert.match(page, /Search audio/);
   assert.match(page, /Queue folder/);
+  assert.match(page, /Installed packs/);
+  assert.match(page, /id="expansion-audio-tree"/);
   assert.doesNotMatch(page, /Assign a card/);
   assert.doesNotMatch(page, /Create folder/);
   assert.match(page, /Local · USB · Live/);
@@ -255,7 +257,13 @@ test("serves the offline media player demo", async () => {
   assert.match(mediaScript, /folderMatches/);
   assert.match(mediaScript, /coverUrlFor/);
   assert.match(mediaScript, /album-art-image/);
+  assert.match(mediaScript, /renderExpansionAudioTree/);
+  assert.match(mediaScript, /queueSingleTrack/);
+  assert.match(mediaScript, /buildFolderTree/);
   assert.match(mediaScript, /is now the scene queue/);
+  const mediaStyles = await fetch(`${baseUrl}/assets/media.css`).then((styleResponse) => styleResponse.text());
+  assert.match(mediaStyles, /\.album-art\.has-cover \.visualizer\{display:none\}/);
+  assert.match(mediaStyles, /\.folder-toggle/);
 });
 
 test("serves Expansion Packs on a dedicated management page", async () => {
