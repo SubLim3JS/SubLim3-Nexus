@@ -28,4 +28,10 @@ export class SystemControlService {
       throw Object.assign(new Error(`Update failed: ${error.message}`), { statusCode: 502 });
     }
   }
+
+  async tone(result = "success") {
+    this.ensureSupported();
+    const value = result === "failure" ? "failure" : "success";
+    await this.runner.runPrivileged("system-tone", [value]);
+  }
 }

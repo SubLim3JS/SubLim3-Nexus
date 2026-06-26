@@ -1,13 +1,15 @@
 {
   "name": "sublim3-nexus",
-  "version": "1.5.9",
+  "version": "1.6.2",
   "private": true,
   "type": "module",
   "description": "Offline-first tabletop companion platform",
   "scripts": {
     "start": "node core/src/server.js",
     "dev": "node --watch core/src/server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "audio:expansions:import": "node scripts/import-expansion-audio.mjs",
+    "audio:expansions:remove": "node scripts/import-expansion-audio.mjs --remove"
   },
   "engines": {
     "node": ">=20"

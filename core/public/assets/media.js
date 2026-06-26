@@ -10,6 +10,7 @@ let activeNodes = [];
 let pulseTimer;
 let currentTrack = 0;
 let isPlaying = false;
+let activeQueueFolder = "";
 let renderedItemId = null;
 let serverStatus = null;
 let statusReceivedAt = 0;
@@ -141,6 +142,13 @@ function buildTrack(track) {
 
 function renderLibrary() {
   $("#track-count").textContent = `${tracks.length} tracks`;
+  if (!tracks.length) {
+    const empty = document.createElement("p");
+    empty.className = "library-empty";
+    empty.textContent = activeQueueFolder ? "No ambience tracks in this folder yet." : "No ambience tracks available yet.";
+    $("#queue-list").replaceChildren(empty);
+    return;
+  }
   $("#queue-list").replaceChildren(...tracks.map((track, index) => {
     const button = document.createElement("button");
     button.className = "queue-track";
@@ -167,13 +175,68 @@ function folderName(folder) {
   return folder || "Library root";
 }
 
+function folderMatches(folderPath, selectedFolder) {
+  if (!selectedFolder) return true;
+  return folderPath === selectedFolder || folderPath.startsWith(`${selectedFolder}/`);
+}
+
+function ambienceItemsForFolder(folderPath = activeQueueFolder) {
+  return libraryItems.filter((item) => item.kind === "ambience" && folderMatches(item.folder_path || "", folderPath));
+}
+
+function renderQueueFolders() {
+  const select = $("#queue-folder");
+  const folders = [...new Set(libraryItems.filter((item) => item.kind === "ambience").map((item) => item.folder_path || ""))]
+    .sort((left, right) => folderName(left).localeCompare(folderName(right)));
+  const options = [Object.assign(document.createElement("option"), { value:"", textContent:"All ambience" })];
+  for (const folder of folders) {
+    if (!folder) continue;
+    const option = document.createElement("option");
+    option.value = folder;
+    option.textContent = folder;
+    option.selected = folder === activeQueueFolder;
+    options.push(option);
+  }
+  select.replaceChildren(...options);
+  if (activeQueueFolder && !folders.some((folder) => folder === activeQueueFolder || folder.startsWith(`${activeQueueFolder}/`))) activeQueueFolder = "";
+  select.value = activeQueueFolder;
+}
+
+function rebuildQueue({ keepItemId = serverStatus?.item_id } = {}) {
+  const nextTracks = ambienceItemsForFolder();
+  tracks.splice(0, tracks.length, ...nextTracks);
+  const activeIndex = keepItemId ? tracks.findIndex((track) => track.item_id === keepItemId) : -1;
+  currentTrack = activeIndex >= 0 ? activeIndex : 0;
+  renderLibrary();
+  renderTrack();
+}
+
+function coverUrlFor(track) {
+  return track?.artwork?.type === "file" ? `/api/v1/audio/files/${encodeURIComponent(track.item_id)}/cover` : "/assets/nexus-logo.png";
+}
+
+function renderAlbumArt(track = null) {
+  const image = $("#album-art-image");
+  const hasCover = track?.artwork?.type === "file";
+  image.src = coverUrlFor(track);
+  image.alt = hasCover ? `${track.name} cover art` : "SubLim3 Nexus album art";
+  image.closest(".album-art").classList.toggle("has-cover", hasCover);
+}
+
 function renderTrack() {
   const track = tracks[currentTrack];
-  if (!track) return;
+  if (!track) {
+    $("#track-title").textContent = "No tracks in queue";
+    $("#track-subtitle").textContent = activeQueueFolder ? `${activeQueueFolder} has no ambience tracks.` : "Import or upload ambience tracks to build a queue.";
+    $("#duration").textContent = "--:--";
+    renderAlbumArt();
+    return;
+  }
   $("#track-title").textContent = track.name;
   const sourceLabel = track.source?.type === "radio" ? "Live stream" : track.source?.type === "file" ? folderName(track.folder_path) : track.loop ? "Seamless ambience" : "One shot";
   $("#track-subtitle").textContent = `${track.description} • ${sourceLabel}`;
   $("#duration").textContent = track.source?.type === "radio" ? "LIVE" : formatTime(track.duration_seconds);
+  renderAlbumArt(track);
   document.querySelectorAll(".queue-track").forEach((button) => button.classList.toggle("active", Number(button.dataset.track) === currentTrack));
 }
 
@@ -272,6 +335,7 @@ async function control(path, body = {}) {
 }
 
 function playTrack(index) {
+  if (!tracks.length) return message("Choose a queue folder with ambience tracks first.", "error");
   currentTrack = (index + tracks.length) % tracks.length;
   renderTrack();
   if (tracks[currentTrack].source?.type === "radio") return control("/api/v1/audio/radio/play", { name: tracks[currentTrack].name, url: tracks[currentTrack].source.stream_url });
@@ -338,6 +402,11 @@ $("#play-track").addEventListener("click", () => isPlaying ? control("/api/v1/au
 $("#stop-track").addEventListener("click", () => control("/api/v1/audio/stop"));
 $("#previous-track").addEventListener("click", () => playTrack(currentTrack - 1));
 $("#next-track").addEventListener("click", () => playTrack(currentTrack + 1));
+$("#queue-folder").addEventListener("change", (event) => {
+  activeQueueFolder = event.target.value;
+  rebuildQueue();
+  message(activeQueueFolder ? `${activeQueueFolder} is now the scene queue.` : "All ambience is now the scene queue.", "success");
+});
 document.querySelectorAll("[data-sfx]").forEach((button) => button.addEventListener("click", () => control(`/api/v1/audio/effects/${encodeURIComponent(button.dataset.sfx)}/trigger`)));
 $("#master-volume").addEventListener("input", (event) => {
   const volume = Number(event.target.value);
@@ -473,9 +542,8 @@ $("#audio-search-form").addEventListener("submit", async (event) => {
 
 async function reloadLibrary() {
   libraryItems = await api("/api/v1/audio/library");
-  tracks.splice(0, tracks.length, ...libraryItems.filter((item) => item.kind === "ambience"));
-  renderLibrary();
-  renderTrack();
+  renderQueueFolders();
+  rebuildQueue();
 }
 
 async function playFromUsb(sourcePath) {

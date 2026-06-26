@@ -3,7 +3,6 @@ let adminToken = localStorage.getItem("nexus-admin-token") ?? "";
 const UPDATE_NOTICE_KEY = "nexus-update-notice";
 let updateProgressTimer = null;
 let updateProgressStartedAt = 0;
-let updateAudioContext = null;
 
 function alertMessage(message, type = "") { const alert = $("#settings-alert"); alert.textContent = message; alert.className = `settings-alert ${type}`; }
 function headers(json = false) { return { ...(json ? { "content-type": "application/json" } : {}), ...(adminToken ? { authorization: `Bearer ${adminToken}` } : {}) }; }
@@ -15,10 +14,7 @@ function saveUpdateNotice(message, type) { sessionStorage.setItem(UPDATE_NOTICE_
 function takeUpdateNotice() { try { const notice=JSON.parse(sessionStorage.getItem(UPDATE_NOTICE_KEY));sessionStorage.removeItem(UPDATE_NOTICE_KEY);return notice?.message?notice:null; } catch { sessionStorage.removeItem(UPDATE_NOTICE_KEY);return null; } }
 function refreshSettingsPage(message, type) { saveUpdateNotice(message,type);window.location.replace(`/settings/?update=${Date.now()}`); }
 async function waitForCore(timeoutMs=120_000) { const deadline=Date.now()+timeoutMs;while(Date.now()<deadline){try{const response=await fetch("/api/v1/system/status",{cache:"no-store"});if(response.ok)return response.json();}catch{/* Restart in progress. */}await new Promise((resolve)=>setTimeout(resolve,1_000));}throw new Error("Nexus Core did not return before the update timeout."); }
-function updateCueContext() { const AudioContext=window.AudioContext||window.webkitAudioContext;if(!AudioContext)return null;if(!updateAudioContext)updateAudioContext=new AudioContext();return updateAudioContext; }
-async function resumeUpdateCueContext() { const context=updateCueContext();if(!context)return null;try{await context.resume?.();}catch{/* Browser audio may still be blocked. */}return context; }
-async function playBrowserUpdateCue(effect) { const context=await resumeUpdateCueContext();if(!context)return false;const success=effect==="system-update-success",sequence=success?[[660,.16],[0,.04],[880,.22]]:[[220,.22],[0,.04],[185,.32]];let time=context.currentTime+.03;for(const [frequency,duration] of sequence){if(frequency){const oscillator=context.createOscillator(),gain=context.createGain();oscillator.type=success?"sine":"sawtooth";oscillator.frequency.value=frequency;gain.gain.setValueAtTime(0,time);gain.gain.linearRampToValueAtTime(.22,time+.02);gain.gain.linearRampToValueAtTime(.001,time+duration);oscillator.connect(gain).connect(context.destination);oscillator.start(time);oscillator.stop(time+duration+.03);}time+=duration;}return context.state==="running"; }
-async function playUpdateCue(effect) { const browserCue=playBrowserUpdateCue(effect);try { await api(`/api/v1/audio/effects/${effect}/trigger`, { method:"POST" }); } catch { /* Completion cues should never block the update flow. */ } const audible=await browserCue;await new Promise((resolve)=>setTimeout(resolve,effect==="system-update-success"?750:900));return audible; }
+async function playUpdateCue(result = "success") { await api("/api/v1/system/tone", { method:"POST", headers:headers(true), body:JSON.stringify({ result }) });await new Promise((resolve)=>setTimeout(resolve,result==="success"?650:850)); }
 function updateDurationText() { const elapsed=Math.max(0,Math.floor((Date.now()-updateProgressStartedAt)/1000));return `${Math.floor(elapsed/60)}:${String(elapsed%60).padStart(2,"0")}`; }
 function updateElapsedTime() { const elapsed=Math.max(0,Math.floor((Date.now()-updateProgressStartedAt)/1000));$("#update-progress-time").textContent=`${Math.floor(elapsed/60)}:${String(elapsed%60).padStart(2,"0")}`; }
 function showUpdateProgress(stage, detail, state = "running") { const panel=$("#update-progress-panel");panel.hidden=false;panel.classList.toggle("is-complete",state==="complete");panel.classList.toggle("is-error",state==="error");$("#update-progress-stage").textContent=stage;$("#update-progress-detail").textContent=detail;updateElapsedTime(); }
@@ -149,20 +145,19 @@ async function systemAction(action, pendingMessage, successMessage) {
 
 async function updateSystem() {
   alertMessage("Downloading and installing the latest Nexus release…");
-  await resumeUpdateCueContext();
   beginUpdateProgress();
   document.querySelectorAll(".system-actions button").forEach((button) => { button.disabled=true; });
   let requestSucceeded=false;
   try { showUpdateProgress("Downloading and installing…","Please keep this page open while Nexus applies the update, checks dependencies, and refreshes services.");await api("/api/v1/system/update",{method:"POST",headers:headers(true),body:"{}"});requestSucceeded=true; }
   catch(error){
-    if(!(error instanceof TypeError)){await playUpdateCue("system-update-failure");finishUpdateProgress("Update failed",error.message,"error");return refreshSettingsPage(`${error.message} Took ${updateDurationText()}.`,"error");}
+    if(!(error instanceof TypeError)){await playUpdateCue("failure").catch(()=>{});finishUpdateProgress("Update failed",error.message,"error");return refreshSettingsPage(`${error.message} Took ${updateDurationText()}.`,"error");}
   }
   try {
     showUpdateProgress("Restarting Nexus Core…","The update request finished. Waiting for the service to come back online.");
     const status=await waitForCore();
-    const audible=await playUpdateCue("system-update-success");
+    await playUpdateCue("success").catch(()=>{});
     finishUpdateProgress("Update complete",`Nexus Core v${status.version} is online.`,"complete");
-    refreshSettingsPage(`Update succeeded. Nexus Core v${status.version} is online. Took ${updateDurationText()}.${audible?"":" Browser sound may be blocked; use Test update tone before the next update."}`,"success");
+    refreshSettingsPage(`Update succeeded. Nexus Core v${status.version} is online. Took ${updateDurationText()}.`,"success");
   } catch(error) {
     finishUpdateProgress("Update status unknown",error.message,"error");
     refreshSettingsPage(`${requestSucceeded?`Update finished, but ${error.message}`:`The update connection closed and ${error.message}`} Took ${updateDurationText()}.`,"error");
@@ -174,7 +169,7 @@ $("#update-system").addEventListener("click", () => {
   updateSystem();
 });
 
-$("#test-update-tone").addEventListener("click",async()=>{const audible=await playUpdateCue("system-update-success");alertMessage(audible?"Update tone test played.":"Tried the update tone, but this browser may be blocking audio.",audible?"success":"error");});
+$("#test-update-tone").addEventListener("click",async()=>{try{await playUpdateCue("success");alertMessage("Nexus update tone requested.","success");}catch(error){alertMessage(error.message,"error");}});
 
 $("#reboot-system").addEventListener("click", () => {
   if (!confirm("Reboot Nexus Core now? The table will be unavailable for a moment.")) return;

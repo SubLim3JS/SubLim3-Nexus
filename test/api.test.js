@@ -65,6 +65,7 @@ before(async () => {
       shutdown: async () => { systemActions.push("shutdown"); },
       reboot: async () => { systemActions.push("reboot"); },
       update: async () => { systemActions.push("update"); return "Already up to date."; },
+      tone: async (result) => { systemActions.push(["tone", result]); },
     },
     startedAt: new Date(),
     getSystemInfo: async () => ({
@@ -92,7 +93,7 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
-  assert.equal(body.version, "1.5.9");
+  assert.equal(body.version, "1.6.2");
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
@@ -184,12 +185,9 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /Please keep this page open/);
   assert.match(script, /beginUpdateProgress/);
   assert.match(script, /showUpdateProgress\("Restarting Nexus Core/);
-  assert.match(script, /audio\/effects\/\$\{effect\}\/trigger/);
-  assert.match(script, /playUpdateCue\("system-update-success"\)/);
-  assert.match(script, /function playBrowserUpdateCue/);
-  assert.match(script, /resumeUpdateCueContext/);
+  assert.match(script, /api\("\/api\/v1\/system\/tone"/);
+  assert.match(script, /playUpdateCue\("success"\)/);
   assert.match(script, /test-update-tone/);
-  assert.match(script, /window\.AudioContext\|\|window\.webkitAudioContext/);
   assert.match(script, /connectivity\/tools\/ping/);
 });
 
@@ -217,9 +215,17 @@ test("protects and delegates system controls", async () => {
     });
     assert.equal(response.status, 202);
   }
+  const updateToneStatus = await fetch(`${baseUrl}/api/v1/audio/status`).then((response) => response.json());
+  assert.equal(updateToneStatus.data.last_effect.item_id, "system-update-success");
+  const tone = await fetch(`${baseUrl}/api/v1/system/tone`, {
+    method: "POST",
+    headers: { "x-nexus-settings-pin": "123456", "content-type": "application/json" },
+    body: JSON.stringify({ result: "failure" }),
+  });
+  assert.equal(tone.status, 200);
   assert.deepEqual(systemActions, ["shutdown", "reboot", "update"]);
   const audioStatus = await fetch(`${baseUrl}/api/v1/audio/status`).then((response) => response.json());
-  assert.equal(audioStatus.data.last_effect.item_id, "system-update-success");
+  assert.equal(audioStatus.data.last_effect.item_id, "system-update-failure");
 });
 
 test("serves the offline media player demo", async () => {
@@ -231,16 +237,27 @@ test("serves the offline media player demo", async () => {
   assert.match(page, /Media Library/);
   assert.match(page, /Live radio/);
   assert.match(page, /Search audio/);
+  assert.match(page, /Queue folder/);
   assert.doesNotMatch(page, /Assign a card/);
   assert.doesNotMatch(page, /Create folder/);
   assert.match(page, /Local · USB · Live/);
   assert.match(page, /stream\.revma\.ihrhls\.com\/zc2157/);
   assert.match(response.headers.get("content-security-policy"), /media-src 'self' http: https:/);
+  const mediaScript = await fetch(`${baseUrl}/assets/media.js`).then((scriptResponse) => scriptResponse.text());
+  assert.match(mediaScript, /activeQueueFolder/);
+  assert.match(mediaScript, /folderMatches/);
+  assert.match(mediaScript, /coverUrlFor/);
+  assert.match(mediaScript, /album-art-image/);
+  assert.match(mediaScript, /is now the scene queue/);
 });
 
 test("serves Expansion Packs on a dedicated management page", async () => {
   const overview = await fetch(`${baseUrl}/`).then((response) => response.text());
+  assert.match(overview, /Expansions/);
   assert.match(overview, /href="\/packs\/"/);
+  assert.match(overview, /href="\/audio-packs\/"/);
+  assert.match(overview, /Game Packs/);
+  assert.match(overview, /Audio Packs/);
   assert.match(overview, /Manage Expansion Packs/);
   assert.doesNotMatch(overview, /id="system-list"/);
 
@@ -251,6 +268,14 @@ test("serves Expansion Packs on a dedicated management page", async () => {
   assert.match(page, /Choose what your table needs/);
   assert.match(page, /id="system-list"/);
   assert.equal((await fetch(`${baseUrl}/assets/packs.js`)).status, 200);
+
+  const audioResponse = await fetch(`${baseUrl}/audio-packs/`);
+  assert.equal(audioResponse.status, 200);
+  const audioPage = await audioResponse.text();
+  assert.match(audioPage, /Audio Packs/);
+  assert.match(audioPage, /class="nav-item active" href="\/audio-packs\/"/);
+  assert.match(audioPage, /audio-packs\/&lt;pack_id&gt;\/files/);
+  assert.match(audioPage, /cover\.jpg/);
 });
 
 test("serves separate RFID and media library management pages", async () => {
@@ -269,6 +294,9 @@ test("serves separate RFID and media library management pages", async () => {
   assert.doesNotMatch(libraryPage, /Assign a card/);
 
   for (const asset of ["manage.css", "rfid.js", "library.js"]) assert.equal((await fetch(`${baseUrl}/assets/${asset}`)).status, 200);
+  const rfidScript = await fetch(`${baseUrl}/assets/rfid.js`).then((response) => response.text());
+  assert.match(rfidScript, /applyLatestScanToForm\(scan\)/);
+  assert.match(rfidScript, /Latest scan loaded/);
 });
 
 test("serves the GM campaign invitation surface", async () => {
@@ -306,8 +334,9 @@ test("serves the Player Controllers management page", async () => {
 
 test("manages the persistent audio library and playback state", async () => {
   const library = await fetch(`${baseUrl}/api/v1/audio/library`).then((response) => response.json());
-  assert.equal(library.data.filter((item) => item.kind === "ambience").length, 3);
+  assert.equal(library.data.filter((item) => item.kind === "ambience").length, 4);
   assert.equal(library.data.filter((item) => item.kind === "effect").length, 6);
+  assert.equal(library.data.find((item) => item.item_id === "radio-iheart-2157").source.stream_url, "https://stream.revma.ihrhls.com/zc2157");
 
   const played = await fetch(`${baseUrl}/api/v1/audio/play`, {
     method: "POST",
@@ -373,6 +402,14 @@ test("binds RFID cards to audio actions and records scans", async () => {
   assert.equal(cards.data.length, 1);
   assert.equal(cards.data[0].action.item_id, "lantern-and-oak");
 
+  const radioCard = await fetch(`${baseUrl}/api/v1/rfid/cards`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ uid: "05:A1-B2 C3", name: "Radio card", action: { type: "audio", item_id: "radio-iheart-2157" } }),
+  });
+  assert.equal(radioCard.status, 201);
+  assert.equal((await radioCard.json()).data.action.item_id, "radio-iheart-2157");
+
   const scan = await fetch(`${baseUrl}/api/v1/rfid/scan`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -409,6 +446,7 @@ test("binds RFID cards to audio actions and records scans", async () => {
   assert.equal(missingAudio.status, 404);
 
   assert.equal((await fetch(`${baseUrl}/api/v1/rfid/cards/04a1b2c3`, { method: "DELETE" })).status, 204);
+  assert.equal((await fetch(`${baseUrl}/api/v1/rfid/cards/05a1b2c3`, { method: "DELETE" })).status, 204);
   assert.equal((await fetch(`${baseUrl}/api/v1/rfid/cards/04a1b2c3`, { method: "DELETE" })).status, 404);
   const emptyCards = await fetch(`${baseUrl}/api/v1/rfid/cards`).then((response) => response.json());
   assert.equal(emptyCards.data.length, 0);
@@ -438,6 +476,17 @@ test("uploads, organizes, streams, and imports audio files", async () => {
   assert.equal(streamed.status, 200);
   assert.equal(streamed.headers.get("accept-ranges"), "bytes");
   assert.deepEqual(Buffer.from(await streamed.arrayBuffer()), bytes);
+  await mkdir(path.join(temporaryDirectory, "audio", "files", "Taverns"), { recursive: true });
+  await writeFile(path.join(temporaryDirectory, "audio", "files", "Taverns", "cover.jpg"), Buffer.from("JPEGcover"));
+  const testLibrary = new JsonStore(path.join(temporaryDirectory, "audio", "library"));
+  await testLibrary.put(uploaded.item_id, {
+    ...uploaded,
+    artwork: { type: "file", relative_path: "Taverns/cover.jpg", original_filename: "cover.jpg", content_type: "image/jpeg", size_bytes: 9 },
+  });
+  const cover = await fetch(`${baseUrl}/api/v1/audio/files/${uploaded.item_id}/cover`);
+  assert.equal(cover.status, 200);
+  assert.equal(cover.headers.get("content-type"), "image/jpeg");
+  assert.deepEqual(Buffer.from(await cover.arrayBuffer()), Buffer.from("JPEGcover"));
   const ranged = await fetch(`${baseUrl}/api/v1/audio/files/${uploaded.item_id}/content`, { headers: { range: "bytes=0-3" } });
   assert.equal(ranged.status, 206);
   assert.equal(ranged.headers.get("content-range"), `bytes 0-3/${bytes.length}`);

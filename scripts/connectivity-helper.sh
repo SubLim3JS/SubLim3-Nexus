@@ -188,6 +188,10 @@ case "${1:-}" in
     [[ $# -eq 1 ]] || exit 2
     systemctl reboot
     ;;
+  system-tone)
+    [[ $# -eq 2 && ( "$2" == "success" || "$2" == "failure" ) ]] || { echo "System tone must be success or failure." >&2; exit 2; }
+    play_update_tone "$2"
+    ;;
   system-update)
     [[ $# -eq 1 ]] || exit 2
     if run_system_update; then

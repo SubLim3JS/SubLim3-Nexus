@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#090b12">
+    <title>Audio Packs • SubLim3 Nexus</title>
+    <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
+    <link rel="stylesheet" href="/assets/styles.css?v=1.6.2">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="/" aria-label="SubLim3 Nexus home"><span class="brand-mark" aria-hidden="true"><img src="/assets/nexus-logo.png" alt=""></span><span><strong>SubLim3</strong><small>AUDIO PACKS</small></span></a>
+        <nav aria-label="Audio pack navigation">
+          <a class="nav-item" href="/"><span class="nav-icon">⌂</span>Overview</a>
+          <span class="nav-section-title">Expansions</span>
+          <a class="nav-item" href="/packs/"><span class="nav-icon">▦</span>Game Packs</a>
+          <a class="nav-item active" href="/audio-packs/"><span class="nav-icon">▧</span>Audio Packs</a>
+          <a class="nav-item" href="/media/"><span class="nav-icon">♫</span>Media</a>
+          <a class="nav-item" href="/library/"><span class="nav-icon">▤</span>Media Library</a>
+          <a class="nav-item" href="/rfid/"><span class="nav-icon">◇</span>RFID Cards</a>
+          <a class="nav-item" href="/settings/"><span class="nav-icon">⚙</span>Settings</a>
+        </nav>
+        <div class="sidebar-status"><span class="pulse-dot"></span><div><strong>Nexus online</strong><small>Audio library ready</small></div></div>
+      </aside>
+      <main>
+        <header class="topbar">
+          <div><p class="eyebrow">EXPANSION AUDIO</p><h1>Audio Packs</h1></div>
+          <a class="secondary-button" href="/media/">Open Media Player</a>
+        </header>
+
+        <section class="pack-link-section" aria-labelledby="audio-pack-heading">
+          <a class="pack-link-card" href="/media/">
+            <span class="metric-icon cyan" aria-hidden="true">♫</span>
+            <span><span class="eyebrow">SCENE QUEUES</span><strong id="audio-pack-heading">Play imported audio</strong><small>Choose a folder like Battle Mode in the Media player to make it the active queue.</small></span>
+            <span class="pack-link-arrow" aria-hidden="true">→</span>
+          </a>
+          <a class="pack-link-card" href="/library/">
+            <span class="metric-icon violet" aria-hidden="true">▤</span>
+            <span><span class="eyebrow">MANAGED FILES</span><strong>Review the library</strong><small>Imported expansion audio appears under Expansion Audio with folder artwork and metadata.</small></span>
+            <span class="pack-link-arrow" aria-hidden="true">→</span>
+          </a>
+        </section>
+
+        <section class="status-card" aria-labelledby="audio-pack-import-heading">
+          <div class="card-heading"><span>Expansion repo</span><span class="healthy">Ready</span></div>
+          <h2 id="audio-pack-import-heading">Where audio files go</h2>
+          <p class="settings-copy">Place shared audio in the expansion repo under <code>audio-packs/&lt;pack_id&gt;/files/&lt;folder&gt;/</code>. Place game-specific audio under <code>packs/&lt;pack_id&gt;/audio/&lt;folder&gt;/</code>. Add <code>cover.jpg</code> to a folder to show album art in the Media player.</p>
+          <dl class="mini-stats">
+            <div><dt>Import command</dt><dd>npm run audio:expansions:import</dd></div>
+            <div><dt>Remove command</dt><dd>npm run audio:expansions:remove</dd></div>
+            <div><dt>Scene queue</dt><dd>Folder based</dd></div>
+          </dl>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

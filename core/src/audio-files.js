@@ -161,6 +161,14 @@ export class AudioFileService {
     return { item, filePath, size: information.size, stream: (options) => createReadStream(filePath, options) };
   }
 
+  async openCover(itemId) {
+    const item = await this.libraryStore.get(itemId);
+    if (!item?.artwork?.relative_path || item.artwork.type !== "file") throw mediaError("Audio cover art not found", 404);
+    const filePath = this.managedPath(item.artwork.relative_path);
+    const information = await stat(filePath);
+    return { item, filePath, size: information.size, contentType: item.artwork.content_type ?? "image/jpeg", stream: (options) => createReadStream(filePath, options) };
+  }
+
   async usbFiles() {
     const files = [];
     for (const configuredRoot of this.usbRoots) {

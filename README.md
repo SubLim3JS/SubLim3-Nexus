@@ -465,6 +465,24 @@ POST /api/v1/audio/radio/play
 POST /api/v1/audio/import
 ```
 
+Optional audio should live in the separate
+`SubLim3-Nexus-Expansions` repository and be imported into the managed Nexus
+audio library without checking large media files into this core repo:
+
+```bash
+npm run audio:expansions:import
+```
+
+The importer clones the expansion repository into the Nexus data directory,
+copies supported audio formats into `audio/files/Expansion Audio`, and marks
+each library item with source pack metadata so the files remain easy to find,
+queue, and assign to RFID cards. Remove imported expansion audio after testing
+with:
+
+```bash
+npm run audio:expansions:remove
+```
+
 ---
 
 ### RFID

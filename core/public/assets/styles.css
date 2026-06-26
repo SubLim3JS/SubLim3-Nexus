@@ -34,6 +34,7 @@ nav { display: grid; gap: 6px; margin-top: 56px; }
 .nav-icon { width: 20px; text-align: center; font-size: 18px; }
 .nav-item em { margin-left: auto; font-size: 8px; font-style: normal; text-transform: uppercase; letter-spacing: .1em; }
 .nav-divider { display:block; height:1px; margin:7px 12px; background:linear-gradient(90deg,rgba(255,255,255,.16),rgba(255,255,255,.045)); }
+.nav-section-title { display:block; margin:12px 12px 6px; color:#697080; font-size:9px; font-weight:750; text-transform:uppercase; letter-spacing:.14em; }
 .sidebar-status { margin-top: auto; display: flex; align-items: center; gap: 11px; padding: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.025); border-radius: 12px; }
 .sidebar-status strong, .sidebar-status small { display: block; }
 .sidebar-status strong { font-size: 12px; }.sidebar-status small { margin-top: 3px; color: var(--muted); font-size: 10px; }

@@ -113,10 +113,24 @@ export function createApp({
   settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "1.5.9",
+  version = "1.6.2",
   startedAt = new Date(),
 }) {
   const settingsGuard = { failures: 0, blockedUntil: 0 };
+  const playSystemTone = async (result = "success") => {
+    const value = result === "failure" ? "failure" : "success";
+    if (audio) {
+      try {
+        await audio.triggerEffect(`system-update-${value}`);
+        return;
+      } catch (error) {
+        if (typeof systemControl?.tone !== "function") throw error;
+      }
+    }
+    if (typeof systemControl?.tone === "function") {
+      await systemControl.tone(value);
+    }
+  };
   return async function app(request, response) {
     const requestId = randomUUID();
     response.setHeader("x-request-id", requestId);
@@ -155,12 +169,17 @@ export function createApp({
         if (url.pathname === `${API_PREFIX}/system/update`) {
           try {
             const output = await systemControl.update();
-            await audio?.triggerEffect("system-update-success");
+            await playSystemTone("success");
             return sendJson(response, 202, { success: true, message: "Update installed; Nexus Core is restarting", output });
           } catch (error) {
-            await audio?.triggerEffect("system-update-failure");
+            await playSystemTone("failure");
             throw error;
           }
+        }
+        if (url.pathname === `${API_PREFIX}/system/tone`) {
+          const input = await readJson(request);
+          await playSystemTone(input?.result === "failure" ? "failure" : "success");
+          return sendJson(response, 200, { success: true });
         }
       }
 
@@ -215,6 +234,13 @@ export function createApp({
       if (audioContent) {
         const opened = await audio.files.open(decodeURIComponent(audioContent[1]));
         streamAudio(request, response, opened, opened.item.source.content_type);
+        return;
+      }
+
+      const audioCover = audio?.files && request.method === "GET" ? url.pathname.match(/^\/api\/v1\/audio\/files\/([^/]+)\/cover$/) : null;
+      if (audioCover) {
+        const opened = await audio.files.openCover(decodeURIComponent(audioCover[1]));
+        streamAudio(request, response, opened, opened.contentType);
         return;
       }
 

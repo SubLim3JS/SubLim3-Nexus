@@ -3,6 +3,7 @@ const authToken = localStorage.getItem("nexus-admin-token") ?? localStorage.getI
 let libraryItems = [];
 let rfidCards = [];
 let latestRfidScan = null;
+let autoFilledRfidUid = "";
 
 async function api(path, options = {}) {
   const headers = new Headers(options.headers);
@@ -32,8 +33,17 @@ function actionLabel(card) {
 }
 
 function updateActionField() { const audioAction = $("#rfid-action").value === "audio"; $("#rfid-audio-field").hidden = !audioAction; $("#rfid-audio-item").disabled = !audioAction; $("#rfid-audio-item").required = audioAction; }
-function clearForm() { $("#rfid-form").reset(); $("#rfid-action").value = "audio"; updateActionField(); renderAudioOptions(); }
-function editCard(card) { $("#rfid-uid").value = card.uid; $("#rfid-name").value = card.name; $("#rfid-action").value = card.action.type; updateActionField(); if (card.action.item_id) renderAudioOptions(card.action.item_id); $("#rfid-uid").focus(); window.scrollTo({ top:0, behavior:"smooth" }); }
+function clearForm() { autoFilledRfidUid = ""; $("#rfid-form").reset(); $("#rfid-action").value = "audio"; updateActionField(); renderAudioOptions(); }
+function editCard(card) { autoFilledRfidUid = ""; $("#rfid-uid").value = card.uid; $("#rfid-name").value = card.name; $("#rfid-action").value = card.action.type; updateActionField(); if (card.action.item_id) renderAudioOptions(card.action.item_id); $("#rfid-uid").focus(); window.scrollTo({ top:0, behavior:"smooth" }); }
+function applyLatestScanToForm(scan, { force = false } = {}) {
+  if (!scan?.uid) return false;
+  const uidField = $("#rfid-uid");
+  const currentUid = uidField.value.trim();
+  if (!force && currentUid && currentUid !== autoFilledRfidUid) return false;
+  uidField.value = scan.uid;
+  autoFilledRfidUid = scan.uid;
+  return true;
+}
 
 function renderCards() {
   $("#rfid-count").textContent = `${rfidCards.length} card${rfidCards.length === 1 ? "" : "s"}`;
@@ -49,12 +59,12 @@ function renderCards() {
 }
 
 async function reloadCards() { rfidCards = await api("/api/v1/rfid/cards"); renderCards(); }
-function renderLastScan(scan) { if (!scan) return; latestRfidScan = scan; $("#rfid-last-scan").textContent = scan.uid; const cardName = scan.card?.name ? ` · ${scan.card.name}` : " · Unassigned card"; const outcomes = { executed:"Action executed", ignored_delay:"Repeat scan ignored", released:"Card removed", unassigned:"No binding assigned" }; $("#rfid-last-outcome").textContent = `${outcomes[scan.outcome] ?? scan.outcome}${cardName}`; }
+function renderLastScan(scan) { if (!scan) return; latestRfidScan = scan; $("#rfid-last-scan").textContent = scan.uid; const cardName = scan.card?.name ? ` · ${scan.card.name}` : " · Unassigned card"; const outcomes = { executed:"Action executed", ignored_delay:"Repeat scan ignored", released:"Card removed", unassigned:"No binding assigned" }; $("#rfid-last-outcome").textContent = `${outcomes[scan.outcome] ?? scan.outcome}${cardName}`; if (applyLatestScanToForm(scan) && !scan.card) pageMessage("Latest scan loaded. Add a name and action to save this card.", "success"); }
 async function refreshLastScan() { try { const scan = await api("/api/v1/rfid/last-scan"); if (scan?.scanned_at !== latestRfidScan?.scanned_at) renderLastScan(scan); } catch { /* Status polling stays quiet. */ } }
 async function testUid(uid) { if (!uid.trim()) return pageMessage("Enter or scan a card UID first.", "error"); try { const result = await api("/api/v1/rfid/scan", { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify({ uid }) }); renderLastScan(result); pageMessage(result.outcome === "unassigned" ? "That card is not assigned yet." : `Scan result: ${result.outcome.replaceAll("_", " ")}.`, result.outcome === "executed" ? "success" : ""); } catch (error) { pageMessage(error.message, "error"); } }
 async function deleteCard(card) { if (!window.confirm(`Delete the binding for ${card.name}?`)) return; try { await api(`/api/v1/rfid/cards/${encodeURIComponent(card.uid)}`, { method:"DELETE" }); await reloadCards(); pageMessage(`${card.name} deleted.`, "success"); } catch (error) { pageMessage(error.message, "error"); } }
 
-$("#rfid-action").addEventListener("change", updateActionField); $("#rfid-clear").addEventListener("click", clearForm); $("#rfid-use-scan").addEventListener("click", () => { if (!latestRfidScan) return pageMessage("No card has been scanned yet.", "error"); $("#rfid-uid").value = latestRfidScan.uid; if (latestRfidScan.card) editCard(latestRfidScan.card); else $("#rfid-name").focus(); }); $("#rfid-simulate").addEventListener("click", () => testUid($("#rfid-uid").value));
+$("#rfid-action").addEventListener("change", updateActionField); $("#rfid-uid").addEventListener("input", () => { if ($("#rfid-uid").value.trim() !== autoFilledRfidUid) autoFilledRfidUid = ""; }); $("#rfid-clear").addEventListener("click", clearForm); $("#rfid-use-scan").addEventListener("click", () => { if (!latestRfidScan) return pageMessage("No card has been scanned yet.", "error"); applyLatestScanToForm(latestRfidScan, { force:true }); if (latestRfidScan.card) editCard(latestRfidScan.card); else $("#rfid-name").focus(); }); $("#rfid-simulate").addEventListener("click", () => testUid($("#rfid-uid").value));
 $("#rfid-form").addEventListener("submit", async (event) => { event.preventDefault(); const type = $("#rfid-action").value; const action = type === "audio" ? { type, item_id:$("#rfid-audio-item").value } : { type }; try { const saved = await api("/api/v1/rfid/cards", { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify({ uid:$("#rfid-uid").value, name:$("#rfid-name").value, action }) }); await reloadCards(); clearForm(); pageMessage(`${saved.name} is ready to scan.`, "success"); } catch (error) { pageMessage(error.message, "error"); } });
 
 async function initialize() { try { libraryItems = await api("/api/v1/audio/library"); renderAudioOptions(); await reloadCards(); await refreshLastScan(); setInterval(refreshLastScan, 1000); } catch (error) { pageMessage(error.message, "error"); } }

@@ -7,8 +7,8 @@
     <title>Media Player • SubLim3 Nexus</title>
     <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
     <link rel="stylesheet" href="/assets/styles.css?v=1.0.0">
-    <link rel="stylesheet" href="/assets/media.css?v=1.0.0">
-    <script type="module" src="/assets/media.js?v=1.5.0"></script>
+    <link rel="stylesheet" href="/assets/media.css?v=1.6.1">
+    <script type="module" src="/assets/media.js?v=1.6.2"></script>
   </head>
   <body>
     <div class="app-shell media-shell">
@@ -49,7 +49,7 @@
       <section class="player-grid">
         <article id="now-playing" class="now-playing">
           <div class="album-art">
-            <img src="/assets/nexus-logo.png" alt="SubLim3 Nexus">
+            <img id="album-art-image" src="/assets/nexus-logo.png" alt="SubLim3 Nexus album art">
             <div class="visualizer" aria-hidden="true">
               <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
             </div>
@@ -67,6 +67,7 @@
 
         <aside class="queue-panel">
           <div class="panel-heading"><div><p class="eyebrow">SCENE QUEUE</p><h2>Ambience</h2></div><span id="track-count">Loading…</span></div>
+          <label class="queue-folder-control"><span>Queue folder</span><select id="queue-folder"><option value="">All ambience</option></select></label>
           <div id="queue-list"></div>
         </aside>
       </section>

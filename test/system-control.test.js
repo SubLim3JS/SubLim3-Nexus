@@ -13,7 +13,8 @@ test("delegates system actions to the restricted privileged helper", async () =>
   await service.shutdown();
   await service.reboot();
   assert.equal(await service.update(), "ok");
-  assert.deepEqual(actions, ["system-shutdown", "system-reboot", "system-update"]);
+  await service.tone("failure");
+  assert.deepEqual(actions, ["system-shutdown", "system-reboot", "system-update", "system-tone"]);
 });
 
 test("rejects system controls on unsupported platforms", async () => {
@@ -45,6 +46,7 @@ test("runs updates with an isolated Git environment outside the Core sandbox", a
   assert.match(helper, /git_as_repository_owner merge --ff-only FETCH_HEAD/);
   assert.match(helper, /play_update_tone success/);
   assert.match(helper, /play_update_tone failure/);
+  assert.match(helper, /system-tone\)/);
   assert.match(installer, /NEXUS_INSTALL_TRANSIENT/);
   assert.match(installer, /systemd-run --quiet --wait --pipe --collect/);
   assert.match(installer, /--unit=sublim3-nexus-install/);
