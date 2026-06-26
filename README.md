@@ -473,6 +473,12 @@ from the UI. On Raspberry Pi installs, the installer keeps a best-effort cache
 of the expansion repository in the Nexus data directory so the catalog is ready
 after a fresh install when the repo is reachable.
 
+Audio packs can be small and scene-focused. For example, separate packs such as
+`fantasy-battle-mode`, `fantasy-tavern`, `fantasy-town`, `fantasy-travel`,
+`horror-chase`, and `horror-tension` can all install beneath clean Media Library
+groups like `Expansion Audio/Fantasy/...` or `Expansion Audio/Horror/...` by
+setting `library_folder` in their manifests.
+
 The command-line importer remains available for maintenance:
 
 ```bash

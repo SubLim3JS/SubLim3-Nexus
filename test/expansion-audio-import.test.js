@@ -14,10 +14,11 @@ test("imports and removes optional expansion audio", async () => {
     const source = path.join(temporaryDirectory, "source");
     const data = path.join(temporaryDirectory, "data");
     await mkdir(path.join(source, "packs", "dnd5e", "audio", "Battle Mode"), { recursive: true });
-    await mkdir(path.join(source, "audio-packs", "fantasy-core", "files", "SFX"), { recursive: true });
+    await mkdir(path.join(source, "audio-packs", "fantasy-sfx", "files", "SFX"), { recursive: true });
+    await writeFile(path.join(source, "audio-packs", "fantasy-sfx", "manifest.json"), JSON.stringify({ pack_id: "fantasy-sfx", name: "Fantasy: SFX", library_folder: "Fantasy", tags: ["Fantasy"] }));
     await writeFile(path.join(source, "packs", "dnd5e", "audio", "Battle Mode", "initiative-rise.mp3"), Buffer.from("battle ambience"));
     await writeFile(path.join(source, "packs", "dnd5e", "audio", "Battle Mode", "cover.jpg"), Buffer.from("cover image"));
-    await writeFile(path.join(source, "audio-packs", "fantasy-core", "files", "SFX", "door-open.wav"), Buffer.from("door effect"));
+    await writeFile(path.join(source, "audio-packs", "fantasy-sfx", "files", "SFX", "door-open.wav"), Buffer.from("door effect"));
 
     await execFile(process.execPath, ["scripts/import-expansion-audio.mjs", "--source", source, "--data-dir", data]);
 
@@ -35,7 +36,7 @@ test("imports and removes optional expansion audio", async () => {
     assert.equal(battle.artwork.content_type, "image/jpeg");
     assert.ok(battle.tags.includes("Battle Mode"));
     assert.equal(effect.kind, "effect");
-    assert.equal(effect.folder_path, "Expansion Audio/Fantasy Core/SFX");
+    assert.equal(effect.folder_path, "Expansion Audio/Fantasy/SFX");
     assert.equal(effect.loop, false);
     await stat(path.join(data, "audio", "files", ...battle.source.relative_path.split("/")));
     await stat(path.join(data, "audio", "files", ...battle.artwork.relative_path.split("/")));

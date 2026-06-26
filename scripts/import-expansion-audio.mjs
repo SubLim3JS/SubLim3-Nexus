@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { cp, mkdir, readdir, rm, stat } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, rm, stat } from "node:fs/promises";
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promisify } from "node:util";
@@ -163,10 +163,31 @@ function kindFor(relativePath) {
   return /(^|[/\\])(sfx|fx|effect|effects|sound effects?)([/\\]|$)/.test(normalized) ? "effect" : "ambience";
 }
 
-function expansionFolderFor(relativePath) {
+function normalizeLibraryFolder(value) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  return value.split(/[\\/]+/).map((part) => cleanSegment(part)).filter(Boolean).join("/");
+}
+
+async function readPackManifest(rootDirectory, relativePath) {
   const parts = relativePath.split(/[\\/]+/).filter(Boolean);
-  if (parts[0] === "packs" && parts[2] === "audio") return ["Expansion Audio", cleanSegment(parts[1]), ...parts.slice(3, -1).map(cleanSegment)].join("/");
-  if (parts[0] === "audio-packs" && parts[2] === "files") return ["Expansion Audio", cleanSegment(parts[1]), ...parts.slice(3, -1).map(cleanSegment)].join("/");
+  const packId = packIdFor(relativePath);
+  if (!packId) return null;
+  const manifestPath = parts[0] === "audio-packs"
+    ? path.join(rootDirectory, "audio-packs", packId, "manifest.json")
+    : path.join(rootDirectory, "packs", packId, "manifest.json");
+  try {
+    return JSON.parse(await readFile(manifestPath, "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function expansionFolderFor(relativePath, manifest = null) {
+  const parts = relativePath.split(/[\\/]+/).filter(Boolean);
+  const libraryFolder = normalizeLibraryFolder(manifest?.library_folder);
+  if (parts[0] === "packs" && parts[2] === "audio") return ["Expansion Audio", libraryFolder ?? cleanSegment(parts[1]), ...parts.slice(3, -1).map(cleanSegment)].join("/");
+  if (parts[0] === "audio-packs" && parts[2] === "files") return ["Expansion Audio", libraryFolder ?? cleanSegment(parts[1]), ...parts.slice(3, -1).map(cleanSegment)].join("/");
   return ["Expansion Audio", ...parts.slice(0, -1).map(cleanSegment)].join("/");
 }
 
@@ -177,11 +198,12 @@ function packIdFor(relativePath) {
   return null;
 }
 
-function tagsFor(relativePath, kind) {
+function tagsFor(relativePath, kind, manifest = null) {
   const tags = ["Expansion", kind === "effect" ? "Effect" : "Ambience"];
   const packId = packIdFor(relativePath);
   if (packId) tags.push(cleanSegment(packId));
-  const sceneParts = expansionFolderFor(relativePath).split("/").slice(-3);
+  for (const value of manifest?.tags ?? []) if (typeof value === "string" && value && !tags.includes(value)) tags.push(value);
+  const sceneParts = expansionFolderFor(relativePath, manifest).split("/").slice(-3);
   for (const part of sceneParts) if (part && !tags.includes(part)) tags.push(part);
   return tags;
 }
@@ -211,7 +233,8 @@ async function importAudio(options) {
     const extension = path.extname(sourcePath).toLowerCase();
     const itemId = itemIdFor(relative);
     const kind = kindFor(relative);
-    const folderPath = normalizeAudioFolder(expansionFolderFor(relative));
+    const manifest = await readPackManifest(sourceDirectory, relative);
+    const folderPath = normalizeAudioFolder(expansionFolderFor(relative, manifest));
     const relativePath = normalizeAudioFolder(path.join(folderPath, `${itemId}${extension}`).replaceAll("\\", "/"));
     const destination = path.join(managedRoot, ...relativePath.split("/"));
     const info = await stat(sourcePath);
@@ -241,7 +264,7 @@ async function importAudio(options) {
       description: "Optional audio imported from the SubLim3 Nexus expansions repository",
       folder_path: folderPath,
       pack_id: packIdFor(relative),
-      tags: tagsFor(relative, kind),
+      tags: tagsFor(relative, kind, manifest),
       duration_seconds: null,
       loop: kind === "ambience",
       built_in: false,

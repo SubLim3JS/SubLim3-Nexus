@@ -38,20 +38,35 @@ SubLim3-Nexus-Expansions/
         SFX/
 
   audio-packs/
-    fantasy-core/
+    fantasy-battle-mode/
       manifest.json
       files/
         Battle Mode/
-        Travel/
-        Tavern/
-        SFX/
 
-    horror-core/
+    fantasy-tavern/
+      manifest.json
+      files/
+        Tavern/
+
+    fantasy-town/
+      manifest.json
+      files/
+        Town/
+
+    fantasy-travel/
+      manifest.json
+      files/
+        Travel/
+
+    horror-chase/
+      manifest.json
+      files/
+        Chase/
+
+    horror-tension/
       manifest.json
       files/
         Tension/
-        Chase/
-        SFX/
 ```
 
 ## Where to put audio files
@@ -80,10 +95,10 @@ audio-packs/<audio_pack_id>/files/<folder>/<file>
 Example:
 
 ```text
-audio-packs/fantasy-core/files/Battle Mode/battle-drums.ogg
-audio-packs/fantasy-core/files/Battle Mode/cover.jpg
-audio-packs/fantasy-core/files/Dungeon/deep-cavern.flac
-audio-packs/fantasy-core/files/SFX/door-open.wav
+audio-packs/fantasy-battle-mode/files/Battle Mode/battle-drums.ogg
+audio-packs/fantasy-battle-mode/files/Battle Mode/cover.jpg
+audio-packs/fantasy-tavern/files/Tavern/busy-inn.mp3
+audio-packs/horror-chase/files/Chase/pursuit.wav
 ```
 
 Add `cover.jpg`, `cover.jpeg`, `cover.png`, or `cover.webp` to any audio
@@ -93,8 +108,16 @@ folder. Child folders inherit the nearest parent cover.
 ## Folder names become GM queues
 
 Nexus preserves the folder structure as managed library folders. A GM can pick a
-folder such as `Expansion Audio/Dnd5e/Battle Mode`, and the Media page will use
-the ambience tracks inside that folder as the active scene queue.
+folder such as `Expansion Audio/Fantasy/Battle Mode` or
+`Expansion Audio/Horror/Chase`, and the Media page will use the ambience tracks
+inside that folder as the active scene queue.
+
+Each scene should be its own installable pack when that gives the Owner useful
+choice. Use the manifest field `library_folder` to group related packs in the
+Media Library. For example, `fantasy-battle-mode`, `fantasy-tavern`,
+`fantasy-town`, and `fantasy-travel` can all set `"library_folder": "Fantasy"`,
+so they install beneath `Expansion Audio/Fantasy/...` while remaining separate
+install buttons.
 
 Recommended folder names:
 
@@ -114,8 +137,9 @@ one-shot effects. Other audio files are imported as looping ambience by default.
 
 Owners can open `/packs/`, choose **Audio Packs**, and install or remove audio
 packs from the Nexus UI. Installed files are copied into the managed Media
-Library under `Expansion Audio/<pack name>/...`; they can then be queued in the
-Media player or assigned to RFID cards.
+Library under the manifest's `library_folder` when provided, such as
+`Expansion Audio/Fantasy/...`; they can then be queued in the Media player or
+assigned to RFID cards.
 
 The Pi installer keeps a best-effort local cache of this repository under the
 Nexus data directory so a fresh install can show available audio packs as soon
