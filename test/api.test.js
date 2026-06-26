@@ -15,6 +15,7 @@ import { RfidService } from "../core/src/rfid.js";
 let baseUrl;
 let server;
 let temporaryDirectory;
+let audioPackSourceDirectory;
 const connectivityActions = [];
 const systemActions = [];
 
@@ -32,6 +33,11 @@ before(async () => {
   await mkdir(usbRoot, { recursive: true });
   await writeFile(path.join(usbRoot, "usb-tone.wav"), Buffer.from("RIFFusb-audio"));
   await writeFile(path.join(temporaryDirectory, "not-on-usb.mp3"), Buffer.from("outside"));
+  audioPackSourceDirectory = path.join(temporaryDirectory, "expansion-source");
+  await mkdir(path.join(audioPackSourceDirectory, "audio-packs", "fantasy-core", "files", "Battle Mode"), { recursive: true });
+  await writeFile(path.join(audioPackSourceDirectory, "audio-packs", "fantasy-core", "manifest.json"), JSON.stringify({ name: "Fantasy Core Audio", version: "1.0", description: "Battle and tavern audio.", tags: ["Fantasy"] }));
+  await writeFile(path.join(audioPackSourceDirectory, "audio-packs", "fantasy-core", "files", "Battle Mode", "cover.jpg"), Buffer.from("cover"));
+  await writeFile(path.join(audioPackSourceDirectory, "audio-packs", "fantasy-core", "files", "Battle Mode", "battle-drums.mp3"), Buffer.from("ID3battle"));
   const audioFiles = new AudioFileService({ rootDirectory: path.join(temporaryDirectory, "audio", "files"), libraryStore: audioLibraryStore, usbRoots: [usbRoot] });
   const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: audioStateStore, files: audioFiles });
   await audio.initialize();
@@ -50,6 +56,7 @@ before(async () => {
     characterStore,
     systemStore,
     expansionPacks,
+    audioPackSourceDirectory,
     audio,
     rfid,
     playerSettings,
@@ -255,6 +262,7 @@ test("serves Expansion Packs on a dedicated management page", async () => {
   const overview = await fetch(`${baseUrl}/`).then((response) => response.text());
   assert.match(overview, /Expansions/);
   assert.match(overview, /href="\/packs\/"/);
+  assert.match(overview, /href="\/game-packs\/"/);
   assert.match(overview, /href="\/audio-packs\/"/);
   assert.match(overview, /Game Packs/);
   assert.match(overview, /Audio Packs/);
@@ -265,8 +273,17 @@ test("serves Expansion Packs on a dedicated management page", async () => {
   assert.equal(response.status, 200);
   const page = await response.text();
   assert.match(page, /class="nav-item active" href="\/packs\/"/);
-  assert.match(page, /Choose what your table needs/);
-  assert.match(page, /id="system-list"/);
+  assert.match(page, /What would you like to install/);
+  assert.match(page, /href="\/game-packs\/"/);
+  assert.match(page, /href="\/audio-packs\/"/);
+  assert.doesNotMatch(page, /id="system-list"/);
+
+  const gameResponse = await fetch(`${baseUrl}/game-packs/`);
+  assert.equal(gameResponse.status, 200);
+  const gamePage = await gameResponse.text();
+  assert.match(gamePage, /class="nav-item active" href="\/game-packs\/"/);
+  assert.match(gamePage, /Choose what your table needs/);
+  assert.match(gamePage, /id="system-list"/);
   assert.equal((await fetch(`${baseUrl}/assets/packs.js`)).status, 200);
 
   const audioResponse = await fetch(`${baseUrl}/audio-packs/`);
@@ -274,8 +291,10 @@ test("serves Expansion Packs on a dedicated management page", async () => {
   const audioPage = await audioResponse.text();
   assert.match(audioPage, /Audio Packs/);
   assert.match(audioPage, /class="nav-item active" href="\/audio-packs\/"/);
+  assert.match(audioPage, /id="audio-pack-list"/);
   assert.match(audioPage, /audio-packs\/&lt;pack_id&gt;\/files/);
   assert.match(audioPage, /cover\.jpg/);
+  assert.equal((await fetch(`${baseUrl}/assets/audio-packs.js`)).status, 200);
 });
 
 test("serves separate RFID and media library management pages", async () => {
@@ -625,6 +644,38 @@ test("manages versioned game-system and character-sheet templates", async () => 
   });
   assert.equal(scratch.status, 201);
   assert.equal((await fetch(`${baseUrl}/api/v1/systems/scratch`, { method: "DELETE" })).status, 204);
+});
+
+test("manages expansion audio packs like installable packs", async () => {
+  const catalog = await fetch(`${baseUrl}/api/v1/audio-packs`).then((response) => response.json());
+  assert.equal(catalog.data.length, 1);
+  assert.equal(catalog.data[0].pack_id, "fantasy-core");
+  assert.equal(catalog.data[0].installed, false);
+  assert.equal(catalog.data[0].file_count, 1);
+  assert.equal((await fetch(`${baseUrl}/api/v1/audio-packs/missing/install`, { method: "POST" })).status, 404);
+
+  const installed = await fetch(`${baseUrl}/api/v1/audio-packs/fantasy-core/install`, { method: "POST" }).then((response) => response.json());
+  assert.equal(installed.data.installed, true);
+  assert.equal(installed.data.imported_count, 1);
+  const installedCatalog = await fetch(`${baseUrl}/api/v1/audio-packs`).then((response) => response.json());
+  assert.equal(installedCatalog.data[0].installed, true);
+  assert.equal(installedCatalog.data[0].installed_file_count, 1);
+  const library = await fetch(`${baseUrl}/api/v1/audio/library`).then((response) => response.json());
+  const imported = library.data.find((item) => item.pack_id === "fantasy-core");
+  assert.equal(imported.name, "battle drums");
+  assert.equal(imported.folder_path, "Expansion Audio/Fantasy Core/Battle Mode");
+  assert.equal(imported.source.imported_from, "sublim3-nexus-expansions");
+  assert.equal(imported.artwork.original_filename, "cover.jpg");
+  await rm(audioPackSourceDirectory, { recursive: true, force: true });
+  const cachedCatalog = await fetch(`${baseUrl}/api/v1/audio-packs`).then((response) => response.json());
+  assert.equal(cachedCatalog.data[0].pack_id, "fantasy-core");
+  assert.equal(cachedCatalog.data[0].installed, true);
+
+  const removed = await fetch(`${baseUrl}/api/v1/audio-packs/fantasy-core`, { method: "DELETE" }).then((response) => response.json());
+  assert.equal(removed.data.installed, false);
+  assert.equal(removed.data.removed_count, 1);
+  const removedCatalog = await fetch(`${baseUrl}/api/v1/audio-packs`).then((response) => response.json());
+  assert.equal(removedCatalog.data.length, 0);
 });
 
 test("runs template-defined D&D death saves and syncs the character", async () => {

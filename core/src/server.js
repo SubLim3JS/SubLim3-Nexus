@@ -21,6 +21,7 @@ import { HardwareInputService, shouldStartHardware } from "./platform/hardware-i
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const dataDirectory = process.env.NEXUS_DATA_DIR ?? path.resolve(directory, "../data");
+const expansionSourceDirectory = process.env.NEXUS_EXPANSIONS_DIR ?? path.join(dataDirectory, "expansions", "repo-cache");
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? "0.0.0.0";
 const commandRunner = new CommandRunner();
@@ -101,6 +102,7 @@ const server = createServer(createApp({
   access,
   liveEvents,
   audio,
+  audioPackSourceDirectory: expansionSourceDirectory,
   rfid,
   connectivity,
   systemControl,

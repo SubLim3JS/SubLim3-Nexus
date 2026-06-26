@@ -110,7 +110,19 @@ Recommended folder names:
 Files inside folders named `SFX`, `FX`, `Effect`, or `Effects` are imported as
 one-shot effects. Other audio files are imported as looping ambience by default.
 
-## Importing into Nexus
+## Installing into Nexus
+
+Owners can open `/packs/`, choose **Audio Packs**, and install or remove audio
+packs from the Nexus UI. Installed files are copied into the managed Media
+Library under `Expansion Audio/<pack name>/...`; they can then be queued in the
+Media player or assigned to RFID cards.
+
+The Pi installer keeps a best-effort local cache of this repository under the
+Nexus data directory so a fresh install can show available audio packs as soon
+as the expansion repository is reachable. Configure alternate sources with
+`NEXUS_EXPANSIONS_REPO`, `NEXUS_EXPANSIONS_REF`, or `NEXUS_EXPANSIONS_DIR`.
+
+## Command-line import
 
 From the core repo:
 

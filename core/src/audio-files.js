@@ -1,7 +1,7 @@
 import { createReadStream, createWriteStream } from "node:fs";
-import { mkdir, realpath, readdir, rename, rm, stat } from "node:fs/promises";
+import { cp, mkdir, realpath, readdir, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
 
@@ -16,8 +16,15 @@ const AUDIO_TYPES = new Map([
   [".flac", "audio/flac"],
   [".webm", "audio/webm"],
 ]);
+const COVER_TYPES = new Map([
+  [".jpg", "image/jpeg"],
+  [".jpeg", "image/jpeg"],
+  [".png", "image/png"],
+  [".webp", "image/webp"],
+]);
 const MAX_UPLOAD_BYTES = 500 * 1024 * 1024;
 const MAX_USB_FILES = 500;
+const IMPORT_SOURCE = "sublim3-nexus-expansions";
 
 function mediaError(message, statusCode = 422) {
   return Object.assign(new Error(message), { statusCode });
@@ -46,6 +53,90 @@ function extensionFor(filename) {
 
 function displayName(filename) {
   return path.basename(filename, path.extname(filename)).replaceAll(/[_-]+/g, " ").trim() || "Untitled audio";
+}
+
+function titleCase(value) {
+  return displayName(value).replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function itemIdFor(relativePath) {
+  return `expansion-${createHash("sha1").update(relativePath.replaceAll("\\", "/").toLowerCase()).digest("hex").slice(0, 18)}`;
+}
+
+function kindFor(relativePath) {
+  const normalized = relativePath.toLowerCase();
+  return /(^|[/\\])(sfx|fx|effect|effects|sound effects?)([/\\]|$)/.test(normalized) ? "effect" : "ambience";
+}
+
+function expansionFolderFor(relativePath) {
+  const parts = relativePath.split(/[\\/]+/).filter(Boolean);
+  if (parts[0] === "packs" && parts[2] === "audio") return ["Expansion Audio", titleCase(parts[1]), ...parts.slice(3, -1).map(titleCase)].join("/");
+  if (parts[0] === "audio-packs" && parts[2] === "files") return ["Expansion Audio", titleCase(parts[1]), ...parts.slice(3, -1).map(titleCase)].join("/");
+  return ["Expansion Audio", ...parts.slice(0, -1).map(titleCase)].join("/");
+}
+
+function packIdFor(relativePath) {
+  const parts = relativePath.split(/[\\/]+/).filter(Boolean);
+  if (parts[0] === "packs" && parts[2] === "audio") return parts[1];
+  if (parts[0] === "audio-packs" && parts[2] === "files") return parts[1];
+  return null;
+}
+
+function tagsFor(relativePath, kind) {
+  const tags = ["Expansion", kind === "effect" ? "Effect" : "Ambience"];
+  const packId = packIdFor(relativePath);
+  if (packId) tags.push(titleCase(packId));
+  for (const part of expansionFolderFor(relativePath).split("/").slice(-3)) {
+    if (part && !tags.includes(part)) tags.push(part);
+  }
+  return tags;
+}
+
+async function findPackFiles(rootDirectory, extensions) {
+  const files = [];
+  const visit = async (directory, depth = 0) => {
+    if (depth > 12) return;
+    let entries;
+    try { entries = await readdir(directory, { withFileTypes: true }); }
+    catch { return; }
+    for (const entry of entries) {
+      if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+      const target = path.join(directory, entry.name);
+      if (entry.isDirectory()) await visit(target, depth + 1);
+      else if (entry.isFile() && extensions.has(path.extname(entry.name).toLowerCase())) files.push(target);
+    }
+  };
+  await visit(rootDirectory);
+  return files.sort((left, right) => left.localeCompare(right));
+}
+
+async function findCoverFiles(rootDirectory) {
+  const covers = new Map();
+  const visit = async (directory, depth = 0) => {
+    if (depth > 12) return;
+    let entries;
+    try { entries = await readdir(directory, { withFileTypes: true }); }
+    catch { return; }
+    for (const entry of entries) {
+      if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+      const target = path.join(directory, entry.name);
+      if (entry.isDirectory()) await visit(target, depth + 1);
+      else if (entry.isFile() && /^cover\.(jpe?g|png|webp)$/i.test(entry.name)) covers.set(directory, target);
+    }
+  };
+  await visit(rootDirectory);
+  return covers;
+}
+
+function nearestCoverFor(sourcePath, rootDirectory, covers) {
+  let directory = path.dirname(sourcePath);
+  while (directory.startsWith(rootDirectory)) {
+    if (covers.has(directory)) return covers.get(directory);
+    const next = path.dirname(directory);
+    if (next === directory) break;
+    directory = next;
+  }
+  return null;
 }
 
 export class AudioFileService {
@@ -233,5 +324,132 @@ export class AudioFileService {
   async importUsb({ sourcePath, folderPath = "", kind = "ambience" }) {
     const resolved = await this.resolveUsbSource(sourcePath);
     return this.saveUpload({ stream: createReadStream(resolved.source), filename: path.basename(resolved.source), folderPath, kind });
+  }
+
+  async importedExpansionItems(packId) {
+    return (await this.libraryStore.list()).filter((item) => item.source?.imported_from === IMPORT_SOURCE && item.pack_id === packId);
+  }
+
+  async importedExpansionPacks() {
+    const grouped = new Map();
+    for (const item of await this.libraryStore.list()) {
+      if (item.source?.imported_from !== IMPORT_SOURCE || !item.pack_id) continue;
+      const existing = grouped.get(item.pack_id) ?? {
+        pack_id: item.pack_id,
+        name: titleCase(item.pack_id),
+        version: item.source.imported_ref ?? "installed",
+        description: "Installed expansion audio from the managed Media Library.",
+        kind: "audio",
+        availability: "installed",
+        tags: ["Expansion"],
+        file_count: 0,
+        folder_count: 0,
+        installed_file_count: 0,
+        installed: true,
+        enabled: true,
+        folders: new Set(),
+      };
+      existing.file_count += 1;
+      existing.installed_file_count += 1;
+      if (item.folder_path) existing.folders.add(item.folder_path);
+      grouped.set(item.pack_id, existing);
+    }
+    return [...grouped.values()].map(({ folders, ...pack }) => ({ ...pack, folder_count: folders.size }));
+  }
+
+  async importExpansionPack({ packId, sourceDirectory, repoUrl = null, ref = null }) {
+    const root = path.resolve(sourceDirectory);
+    const candidates = [
+      path.join(root, "audio-packs", packId, "files"),
+      path.join(root, "packs", packId, "audio"),
+    ];
+    const existingRoots = [];
+    for (const candidate of candidates) {
+      try {
+        const information = await stat(candidate);
+        if (information.isDirectory()) existingRoots.push(candidate);
+      } catch { /* Missing pack roots are ignored. */ }
+    }
+    if (!existingRoots.length) throw mediaError("Audio pack not found", 404);
+
+    const covers = new Map();
+    for (const packRoot of existingRoots) {
+      for (const [directory, cover] of await findCoverFiles(packRoot)) covers.set(directory, cover);
+    }
+
+    const imported = [];
+    for (const packRoot of existingRoots) {
+      const files = await findPackFiles(packRoot, AUDIO_TYPES);
+      for (const sourcePath of files) {
+        const relative = path.relative(root, sourcePath).replaceAll("\\", "/");
+        const extension = path.extname(sourcePath).toLowerCase();
+        const itemId = itemIdFor(relative);
+        const kind = kindFor(relative);
+        const folderPath = normalizeAudioFolder(expansionFolderFor(relative));
+        const relativePath = normalizeAudioFolder(path.join(folderPath, `${itemId}${extension}`).replaceAll("\\", "/"));
+        const destination = this.managedPath(relativePath);
+        const info = await stat(sourcePath);
+        await mkdir(path.dirname(destination), { recursive: true });
+        await cp(sourcePath, destination, { force: true });
+
+        const coverPath = nearestCoverFor(sourcePath, packRoot, covers);
+        let artwork = null;
+        if (coverPath) {
+          const coverExtension = path.extname(coverPath).toLowerCase();
+          const coverRelativePath = normalizeAudioFolder(path.join(folderPath, `cover${coverExtension}`).replaceAll("\\", "/"));
+          const coverDestination = this.managedPath(coverRelativePath);
+          const coverInfo = await stat(coverPath);
+          await cp(coverPath, coverDestination, { force: true });
+          artwork = {
+            type: "file",
+            relative_path: coverRelativePath,
+            original_filename: path.basename(coverPath),
+            content_type: COVER_TYPES.get(coverExtension) ?? "image/jpeg",
+            size_bytes: coverInfo.size,
+          };
+        }
+
+        const now = new Date().toISOString();
+        const item = {
+          item_id: itemId,
+          name: displayName(sourcePath),
+          kind,
+          description: "Optional audio imported from the SubLim3 Nexus expansions repository",
+          folder_path: folderPath,
+          pack_id: packId,
+          tags: tagsFor(relative, kind),
+          duration_seconds: null,
+          loop: kind === "ambience",
+          built_in: false,
+          ...(artwork ? { artwork } : {}),
+          source: {
+            type: "file",
+            relative_path: relativePath,
+            original_filename: path.basename(sourcePath),
+            content_type: AUDIO_TYPES.get(extension),
+            size_bytes: info.size,
+            imported_from: IMPORT_SOURCE,
+            imported_repo: repoUrl,
+            imported_ref: ref,
+            imported_source_path: relative,
+          },
+          created_at: now,
+          updated_at: now,
+        };
+        await this.libraryStore.put(itemId, item);
+        imported.push(item);
+      }
+    }
+    return imported;
+  }
+
+  async removeExpansionPack(packId) {
+    const items = await this.importedExpansionItems(packId);
+    for (const item of items) {
+      if (item.source?.relative_path) await rm(this.managedPath(item.source.relative_path), { force: true });
+      await this.libraryStore.delete(item.item_id);
+    }
+    await rm(this.managedPath(path.join("Expansion Audio", titleCase(packId)).replaceAll("\\", "/")), { recursive: true, force: true });
+    return items.length;
   }
 }

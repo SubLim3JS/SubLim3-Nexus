@@ -6,6 +6,7 @@ import { serveStatic } from "./static.js";
 import { addCombatant, advanceTurn, emptySession, endBattle, normalizeSession, previousTurn, removeCombatant, reorderCombatants, resetRound, resetSession, updateCombatant } from "./session.js";
 import { normalizeCharacter, validateCharacter } from "./character.js";
 import { applyGameSystemDefaults, normalizeGameSystem, validateGameSystem } from "./game-system.js";
+import { loadAudioPackCatalog } from "./audio-packs.js";
 
 const API_PREFIX = "/api/v1";
 const defaultPublicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
@@ -106,6 +107,9 @@ export function createApp({
   access,
   liveEvents,
   audio,
+  audioPackSourceDirectory = null,
+  audioPackRepoUrl = process.env.NEXUS_EXPANSIONS_REPO ?? "https://github.com/SubLim3JS/SubLim3-Nexus-Expansions.git",
+  audioPackRef = process.env.NEXUS_EXPANSIONS_REF ?? "main",
   rfid,
   connectivity,
   systemControl,
@@ -453,6 +457,41 @@ export function createApp({
           if ((await campaignStore.list()).some((campaign) => campaign.system_id === pack.system_id)) return sendJson(response, 409, { error: "pack_in_use" });
           await systemStore.delete(pack.system_id);
           return sendJson(response, 204, null);
+        }
+        return sendJson(response, 405, { error: "method_not_allowed" });
+      }
+
+      if (audio?.files && request.method === "GET" && url.pathname === `${API_PREFIX}/audio-packs`) {
+        if (access) await access.authorize(request, { roles: ["admin"] });
+        const catalog = await loadAudioPackCatalog(audioPackSourceDirectory);
+        const installedOnly = new Map((await audio.files.importedExpansionPacks()).map((pack) => [pack.pack_id, pack]));
+        const data = await Promise.all(catalog.map(async (pack) => {
+          const installedItems = await audio.files.importedExpansionItems(pack.pack_id);
+          installedOnly.delete(pack.pack_id);
+          return {
+            ...pack,
+            installed: installedItems.length > 0,
+            enabled: installedItems.length > 0,
+            installed_file_count: installedItems.length,
+          };
+        }));
+        return sendJson(response, 200, { data: [...data, ...installedOnly.values()] });
+      }
+
+      const audioPackRoute = audio?.files ? url.pathname.match(/^\/api\/v1\/audio-packs\/([^/]+)(\/install)?$/) : null;
+      if (audioPackRoute) {
+        if (access) await access.authorize(request, { roles: ["admin"] });
+        const packId = decodeURIComponent(audioPackRoute[1]);
+        if (request.method === "DELETE" && !audioPackRoute[2]) {
+          const removedCount = await audio.files.removeExpansionPack(packId);
+          return sendJson(response, 200, { success: true, data: { pack_id: packId, installed: false, removed_count: removedCount } });
+        }
+        const catalog = await loadAudioPackCatalog(audioPackSourceDirectory);
+        const pack = catalog.find((item) => item.pack_id === packId);
+        if (!pack) return sendJson(response, 404, { error: "audio_pack_not_found" });
+        if (request.method === "POST" && audioPackRoute[2] === "/install") {
+          const imported = await audio.files.importExpansionPack({ packId, sourceDirectory: audioPackSourceDirectory, repoUrl: audioPackRepoUrl, ref: audioPackRef });
+          return sendJson(response, 200, { success: true, data: { pack_id: packId, installed: true, imported_count: imported.length } });
         }
         return sendJson(response, 405, { error: "method_not_allowed" });
       }

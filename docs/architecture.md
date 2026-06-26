@@ -26,6 +26,9 @@ JSON writes use a temporary file followed by an atomic rename. This prevents a p
 | `GET` | `/api/v1/packs` | List included expansion packs and installation state |
 | `POST` | `/api/v1/packs/{pack_id}/install` | Enable an optional bundled expansion pack |
 | `DELETE` | `/api/v1/packs/{pack_id}` | Remove an unused optional expansion pack |
+| `GET` | `/api/v1/audio-packs` | List optional expansion audio packs and installation state |
+| `POST` | `/api/v1/audio-packs/{pack_id}/install` | Import an optional audio pack into the managed Media Library |
+| `DELETE` | `/api/v1/audio-packs/{pack_id}` | Remove imported files for an audio pack |
 | `POST` | `/api/v1/systems` | Install a game-system template (Admin) |
 | `GET` | `/api/v1/systems/{system_id}` | Read a character-sheet and companion contract |
 | `PUT` | `/api/v1/systems/{system_id}` | Replace a game-system template (Admin) |
@@ -107,7 +110,7 @@ System updates use the same allowlisted helper, but repository fetch and fast-fo
 
 The updater supplies Git with a repository-local home and configuration path because the Core service deliberately hides user home directories. The installer then re-launches through a short-lived root systemd unit, allowing system files to be replaced without weakening the Core service's read-only filesystem sandbox.
 
-The media suite is fully offline and split by responsibility: `/media/` is the clean GM playback surface, `/rfid/` manages card bindings, and `/library/` owns files, folders, uploads, and USB imports. A shared left navigation rail connects the three surfaces. Nexus Core owns one persistent audio library, real folder hierarchy, global transport state, volume, and one-shot effect stream through `/api/v1/audio`. Direct USB items are transient and remain distinct from managed files. RFID bindings drive that same audio state with swipe/place, rescan-delay, and second-scan behavior.
+The media suite is fully offline and split by responsibility: `/media/` is the clean GM playback surface, `/rfid/` manages card bindings, and `/library/` owns files, folders, uploads, and USB imports. `/packs/` is the expansion hub; `/game-packs/` manages game-system packs, and `/audio-packs/` manages installable expansion audio packs. A shared left navigation rail connects the media surfaces. Nexus Core owns one persistent audio library, real folder hierarchy, global transport state, volume, and one-shot effect stream through `/api/v1/audio`. Direct USB items are transient and remain distinct from managed files. RFID bindings drive that same audio state with swipe/place, rescan-delay, and second-scan behavior.
 
 On Linux, the platform audio boundary detects `mpv`, renders built-in procedural audio to cached PCM WAV files, and sends ambience, effects, managed files, USB paths, and radio streams to ALSA. The driver owns transport and volume through an isolated mpv IPC socket, so playback continues without an open browser. If mpv is unavailable—or `NEXUS_AUDIO_DRIVER=browser` is configured—the existing browser renderer remains active. `NEXUS_AUDIO_DEVICE` can select a specific mpv/ALSA device. Bluetooth routing, playlists, and a physical RFID reader adapter remain later driver boundaries.
 

@@ -3,6 +3,8 @@ set -euo pipefail
 
 readonly APP_DIR="/opt/sublim3-nexus"
 readonly DATA_DIR="/var/lib/sublim3-nexus"
+readonly EXPANSIONS_REPO_DEFAULT="https://github.com/SubLim3JS/SubLim3-Nexus-Expansions.git"
+readonly EXPANSIONS_REF_DEFAULT="main"
 readonly SERVICE_NAME="sublim3-nexus.service"
 readonly SERVICE_USER="nexus"
 readonly RECOVERY_SERVICE="sublim3-network-recovery.service"
@@ -105,6 +107,26 @@ install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 0750 "${DATA_DIR}"
 chown -R "${SERVICE_USER}:${SERVICE_USER}" "${DATA_DIR}"
 find "${DATA_DIR}" -type d -exec chmod 0750 {} +
 find "${DATA_DIR}" -type f -exec chmod 0640 {} +
+
+expansions_cache="${DATA_DIR}/expansions/repo-cache"
+install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 0750 "$(dirname "${expansions_cache}")"
+if [[ -d "${expansions_cache}/.git" ]]; then
+  if runuser -u "${SERVICE_USER}" -- git -C "${expansions_cache}" remote set-url origin "${NEXUS_EXPANSIONS_REPO:-${EXPANSIONS_REPO_DEFAULT}}" \
+    && runuser -u "${SERVICE_USER}" -- git -C "${expansions_cache}" fetch --depth 1 origin "${NEXUS_EXPANSIONS_REF:-${EXPANSIONS_REF_DEFAULT}}" \
+    && runuser -u "${SERVICE_USER}" -- git -C "${expansions_cache}" checkout --detach FETCH_HEAD; then
+    echo "Expansion audio catalog cache updated."
+  else
+    echo "Warning: expansion audio catalog cache could not be updated. Existing cache, if any, will remain available." >&2
+  fi
+else
+  rm -rf "${expansions_cache}"
+  if runuser -u "${SERVICE_USER}" -- git clone --depth 1 --branch "${NEXUS_EXPANSIONS_REF:-${EXPANSIONS_REF_DEFAULT}}" "${NEXUS_EXPANSIONS_REPO:-${EXPANSIONS_REPO_DEFAULT}}" "${expansions_cache}"; then
+    echo "Expansion audio catalog cache installed."
+  else
+    echo "Warning: expansion audio catalog cache could not be installed. Audio Packs will appear after the expansion repository is available." >&2
+  fi
+fi
+
 install -d -o root -g root -m 0755 /usr/local/libexec
 install -o root -g root -m 0755 "${REPOSITORY_ROOT}/scripts/connectivity-helper.sh" "${CONNECTIVITY_HELPER}"
 install -o root -g root -m 0644 \
@@ -140,6 +162,8 @@ ensure_setting NEXUS_HOME_CONNECTION sublim3-home
 ensure_setting NEXUS_HOTSPOT_SSID SubLim3-Nexus
 ensure_setting NEXUS_WIFI_MODE local
 ensure_setting NEXUS_HARDWARE_DRIVER auto
+ensure_setting NEXUS_EXPANSIONS_REPO "${EXPANSIONS_REPO_DEFAULT}"
+ensure_setting NEXUS_EXPANSIONS_REF "${EXPANSIONS_REF_DEFAULT}"
 ensure_setting NEXUS_RFID_SPI_BUS 0
 ensure_setting NEXUS_RFID_SPI_DEVICE 0
 ensure_setting NEXUS_RFID_RESET_GPIO 25

@@ -466,8 +466,14 @@ POST /api/v1/audio/import
 ```
 
 Optional audio should live in the separate
-`SubLim3-Nexus-Expansions` repository and be imported into the managed Nexus
-audio library without checking large media files into this core repo:
+`SubLim3-Nexus-Expansions` repository and be installed into the managed Nexus
+audio library without checking large media files into this core repo. Owners can
+open `/packs/`, choose Audio Packs, and install or remove available audio packs
+from the UI. On Raspberry Pi installs, the installer keeps a best-effort cache
+of the expansion repository in the Nexus data directory so the catalog is ready
+after a fresh install when the repo is reachable.
+
+The command-line importer remains available for maintenance:
 
 ```bash
 npm run audio:expansions:import
