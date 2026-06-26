@@ -113,7 +113,7 @@ export function createApp({
   settingsPin = process.env.NEXUS_SETTINGS_PIN ?? "",
   getSystemInfo = async () => ({}),
   publicDirectory = defaultPublicDirectory,
-  version = "1.5.6",
+  version = "1.5.9",
   startedAt = new Date(),
 }) {
   const settingsGuard = { failures: 0, blockedUntil: 0 };
@@ -337,6 +337,10 @@ export function createApp({
       if (access && request.method === "POST" && url.pathname === `${API_PREFIX}/auth/gm-pin/rotate`) {
         await access.authorize(request, { roles: ["admin"] });
         return sendJson(response, 200, { data: { gm_pin: await access.rotateGmPin() } });
+      }
+
+      if (access && request.method === "POST" && url.pathname === `${API_PREFIX}/auth/sessions/revoke-others`) {
+        return sendJson(response, 200, { data: { revoked_count: await access.revokeOthers(request) } });
       }
 
       const revokeSession = access && request.method === "DELETE" ? url.pathname.match(/^\/api\/v1\/auth\/sessions\/([a-f0-9]{64})$/) : null;

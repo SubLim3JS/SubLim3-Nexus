@@ -459,6 +459,16 @@ async function loadAccessPanel() {
 
 $("#gm-pin-reveal").addEventListener("click", () => { gmPinRevealed = !gmPinRevealed; renderGmPin(); });
 $("#refresh-sessions").addEventListener("click", () => loadAccessPanel().catch((error) => { $("#access-message").textContent = error.message; }));
+$("#revoke-other-sessions").addEventListener("click", async () => {
+  if (!window.confirm("Revoke every other connected client? This browser will stay paired.")) return;
+  const message = $("#access-message");
+  try {
+    const { data } = await request("/api/v1/auth/sessions/revoke-others", { method: "POST" });
+    message.textContent = data.revoked_count ? `Revoked ${data.revoked_count} other connected client${data.revoked_count === 1 ? "" : "s"}.` : "No other connected clients to revoke.";
+    message.className = "form-message success";
+    await loadAccessPanel();
+  } catch (error) { message.textContent = error.message; message.className = "form-message error"; }
+});
 $("#gm-pin-rotate").addEventListener("click", async () => {
   if (!window.confirm("Rotate the GM PIN? Every paired GM device will be revoked and must enter the new PIN.")) return;
   const message = $("#access-message");

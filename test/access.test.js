@@ -101,6 +101,12 @@ test("lets Admin view sessions and rotate the GM PIN", async () => {
   assert.equal(pairing.data.gm_pin, "222222");
   const sessions = await fetch(`${baseUrl}/api/v1/auth/sessions`, { headers: bearer(admin.body.token) }).then((response) => response.json());
   assert.ok(sessions.data.some((session) => session.device_name === "GM tablet"));
+  const revokeOthers = await fetch(`${baseUrl}/api/v1/auth/sessions/revoke-others`, { method: "POST", headers: bearer(admin.body.token) }).then((response) => response.json());
+  assert.ok(revokeOthers.data.revoked_count >= 1);
+  assert.equal((await fetch(`${baseUrl}/api/v1/auth/me`, { headers: bearer(admin.body.token) })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/v1/auth/me`, { headers: bearer(gmToken) })).status, 401);
+  const remainingSessions = await fetch(`${baseUrl}/api/v1/auth/sessions`, { headers: bearer(admin.body.token) }).then((response) => response.json());
+  assert.deepEqual(remainingSessions.data.map((session) => session.session_id), [admin.body.data.session_id]);
   const reset = await fetch(`${baseUrl}/api/v1/campaigns/green_realm/session/reset`, { method: "POST", headers: bearer(admin.body.token) });
   assert.equal(reset.status, 200);
   assert.equal((await reset.json()).data.scene.title, "");

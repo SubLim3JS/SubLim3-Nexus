@@ -92,7 +92,7 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
-  assert.equal(body.version, "1.5.6");
+  assert.equal(body.version, "1.5.9");
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
@@ -115,12 +115,14 @@ test("serves the dashboard with secure response headers", async () => {
   const page = await response.text();
   assert.match(page, /The table is ready/);
   assert.match(page, /ACCESS &amp; PAIRING/);
+  assert.match(page, /id="revoke-other-sessions"/);
   assert.match(page, /class="nav-divider" role="separator"/);
   assert.match(page, /Connect Owner Console/);
   assert.match(page, /href="\/gm\/"/);
   const adminScript = await fetch(`${baseUrl}/assets/app.js`).then((asset) => asset.text());
   assert.match(adminScript, /\[401, 403\]\.includes\(error\.status\)/);
   assert.match(adminScript, /some data could not be loaded/);
+  assert.match(adminScript, /auth\/sessions\/revoke-others/);
 });
 
 test("serves the Nexus logo asset", async () => {
@@ -165,6 +167,7 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, /id="update-progress-panel"/);
   assert.match(page, /id="update-progress-stage"/);
   assert.match(page, /Do not leave this page/);
+  assert.match(page, /id="test-update-tone"/);
   assert.match(page, /Playback defaults/);
   assert.match(page, /Card behavior/);
   assert.match(page, /Network tools/);
@@ -184,6 +187,8 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /audio\/effects\/\$\{effect\}\/trigger/);
   assert.match(script, /playUpdateCue\("system-update-success"\)/);
   assert.match(script, /function playBrowserUpdateCue/);
+  assert.match(script, /resumeUpdateCueContext/);
+  assert.match(script, /test-update-tone/);
   assert.match(script, /window\.AudioContext\|\|window\.webkitAudioContext/);
   assert.match(script, /connectivity\/tools\/ping/);
 });
@@ -491,8 +496,11 @@ test("manages versioned game-system and character-sheet templates", async () => 
   const initialSystems = await fetch(`${baseUrl}/api/v1/systems`).then((response) => response.json());
   assert.deepEqual(initialSystems.data.map((system) => system.system_id), ["custom"]);
   const custom = initialSystems.data[0];
+  assert.equal(custom.version, "1.2");
   assert.equal(custom.character_sheet.presets.length, 8);
+  assert.deepEqual(custom.character_sheet.presets.map((preset) => preset.preset_id), ["warrior_male", "warrior_female", "rogue_male", "rogue_female", "mage_male", "mage_female", "healer_male", "healer_female"]);
   assert.deepEqual(new Set(custom.character_sheet.presets.map((preset) => preset.archetype)), new Set(["Warrior", "Rogue", "Mage", "Healer"]));
+  assert.ok(custom.character_sheet.presets.every((preset) => preset.resources.health.current === 100 && preset.resources.health.maximum === 100));
   const initialCatalog = await fetch(`${baseUrl}/api/v1/packs`).then((response) => response.json());
   assert.equal(initialCatalog.data.length, 8);
   assert.equal(initialCatalog.data.filter((pack) => pack.installed).length, 1);
@@ -635,8 +643,8 @@ test("creates a Custom RPG hero from a quick-start preset", async () => {
   }).then((response) => response.json());
   assert.equal(created.data.fields.role, "Mage");
   assert.equal(created.data.fields.defense, 11);
-  assert.equal(created.data.resources.health.maximum, 8);
-  assert.equal(created.data.template_version, "1.1");
+  assert.equal(created.data.resources.health.maximum, 100);
+  assert.equal(created.data.template_version, "1.2");
   await fetch(`${baseUrl}/api/v1/campaigns/quick_start_test/characters/elara`, { method: "DELETE" });
   await fetch(`${baseUrl}/api/v1/campaigns/quick_start_test`, { method: "DELETE" });
 });
@@ -695,6 +703,14 @@ test("validates character input and serves the player view", async () => {
   const playerPage = await fetch(`${baseUrl}/player/`);
   assert.equal(playerPage.status, 200);
   assert.match(await playerPage.text(), /PLAYER VIEW/);
+  const [playerScript, playerStyles] = await Promise.all([
+    fetch(`${baseUrl}/assets/player.js`).then((response) => response.text()),
+    fetch(`${baseUrl}/assets/player.css`).then((response) => response.text()),
+  ]);
+  assert.match(playerScript, /function adjustHealth/);
+  assert.match(playerScript, /resources\/health\/adjust/);
+  assert.match(playerScript, /player-health-controls/);
+  assert.match(playerStyles, /\.player-health-controls/);
   assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/character_test`, { method: "DELETE" })).status, 204);
 });
 

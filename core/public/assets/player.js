@@ -15,7 +15,16 @@ async function api(path, options = {}, authenticated = true) {
   return body;
 }
 
-function resourceRow(resource) {
+async function adjustHealth(delta) {
+  await api(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/characters/${encodeURIComponent(characterId)}/resources/health/adjust`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ delta }),
+  });
+  await refresh();
+}
+
+function resourceRow(resource, resourceId = "") {
   const row = document.createElement("div");
   const copy = document.createElement("div");
   const label = document.createElement("strong");
@@ -28,6 +37,16 @@ function resourceRow(resource) {
   meter.className = "player-resource-meter";
   fill.style.width = `${resource.maximum > 0 ? Math.max(0, Math.min(100, resource.current / resource.maximum * 100)) : 0}%`;
   copy.append(label, value); meter.append(fill); row.append(copy, meter);
+  if (resourceId === "health") {
+    const controls = document.createElement("form"), amount = document.createElement("input"), damage = document.createElement("button"), heal = document.createElement("button");
+    controls.className = "player-health-controls";
+    amount.type = "number"; amount.min = "1"; amount.max = String(Math.max(1, Number(resource.maximum) || 999)); amount.value = "1"; amount.inputMode = "numeric"; amount.setAttribute("aria-label", "Health amount");
+    damage.type = "submit"; damage.className = "damage"; damage.textContent = "Damage";
+    heal.type = "button"; heal.className = "heal"; heal.textContent = "Heal";
+    controls.addEventListener("submit", async (event) => { event.preventDefault(); const value = Math.max(1, Number(amount.value) || 1); damage.disabled = heal.disabled = true; try { await adjustHealth(-value); } catch (error) { showReconnect(); } });
+    heal.addEventListener("click", async () => { const value = Math.max(1, Number(amount.value) || 1); damage.disabled = heal.disabled = true; try { await adjustHealth(value); } catch (error) { showReconnect(); } });
+    controls.append(amount, damage, heal); row.append(controls);
+  }
   return row;
 }
 
@@ -42,8 +61,8 @@ function render(character, campaign, session) {
   $("#player-avatar").textContent = character.character_name.slice(0, 2).toUpperCase();
   $("#character-meta").textContent = [character.player_name, character.fields?.role, character.fields?.level ? `Level ${character.fields.level}` : ""].filter(Boolean).join(" • ") || "Ready for adventure";
   $("#defense-value").textContent = `Defense ${character.fields?.defense || "—"}`;
-  const resources = Object.values(character.resources ?? {});
-  $("#resource-list").replaceChildren(...(resources.length ? resources.map(resourceRow) : [resourceRow({ label: "No resources", current: 0, maximum: 0 })]));
+  const resources = Object.entries(character.resources ?? {});
+  $("#resource-list").replaceChildren(...(resources.length ? resources.map(([resourceId, resource]) => resourceRow(resource, resourceId)) : [resourceRow({ label: "No resources", current: 0, maximum: 0 })]));
   const trackers=Object.values(character.trackers??{}).filter((tracker)=>{if(!tracker.visible_when)return true;const resource=character.resources?.[tracker.visible_when.resource_id];return resource&&comparisonMatches(Number(resource.current),tracker.visible_when.operator,Number(tracker.visible_when.value));});
   $("#tracker-list").replaceChildren(...trackers.map(playerTrackerCard));
   const conditions = (character.conditions ?? []).map((condition) => { const chip = document.createElement("span"); chip.textContent = condition; return chip; });

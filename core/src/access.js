@@ -93,6 +93,14 @@ export class AccessService {
     return this.sessionStore.delete(sessionId);
   }
 
+  async revokeOthers(request) {
+    const current = await this.authorize(request, { roles: ["admin"] });
+    const sessions = await this.list();
+    const revoked = sessions.filter((session) => session.session_id !== current.session_id);
+    await Promise.all(revoked.map((session) => this.sessionStore.delete(session.session_id)));
+    return revoked.length;
+  }
+
   pairingInfo() {
     return { gm_pin: this.gmPin };
   }
