@@ -14,9 +14,14 @@ HOME_CONNECTION="${NEXUS_HOME_CONNECTION:-sublim3-home}"
 HOTSPOT_SSID="${NEXUS_HOTSPOT_SSID:-SubLim3-Nexus}"
 HOTSPOT_PASSWORD="${NEXUS_HOTSPOT_PASSWORD:-}"
 WIFI_MODE="${NEXUS_WIFI_MODE:-local}"
+HOME_RECONNECT_ATTEMPTS="${NEXUS_HOME_RECONNECT_ATTEMPTS:-12}"
+HOME_RECONNECT_DELAY_SECONDS="${NEXUS_HOME_RECONNECT_DELAY_SECONDS:-5}"
 
 valid_interface() { [[ "$1" =~ ^[a-zA-Z0-9_.:-]+$ ]]; }
+valid_positive_integer() { [[ "$1" =~ ^[0-9]+$ && "$1" -gt 0 ]]; }
 valid_interface "${WIFI_INTERFACE}" || { echo "Invalid Wi-Fi interface." >&2; exit 2; }
+valid_positive_integer "${HOME_RECONNECT_ATTEMPTS}" || { echo "Invalid home Wi-Fi reconnect attempt count." >&2; exit 2; }
+valid_positive_integer "${HOME_RECONNECT_DELAY_SECONDS}" || { echo "Invalid home Wi-Fi reconnect delay." >&2; exit 2; }
 
 git_as_repository_owner() {
   local repository_owner
@@ -92,7 +97,7 @@ connect_home() {
 }
 
 ensure_connected() {
-  local state active_connection
+  local state active_connection attempt
   state="$(nmcli -g GENERAL.STATE device show "${WIFI_INTERFACE}" 2>/dev/null || true)"
   active_connection="$(nmcli -g GENERAL.CONNECTION device show "${WIFI_INTERFACE}" 2>/dev/null || true)"
   if [[ "${WIFI_MODE}" == "local" ]]; then
@@ -101,7 +106,15 @@ ensure_connected() {
     exit 0
   fi
   [[ "${state}" == 100* && "${active_connection}" != "${HOTSPOT_CONNECTION}" ]] && exit 0
-  if nmcli connection show "${HOME_CONNECTION}" >/dev/null 2>&1 && nmcli connection up "${HOME_CONNECTION}" >/dev/null 2>&1; then exit 0; fi
+  nmcli radio wifi on >/dev/null
+  nmcli device set "${WIFI_INTERFACE}" managed yes >/dev/null 2>&1 || true
+  nmcli device wifi rescan ifname "${WIFI_INTERFACE}" >/dev/null 2>&1 || true
+  if nmcli connection show "${HOME_CONNECTION}" >/dev/null 2>&1; then
+    for (( attempt=1; attempt<=HOME_RECONNECT_ATTEMPTS; attempt++ )); do
+      if nmcli connection up "${HOME_CONNECTION}" >/dev/null 2>&1; then exit 0; fi
+      (( attempt < HOME_RECONNECT_ATTEMPTS )) && sleep "${HOME_RECONNECT_DELAY_SECONDS}"
+    done
+  fi
   set_wifi_mode local
   start_hotspot
 }

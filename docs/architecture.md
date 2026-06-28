@@ -104,7 +104,7 @@ Tracker definitions carry their thresholds, critical-result behavior, visibility
 
 Nexus Core serves its responsive command dashboard from `/`. The dashboard uses only local assets and the versioned API, so it remains fully functional without internet access. It displays live system information and provides campaign creation and deletion controls.
 
-The Settings page at `/settings/` uses a six-digit installer-generated PIN for connectivity mutations. Nexus Core remains unprivileged; a root-owned helper exposes only validated NetworkManager and BlueZ actions. Failed home Wi-Fi connections restore the Nexus hotspot, and a boot recovery service starts Local Mode whenever no Wi-Fi connection is available.
+The Settings page at `/settings/` uses a six-digit installer-generated PIN for connectivity mutations. Nexus Core remains unprivileged; a root-owned helper exposes only validated NetworkManager and BlueZ actions. Failed home Wi-Fi connections restore the Nexus hotspot, and a boot recovery service retries the saved Home Wi-Fi connection before starting Local Mode whenever no Wi-Fi connection is available. The retry window is controlled by `NEXUS_HOME_RECONNECT_ATTEMPTS` and `NEXUS_HOME_RECONNECT_DELAY_SECONDS`.
 
 System updates use the same allowlisted helper, but repository fetch and fast-forward operations execute as the owner of `/opt/sublim3-nexus`; root is retained only for installation and service management. The installer reconciles legacy mixed repository ownership. Helper failures cross the API boundary as actionable messages, while the Settings client stores the result through the restart, waits for system health, refreshes, scrolls to the top, and restores the success or failure banner.
 
