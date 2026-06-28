@@ -160,6 +160,7 @@ ensure_setting NEXUS_WIFI_INTERFACE wlan0
 ensure_setting NEXUS_HOTSPOT_CONNECTION sublim3-hotspot
 ensure_setting NEXUS_HOME_CONNECTION sublim3-home
 ensure_setting NEXUS_HOTSPOT_SSID SubLim3-Nexus
+ensure_setting NEXUS_HOTSPOT_ADDRESS 10.99.0.1/24
 ensure_setting NEXUS_WIFI_MODE local
 ensure_setting NEXUS_HOME_RECONNECT_ATTEMPTS 12
 ensure_setting NEXUS_HOME_RECONNECT_DELAY_SECONDS 5

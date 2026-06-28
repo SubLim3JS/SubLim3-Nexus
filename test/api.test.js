@@ -62,7 +62,7 @@ before(async () => {
     playerSettings,
     settingsPin: "123456",
     connectivity: {
-      status: async () => ({ supported: true, wifi: { mode: "local", ssid: "SubLim3-Nexus", addresses: ["10.42.0.1/24"] }, bluetooth: { available: true, visible: false, connected_devices: [] } }),
+      status: async () => ({ supported: true, wifi: { mode: "local", ssid: "SubLim3-Nexus", addresses: ["10.99.0.1/24"] }, bluetooth: { available: true, visible: false, connected_devices: [] } }),
       scanWifi: async () => [{ ssid: "Table WiFi", signal: 88, security: "WPA2" }],
       switchWifi: async (input) => { connectivityActions.push(["wifi", input]); },
       setBluetoothVisible: async (visible) => { connectivityActions.push(["bluetooth", visible]); },

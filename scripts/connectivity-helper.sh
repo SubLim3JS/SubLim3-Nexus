@@ -13,13 +13,27 @@ HOTSPOT_CONNECTION="${NEXUS_HOTSPOT_CONNECTION:-sublim3-hotspot}"
 HOME_CONNECTION="${NEXUS_HOME_CONNECTION:-sublim3-home}"
 HOTSPOT_SSID="${NEXUS_HOTSPOT_SSID:-SubLim3-Nexus}"
 HOTSPOT_PASSWORD="${NEXUS_HOTSPOT_PASSWORD:-}"
+HOTSPOT_ADDRESS="${NEXUS_HOTSPOT_ADDRESS:-10.99.0.1/24}"
 WIFI_MODE="${NEXUS_WIFI_MODE:-local}"
 HOME_RECONNECT_ATTEMPTS="${NEXUS_HOME_RECONNECT_ATTEMPTS:-12}"
 HOME_RECONNECT_DELAY_SECONDS="${NEXUS_HOME_RECONNECT_DELAY_SECONDS:-5}"
 
 valid_interface() { [[ "$1" =~ ^[a-zA-Z0-9_.:-]+$ ]]; }
+valid_cidr() {
+  [[ "$1" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$ ]] || return 1
+  local address="${1%/*}" prefix="${1#*/}" octet
+  local -a octets
+  (( prefix >= 1 && prefix <= 30 )) || return 1
+  IFS=. read -r -a octets <<< "${address}"
+  [[ ${#octets[@]} -eq 4 ]] || return 1
+  for octet in "${octets[@]}"; do
+    [[ "${octet}" =~ ^[0-9]+$ ]] || return 1
+    (( octet >= 0 && octet <= 255 )) || return 1
+  done
+}
 valid_positive_integer() { [[ "$1" =~ ^[0-9]+$ && "$1" -gt 0 ]]; }
 valid_interface "${WIFI_INTERFACE}" || { echo "Invalid Wi-Fi interface." >&2; exit 2; }
+valid_cidr "${HOTSPOT_ADDRESS}" || { echo "Invalid hotspot IPv4 address." >&2; exit 2; }
 valid_positive_integer "${HOME_RECONNECT_ATTEMPTS}" || { echo "Invalid home Wi-Fi reconnect attempt count." >&2; exit 2; }
 valid_positive_integer "${HOME_RECONNECT_DELAY_SECONDS}" || { echo "Invalid home Wi-Fi reconnect delay." >&2; exit 2; }
 
@@ -58,6 +72,9 @@ start_hotspot() {
   [[ ${#HOTSPOT_PASSWORD} -ge 8 && ${#HOTSPOT_PASSWORD} -le 63 ]] || { echo "Hotspot password must be 8-63 characters." >&2; exit 2; }
   stop_hotspot
   nmcli device wifi hotspot ifname "${WIFI_INTERFACE}" con-name "${HOTSPOT_CONNECTION}" ssid "${HOTSPOT_SSID}" password "${HOTSPOT_PASSWORD}"
+  nmcli connection modify "${HOTSPOT_CONNECTION}" ipv4.method shared ipv4.addresses "${HOTSPOT_ADDRESS}"
+  nmcli connection down "${HOTSPOT_CONNECTION}" >/dev/null 2>&1 || true
+  nmcli connection up "${HOTSPOT_CONNECTION}" >/dev/null
 }
 
 restore_hotspot_after_home_failure() {
