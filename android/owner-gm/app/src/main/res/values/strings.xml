@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SubLim3 Nexus</string>
+    <string name="setup_title">Connect to SubLim3 Nexus</string>
+    <string name="setup_help">Enter your Nexus Core address.</string>
+    <string name="host_hint">http://sublim3-nexus.local:3000</string>
+    <string name="connect">Connect</string>
+    <string name="host_required">Enter a Nexus address first.</string>
+    <string name="admin">Admin</string>
+    <string name="gm">GM</string>
+    <string name="change">Change</string>
+    <string name="route_admin">Owner Console</string>
+    <string name="route_gm">GM Workspace</string>
+</resources>

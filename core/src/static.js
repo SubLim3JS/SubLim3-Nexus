@@ -55,6 +55,7 @@ const FILES = new Map([
   ["/assets/gm.js", ["assets/gm.js", "text/javascript; charset=utf-8"]],
   ["/assets/qr.js", ["assets/qr.js", "text/javascript; charset=utf-8"]],
   ["/assets/nexus-logo.png", ["assets/nexus-logo.png", "image/png"]],
+  ["/assets/player-app-qr.png", ["assets/player-app-qr.png", "image/png"]],
 ]);
 
 export async function serveStatic(pathname, response, publicDirectory) {

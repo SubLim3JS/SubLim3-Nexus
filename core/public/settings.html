@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#090b12">
     <title>Settings • SubLim3 Nexus</title>
     <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
-    <link rel="stylesheet" href="/assets/styles.css?v=1.6.0">
-    <link rel="stylesheet" href="/assets/settings.css?v=1.6.0">
-    <script type="module" src="/assets/settings.js?v=1.6.0"></script>
+    <link rel="stylesheet" href="/assets/styles.css?v=1.6.3">
+    <link rel="stylesheet" href="/assets/settings.css?v=1.6.3">
+    <script type="module" src="/assets/settings.js?v=1.6.4"></script>
   </head>
   <body>
     <div class="app-shell settings-shell">
@@ -51,6 +51,11 @@
           <p class="eyebrow">OWNER RECOVERY</p><h2>Reconnect controls</h2>
           <p class="settings-copy">Only use the recovery PIN when this browser is not already connected as Owner.</p>
           <form id="pin-form"><label>Recovery PIN<input id="settings-pin" inputmode="numeric" autocomplete="off" maxlength="12" required placeholder="000000"></label><button class="primary-button" type="submit">Reconnect</button></form>
+        </article>
+
+        <article class="settings-card player-app-qr-panel">
+          <div><p class="eyebrow">PLAYER APP</p><h2>Player App QR</h2><p class="settings-copy">Let players scan this code to download or open the Player app for SubLim3 Nexus.</p></div>
+          <figure class="player-app-qr"><img src="/assets/player-app-qr.png" alt="QR code for the SubLim3 Nexus Player app"><figcaption>Player App</figcaption></figure>
         </article>
 
         <article class="settings-card local-panel locked-control">

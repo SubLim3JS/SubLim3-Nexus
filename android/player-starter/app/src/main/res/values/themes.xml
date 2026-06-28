@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SubLim3Nexus" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/nexus_primary</item>
+        <item name="colorPrimaryDark">@color/nexus_primary_dark</item>
+        <item name="colorAccent">@color/nexus_accent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

@@ -100,7 +100,7 @@ test("reports Nexus Core health", async () => {
   const body = await response.json();
   assert.equal(body.status, "ok");
   assert.equal(body.service, "nexus-core");
-  assert.equal(body.version, "1.6.2");
+  assert.equal(body.version, "1.6.3");
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
@@ -138,6 +138,10 @@ test("serves the Nexus logo asset", async () => {
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("content-type"), "image/png");
   assert.ok(Number(response.headers.get("content-length")) > 100_000);
+  const playerQr = await fetch(`${baseUrl}/assets/player-app-qr.png`);
+  assert.equal(playerQr.status, 200);
+  assert.equal(playerQr.headers.get("content-type"), "image/png");
+  assert.ok(Number(playerQr.headers.get("content-length")) > 1_000);
 });
 
 test("protects connectivity controls with the Settings PIN", async () => {
@@ -171,6 +175,9 @@ test("serves the connectivity Settings page", async () => {
   assert.equal(response.status, 200);
   const page = await response.text();
   assert.match(page, /Bluetooth visibility/);
+  assert.match(page, /Player App QR/);
+  assert.match(page, /\/assets\/player-app-qr\.png/);
+  assert.match(page, /QR code for the SubLim3 Nexus Player app/);
   assert.match(page, />Update<\/button>[\s\S]*>Reboot<\/button>[\s\S]*>Shut Down<\/button>/);
   assert.match(page, /id="update-progress-panel"/);
   assert.match(page, /id="update-progress-stage"/);

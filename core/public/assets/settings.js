@@ -3,6 +3,7 @@ let adminToken = localStorage.getItem("nexus-admin-token") ?? "";
 const UPDATE_NOTICE_KEY = "nexus-update-notice";
 let updateProgressTimer = null;
 let updateProgressStartedAt = 0;
+let autoWifiScanStarted = false;
 
 function alertMessage(message, type = "") { const alert = $("#settings-alert"); alert.textContent = message; alert.className = `settings-alert ${type}`; }
 function headers(json = false) { return { ...(json ? { "content-type": "application/json" } : {}), ...(adminToken ? { authorization: `Bearer ${adminToken}` } : {}) }; }
@@ -21,6 +22,25 @@ function showUpdateProgress(stage, detail, state = "running") { const panel=$("#
 function beginUpdateProgress() { updateProgressStartedAt=Date.now();clearInterval(updateProgressTimer);showUpdateProgress("Starting update…","Nexus is contacting the updater.");updateProgressTimer=setInterval(updateElapsedTime,1_000); }
 function finishUpdateProgress(stage, detail, state) { clearInterval(updateProgressTimer);updateProgressTimer=null;showUpdateProgress(stage,detail,state); }
 
+function renderWifiNetworks(networks) {
+  $("#wifi-networks").replaceChildren(...networks.map((network) => {
+    const option = document.createElement("option");
+    option.value = network.ssid;
+    option.label = `${network.signal}% - ${network.security}`;
+    return option;
+  }));
+}
+
+async function scanWifiNetworks({ automatic = false } = {}) {
+  alertMessage(automatic ? "Local Mode detected. Scanning for Wi-Fi networks..." : "Scanning for Wi-Fi networks...");
+  try {
+    const { data } = await api("/api/v1/connectivity/wifi/networks", { headers: headers() });
+    renderWifiNetworks(data);
+    alertMessage(`Found ${data.length} networks. Choose one or type its SSID.`, "success");
+  }
+  catch (error) { alertMessage(error.message, "error"); }
+}
+
 function renderStatus(status) {
   const wifiMode = status.wifi.mode ? status.wifi.mode.charAt(0).toUpperCase() + status.wifi.mode.slice(1) : "Unknown";
   $("#wifi-mode").textContent = wifiMode;
@@ -33,6 +53,10 @@ function renderStatus(status) {
   $("#bluetooth-devices").textContent = devices.length ? devices.map((device) => `${device.name} • ${device.address}`).join("\n") : "No connected devices";
   if (!status.supported) alertMessage("Connectivity controls are available when Nexus Core runs on Raspberry Pi.");
   else alertMessage("Connectivity status is current.", "success");
+  if (status.supported && status.wifi.mode === "local" && !autoWifiScanStarted) {
+    autoWifiScanStarted = true;
+    scanWifiNetworks({ automatic: true });
+  }
 }
 
 async function loadStatus() { const { data } = await api("/api/v1/connectivity/status", { headers: headers() }); renderStatus(data); }
@@ -67,9 +91,7 @@ $("#pin-form").addEventListener("submit", async (event) => {
 });
 
 $("#scan-wifi").addEventListener("click", async () => {
-  alertMessage("Scanning for Wi-Fi networks…");
-  try { const { data } = await api("/api/v1/connectivity/wifi/networks", { headers: headers() }); $("#wifi-networks").replaceChildren(...data.map((network) => { const option=document.createElement("option"); option.value=network.ssid; option.label=`${network.signal}% • ${network.security}`; return option; })); alertMessage(`Found ${data.length} networks. Choose one or type its SSID.`, "success"); }
-  catch (error) { alertMessage(error.message, "error"); }
+  scanWifiNetworks();
 });
 
 $("#local-mode").addEventListener("click", async () => {

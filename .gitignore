@@ -12,3 +12,7 @@ core/data/access-sessions/*.json
 core/data/systems/*.json
 !core/data/systems/.gitkeep
 core/data/audio/
+android/**/.gradle/
+android/**/build/
+android/**/local.properties
+tmp/qrdeps/
