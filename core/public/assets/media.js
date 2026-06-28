@@ -228,6 +228,12 @@ function countTreeTracks(node) {
   return count;
 }
 
+function countTreeAmbience(node) {
+  let count = node.items.filter((item) => item.kind === "ambience").length;
+  for (const child of node.folders.values()) count += countTreeAmbience(child);
+  return count;
+}
+
 function trackButton(track, index = tracks.findIndex((candidate) => candidate.item_id === track.item_id), { singleOnly = false } = {}) {
   const button = document.createElement("button");
   button.className = "queue-track";
@@ -235,7 +241,7 @@ function trackButton(track, index = tracks.findIndex((candidate) => candidate.it
   button.dataset.track = String(index);
   const number = document.createElement("span");
   number.className = "track-number";
-  number.textContent = index >= 0 ? String(index + 1).padStart(2, "0") : "♪";
+  number.textContent = track.kind === "effect" ? "SFX" : index >= 0 ? String(index + 1).padStart(2, "0") : "♪";
   const copy = document.createElement("span");
   const strong = document.createElement("strong");
   strong.textContent = track.name;
@@ -243,9 +249,10 @@ function trackButton(track, index = tracks.findIndex((candidate) => candidate.it
   small.textContent = track.folder_path || track.tags?.join(" • ") || "Library root";
   copy.append(strong, small);
   const duration = document.createElement("em");
-  duration.textContent = track.source?.type === "radio" ? "LIVE" : formatTime(track.duration_seconds);
+  duration.textContent = track.kind === "effect" ? "TRIGGER" : track.source?.type === "radio" ? "LIVE" : formatTime(track.duration_seconds);
   button.append(number, copy, duration);
   button.addEventListener("click", () => {
+    if (track.kind === "effect") return control(`/api/v1/audio/effects/${encodeURIComponent(track.item_id)}/trigger`);
     if (singleOnly) return queueSingleTrack(track.item_id);
     const queuedIndex = tracks.findIndex((candidate) => candidate.item_id === track.item_id);
     if (queuedIndex >= 0) playTrack(queuedIndex);
@@ -274,11 +281,16 @@ function renderTree(node, { expandRoot = false, mode = "queue", depth = 0 } = {}
   const title = document.createElement("strong");
   title.textContent = node.name;
   const meta = document.createElement("small");
-  meta.textContent = `${count} track${count === 1 ? "" : "s"}`;
+  meta.textContent = `${count} item${count === 1 ? "" : "s"}`;
   copy.append(title, meta);
   folderButton.append(icon, copy);
   folderButton.addEventListener("click", (event) => {
     event.preventDefault();
+    const ambienceCount = countTreeAmbience(node);
+    if (mode === "expansion" && ambienceCount === 0) {
+      details.open = !details.open;
+      return;
+    }
     queueFolder(node.path, { playFirst: mode === "expansion" });
   });
   summary.append(toggle, folderButton);
@@ -349,8 +361,8 @@ function queueSingleTrack(itemId) {
 }
 
 function renderExpansionAudioTree() {
-  const expansionItems = libraryItems.filter((item) => item.kind === "ambience" && (item.folder_path || "").startsWith("Expansion Audio/"));
-  $("#expansion-audio-count").textContent = `${expansionItems.length} track${expansionItems.length === 1 ? "" : "s"}`;
+  const expansionItems = libraryItems.filter((item) => (item.folder_path || "").startsWith("Expansion Audio/"));
+  $("#expansion-audio-count").textContent = `${expansionItems.length} item${expansionItems.length === 1 ? "" : "s"}`;
   if (!expansionItems.length) {
     const empty = document.createElement("p");
     empty.className = "library-empty";
@@ -481,23 +493,27 @@ function playNoiseBurst({ duration, cutoff, gainValue }) {
 
 async function playEffect(name) {
   await ensureAudio();
-  const now = audioContext.currentTime;
   const tone = (type, from, to, duration, volume) => {
+    const startTime = audioContext.currentTime;
     const oscillator = audioContext.createOscillator();
     const gain = audioContext.createGain();
     oscillator.type = type;
-    oscillator.frequency.setValueAtTime(from, now);
-    oscillator.frequency.exponentialRampToValueAtTime(to, now + duration);
-    gain.gain.setValueAtTime(volume, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    oscillator.frequency.setValueAtTime(from, startTime);
+    oscillator.frequency.exponentialRampToValueAtTime(to, startTime + duration);
+    gain.gain.setValueAtTime(volume, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
     oscillator.connect(gain).connect(masterGain);
-    oscillator.start(now);
-    oscillator.stop(now + duration);
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration);
   };
   if (name === "thunder") { tone("sine", 78, 28, 1.8, 0.38); playNoiseBurst({ duration: 2, cutoff: 180, gainValue: 0.32 }); }
   if (name === "ancient-door") { tone("sawtooth", 105, 42, 0.9, 0.16); playNoiseBurst({ duration: 0.7, cutoff: 420, gainValue: 0.12 }); }
   if (name === "blade-clash") { tone("square", 1200, 340, 0.28, 0.12); playNoiseBurst({ duration: 0.18, cutoff: 4200, gainValue: 0.09 }); }
   if (name === "arcane-pulse") { tone("sine", 330, 990, 1.15, 0.16); tone("triangle", 495, 1480, 0.95, 0.07); }
+  if (name === "dice-roll") { for (let index = 0; index < 5; index += 1) setTimeout(() => playNoiseBurst({ duration: 0.08, cutoff: 900 + index * 260, gainValue: 0.08 }), index * 95); tone("sawtooth", 210, 90, 0.55, 0.05); }
+  if (name === "footsteps") { for (let index = 0; index < 4; index += 1) setTimeout(() => { tone("sine", 92, 54, 0.16, 0.11); playNoiseBurst({ duration: 0.12, cutoff: 260, gainValue: 0.06 }); }, index * 360); }
+  if (name === "trap-click") { tone("square", 1600, 850, 0.12, 0.1); setTimeout(() => tone("square", 2100, 760, 0.18, 0.08), 95); playNoiseBurst({ duration: 0.16, cutoff: 3600, gainValue: 0.04 }); }
+  if (name === "healing-chime") { tone("sine", 523.25, 1046.5, 1.15, 0.11); setTimeout(() => tone("triangle", 659.25, 1318.5, 0.95, 0.08), 120); setTimeout(() => tone("sine", 783.99, 1567.98, 0.8, 0.06), 240); }
 }
 
 function updateProgress() {

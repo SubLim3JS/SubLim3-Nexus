@@ -191,8 +191,6 @@ $("#update-system").addEventListener("click", () => {
   updateSystem();
 });
 
-$("#test-update-tone").addEventListener("click",async()=>{try{await playUpdateCue("success");alertMessage("Nexus update tone requested.","success");}catch(error){alertMessage(error.message,"error");}});
-
 $("#reboot-system").addEventListener("click", () => {
   if (!confirm("Reboot Nexus Core now? The table will be unavailable for a moment.")) return;
   systemAction("reboot", "Rebooting Nexus Core…", "Reboot requested. Reconnect in a moment.");

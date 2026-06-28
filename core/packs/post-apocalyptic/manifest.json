@@ -2,5 +2,10 @@
   "pack_id": "post-apocalyptic", "system_id": "post-apocalyptic", "name": "Post-Apocalyptic Survival",
   "version": "1.0", "description": "An original survival toolkit for wastelands, bunkers, and scarce resources.",
   "publisher": "SubLim3", "license": "Included with Nexus", "experience": "customizable",
+  "category": "Survival Game System", "complexity": "Intermediate",
+  "rules_summary": "Resource-scarcity survival toolkit for wastelands, bunkers, expeditions, and hard choices under pressure.",
+  "options": ["Scarcity-focused resources", "Survival conditions", "Wasteland-ready character sheets", "Expedition-style tracking"],
+  "recommended_audio_packs": ["horror-tension", "fantasy-travel"],
+  "commerce": { "model": "free_testing", "label": "Free for testing", "future_label": "Try them" },
   "tags": ["survival", "post-apocalyptic", "resources"]
 }

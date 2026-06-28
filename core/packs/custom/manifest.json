@@ -8,5 +8,11 @@
   "license": "Included with Nexus",
   "experience": "quick_start",
   "preinstalled": true,
+  "category": "Starter Game System",
+  "complexity": "Beginner",
+  "rules_summary": "Rules-light fantasy play with simple editable heroes, health, core traits, and quick-start presets for immediate table testing.",
+  "options": ["Eight ready-made heroes", "Editable roles and traits", "Simple health tracking", "Fast campaign setup"],
+  "recommended_audio_packs": ["fantasy-battle-mode", "fantasy-tavern", "fantasy-town", "fantasy-travel"],
+  "commerce": { "model": "free_testing", "label": "Free for testing", "future_label": "Try them" },
   "tags": ["core", "fantasy", "quick start"]
 }

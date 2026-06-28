@@ -2,5 +2,10 @@
   "pack_id": "scifi-dice-pool", "system_id": "scifi-dice-pool", "name": "Sci-Fi Dice Pool",
   "version": "1.0", "description": "An original dice-pool toolkit for crews, colonies, and deep-space missions.",
   "publisher": "SubLim3", "license": "Included with Nexus", "experience": "customizable",
+  "category": "Science Fiction Game System", "complexity": "Intermediate",
+  "rules_summary": "Original dice-pool framework for crews, colonies, missions, stress, and deep-space complications.",
+  "options": ["Dice-pool character fields", "Crew and mission framing", "Stress/resource tracking", "Science-fiction tags"],
+  "recommended_audio_packs": ["horror-tension", "horror-chase"],
+  "commerce": { "model": "free_testing", "label": "Free for testing", "future_label": "Try them" },
   "tags": ["science fiction", "dice pool", "crew"]
 }

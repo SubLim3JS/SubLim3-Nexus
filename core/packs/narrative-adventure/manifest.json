@@ -2,5 +2,10 @@
   "pack_id": "narrative-adventure", "system_id": "narrative-adventure", "name": "Narrative Adventure",
   "version": "1.0", "description": "A story-first toolkit built around aspects, stress, and momentum.",
   "publisher": "SubLim3", "license": "Included with Nexus", "experience": "customizable",
+  "category": "Narrative Game System", "complexity": "Beginner",
+  "rules_summary": "Story-first framework focused on flexible aspects, stress, momentum, and table-facing narrative state.",
+  "options": ["Aspect-style descriptors", "Stress and momentum", "Rules-light character sheets", "Genre-neutral campaign support"],
+  "recommended_audio_packs": ["fantasy-tavern", "fantasy-travel", "horror-tension"],
+  "commerce": { "model": "free_testing", "label": "Free for testing", "future_label": "Try them" },
   "tags": ["narrative", "rules light", "genre neutral"]
 }

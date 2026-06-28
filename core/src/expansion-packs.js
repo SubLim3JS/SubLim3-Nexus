@@ -10,12 +10,17 @@ function text(value, fallback = "", maximum = 120) {
   return String(value ?? fallback).trim().slice(0, maximum);
 }
 
+function textArray(value, maximumItems = 12, maximumLength = 60) {
+  return [...new Set((Array.isArray(value) ? value : []).map((item) => text(item, "", maximumLength)).filter(Boolean))].slice(0, maximumItems);
+}
+
 function normalizeManifest(input, directoryName) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error(`Expansion pack ${directoryName} has an invalid manifest`);
   const packId = text(input.pack_id);
   const systemId = text(input.system_id);
   if (!SAFE_ID.test(packId) || packId !== directoryName) throw new Error(`Expansion pack directory ${directoryName} must match its pack_id`);
   if (!SAFE_ID.test(systemId)) throw new Error(`Expansion pack ${packId} has an invalid system_id`);
+  const commerce = input.commerce && typeof input.commerce === "object" && !Array.isArray(input.commerce) ? input.commerce : {};
   return {
     pack_id: packId,
     system_id: systemId,
@@ -29,8 +34,18 @@ function normalizeManifest(input, directoryName) {
     availability: "included",
     preinstalled: Boolean(input.preinstalled),
     experience: input.experience === "quick_start" ? "quick_start" : "customizable",
+    category: text(input.category, "Game System", 60),
+    complexity: text(input.complexity, input.experience === "quick_start" ? "Beginner" : "Customizable", 40),
+    rules_summary: text(input.rules_summary, input.description, 700),
+    options: textArray(input.options, 10, 80),
+    recommended_audio_packs: textArray(input.recommended_audio_packs, 12, 60),
+    commerce: {
+      model: text(commerce.model, "free_testing", 40),
+      label: text(commerce.label, "Free for testing", 80),
+      future_label: text(commerce.future_label, "Try them", 80),
+    },
     price: null,
-    tags: [...new Set((Array.isArray(input.tags) ? input.tags : []).map((tag) => text(tag, "", 30)).filter(Boolean))].slice(0, 12),
+    tags: textArray(input.tags, 12, 30),
   };
 }
 

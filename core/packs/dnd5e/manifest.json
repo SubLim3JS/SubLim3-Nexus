@@ -7,5 +7,11 @@
   "publisher": "SubLim3",
   "license": "Review publisher terms before commercial distribution",
   "experience": "customizable",
+  "category": "Fantasy Game System",
+  "complexity": "Advanced",
+  "rules_summary": "5e-oriented character and controller template with familiar fantasy resources, page bindings, and death-save tracker behavior.",
+  "options": ["5e-style character fields", "Hit points and resources", "Death save tracker", "Controller-ready status pages"],
+  "recommended_audio_packs": ["fantasy-battle-mode", "fantasy-tavern", "fantasy-town", "fantasy-travel"],
+  "commerce": { "model": "free_testing", "label": "Free for testing", "future_label": "Try them" },
   "tags": ["fantasy", "d20", "customizable"]
 }

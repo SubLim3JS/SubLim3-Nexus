@@ -2,5 +2,10 @@
   "pack_id": "percentile-horror", "system_id": "percentile-horror", "name": "Percentile Horror",
   "version": "1.0", "description": "An original investigative horror toolkit using percentile attributes.",
   "publisher": "SubLim3", "license": "Included with Nexus", "experience": "customizable",
+  "category": "Horror Game System", "complexity": "Intermediate",
+  "rules_summary": "Investigative horror toolkit using percentile-style attributes, fragile resources, and tension-forward character state.",
+  "options": ["Percentile attributes", "Investigation support", "Stress and survival pressure", "Horror-focused conditions"],
+  "recommended_audio_packs": ["horror-tension", "horror-chase"],
+  "commerce": { "model": "free_testing", "label": "Free for testing", "future_label": "Try them" },
   "tags": ["horror", "percentile", "investigation"]
 }

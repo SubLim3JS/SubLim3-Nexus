@@ -45,6 +45,9 @@ async function countAudioFiles(directory) {
 }
 
 function normalizeAudioPack(kind, packId, manifest, counts) {
+  const commerce = manifest.commerce && typeof manifest.commerce === "object" && !Array.isArray(manifest.commerce)
+    ? manifest.commerce
+    : {};
   return {
     pack_id: packId,
     name: manifest.name ?? packId.replaceAll(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()),
@@ -52,6 +55,21 @@ function normalizeAudioPack(kind, packId, manifest, counts) {
     description: manifest.description ?? (kind === "game_audio" ? "Audio bundled with a game expansion pack." : "Shared optional expansion audio."),
     kind,
     availability: manifest.availability ?? "free",
+    price: null,
+    commerce: {
+      model: commerce.model ?? "free_testing",
+      label: commerce.label ?? "Free for testing",
+      future_label: commerce.future_label ?? "Try them",
+    },
+    genre: manifest.genre ?? null,
+    scene: manifest.scene ?? null,
+    content_type: manifest.content_type ?? manifest.pack_type ?? null,
+    mood: Array.isArray(manifest.mood) ? manifest.mood : [],
+    recommended_for: Array.isArray(manifest.recommended_for) ? manifest.recommended_for : [],
+    library_folder: manifest.library_folder ?? null,
+    license: manifest.license ?? "Included for testing",
+    credits: manifest.credits ?? null,
+    sample_track: manifest.sample_track ?? null,
     tags: Array.isArray(manifest.tags) ? manifest.tags : [],
     ...counts,
   };

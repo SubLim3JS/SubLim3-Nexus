@@ -2,5 +2,10 @@
   "pack_id": "d20-fantasy", "system_id": "d20-fantasy", "name": "d20 Fantasy",
   "version": "1.0", "description": "An original, customizable fantasy d20 toolkit.",
   "publisher": "SubLim3", "license": "Included with Nexus", "experience": "customizable",
+  "category": "Fantasy Game System", "complexity": "Intermediate",
+  "rules_summary": "Original d20 fantasy toolkit with customizable character fields, resources, and controller-ready page bindings.",
+  "options": ["d20 fantasy attributes", "Class-neutral customization", "Health and resource tracking", "Controller page bindings"],
+  "recommended_audio_packs": ["fantasy-battle-mode", "fantasy-tavern", "fantasy-town", "fantasy-travel"],
+  "commerce": { "model": "free_testing", "label": "Free for testing", "future_label": "Try them" },
   "tags": ["fantasy", "d20", "customizable"]
 }

@@ -39,7 +39,8 @@ function packCard(pack) {
   title.textContent = pack.name;
   description.textContent = pack.description || "No audio pack description.";
 
-  for (const [label, value] of [["Version", pack.version], ["Files", pack.file_count], ["Folders", pack.folder_count], ["Installed", pack.installed_file_count ?? 0]]) {
+  const contentType = pack.content_type === "sound_effects" ? "Sound effects" : pack.content_type === "scene_audio" ? "Scene audio" : "Mixed audio";
+  for (const [label, value] of [["Genre", pack.genre ?? "Any"], ["Scene", pack.scene ?? "Mixed"], ["Type", contentType], ["Files", pack.file_count], ["Installed", pack.installed_file_count ?? 0]]) {
     const wrapper = document.createElement("div");
     const term = document.createElement("dt");
     const definition = document.createElement("dd");
@@ -50,7 +51,14 @@ function packCard(pack) {
   }
 
   meta.className = "pack-meta";
-  for (const value of [pack.kind === "game_audio" ? "Game audio" : "Audio pack", pack.availability, ...(pack.tags ?? []).slice(0, 2)]) {
+  for (const value of [
+    pack.kind === "game_audio" ? "Game audio" : "Audio pack",
+    contentType,
+    pack.commerce?.label ?? pack.availability,
+    pack.library_folder ? `Installs to ${pack.library_folder}` : null,
+    ...(pack.mood ?? []).slice(0, 2),
+    ...(pack.recommended_for ?? []).slice(0, 1),
+  ]) {
     if (!value) continue;
     const chip = document.createElement("span");
     chip.textContent = value;

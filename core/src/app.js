@@ -312,6 +312,12 @@ export function createApp({
         return sendJson(response, 200, { data: await audio.files.move(decodeURIComponent(audioFile[1]), input?.folder_path) });
       }
 
+      const deleteAudioFile = audio?.files && request.method === "DELETE" ? url.pathname.match(/^\/api\/v1\/audio\/files\/([^/]+)$/) : null;
+      if (deleteAudioFile) {
+        if (access) await access.authorize(request, { roles: ["admin", "gm"] });
+        return sendJson(response, 200, { data: await audio.files.delete(decodeURIComponent(deleteAudioFile[1])) });
+      }
+
       if (audio && request.method === "POST" && url.pathname.startsWith(`${API_PREFIX}/audio/`)) {
         if (access) await access.authorize(request, { roles: ["admin", "gm"] });
         const input = await readJson(request);

@@ -1,5 +1,6 @@
 node_modules/
 .env
+.tmp/
 coverage/
 core/data/campaigns/*.json
 !core/data/campaigns/.gitkeep

@@ -479,6 +479,17 @@ Audio packs can be small and scene-focused. For example, separate packs such as
 groups like `Expansion Audio/Fantasy/...` or `Expansion Audio/Horror/...` by
 setting `library_folder` in their manifests.
 
+Sound-effect packs use the same audio-pack installer. Packs such as
+`dungeon-sfx`, `cave-sfx`, `sea-sfx`, `forest-sfx`, `battle-sfx`, and
+`magic-sfx` place their audio under `files/SFX/`, which imports those files as
+one-shot effects instead of looping ambience. Installed expansion effects appear
+in the Media page's installed-pack tree and can also be assigned to RFID cards.
+
+Current expansion audio packs are free for testing. Their manifests use a
+forward-compatible `commerce` block with `model: "free_testing"`,
+`label: "Free for testing"`, and `future_label: "Try them"` so paid packs can be
+introduced later without changing the install flow.
+
 The command-line importer remains available for maintenance:
 
 ```bash

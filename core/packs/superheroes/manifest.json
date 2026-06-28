@@ -2,5 +2,10 @@
   "pack_id": "superheroes", "system_id": "superheroes", "name": "Superhero Adventures",
   "version": "1.0", "description": "An original customizable toolkit for heroes, teams, and comic-book action.",
   "publisher": "SubLim3", "license": "Included with Nexus", "experience": "customizable",
+  "category": "Cinematic Game System", "complexity": "Intermediate",
+  "rules_summary": "Comic-book action toolkit for heroes, teams, powers, conditions, and cinematic table moments.",
+  "options": ["Power-focused fields", "Team-friendly resources", "Cinematic conditions", "Hero roster support"],
+  "recommended_audio_packs": ["fantasy-battle-mode", "horror-chase"],
+  "commerce": { "model": "free_testing", "label": "Free for testing", "future_label": "Try them" },
   "tags": ["superhero", "cinematic", "teams"]
 }

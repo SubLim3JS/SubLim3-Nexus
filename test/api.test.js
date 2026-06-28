@@ -35,7 +35,20 @@ before(async () => {
   await writeFile(path.join(temporaryDirectory, "not-on-usb.mp3"), Buffer.from("outside"));
   audioPackSourceDirectory = path.join(temporaryDirectory, "expansion-source");
   await mkdir(path.join(audioPackSourceDirectory, "audio-packs", "fantasy-battle-mode", "files", "Battle Mode"), { recursive: true });
-  await writeFile(path.join(audioPackSourceDirectory, "audio-packs", "fantasy-battle-mode", "manifest.json"), JSON.stringify({ name: "Fantasy: Battle Mode", version: "1.0", description: "Fantasy combat audio.", library_folder: "Fantasy", tags: ["Fantasy", "Battle"] }));
+  await writeFile(path.join(audioPackSourceDirectory, "audio-packs", "fantasy-battle-mode", "manifest.json"), JSON.stringify({
+    name: "Fantasy: Battle Mode",
+    version: "1.0",
+    description: "Fantasy combat audio.",
+    library_folder: "Fantasy",
+    content_type: "scene_audio",
+    genre: "Fantasy",
+    scene: "Battle Mode",
+    mood: ["urgent", "heroic"],
+    recommended_for: ["Fantasy combat"],
+    sample_track: "Battle Mode/battle-drums.mp3",
+    commerce: { model: "free_testing", label: "Free for testing", future_label: "Try them" },
+    tags: ["Fantasy", "Battle"],
+  }));
   await writeFile(path.join(audioPackSourceDirectory, "audio-packs", "fantasy-battle-mode", "files", "Battle Mode", "cover.jpg"), Buffer.from("cover"));
   await writeFile(path.join(audioPackSourceDirectory, "audio-packs", "fantasy-battle-mode", "files", "Battle Mode", "battle-drums.mp3"), Buffer.from("ID3battle"));
   const audioFiles = new AudioFileService({ rootDirectory: path.join(temporaryDirectory, "audio", "files"), libraryStore: audioLibraryStore, usbRoots: [usbRoot] });
@@ -182,7 +195,7 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, /id="update-progress-panel"/);
   assert.match(page, /id="update-progress-stage"/);
   assert.match(page, /Do not leave this page/);
-  assert.match(page, /id="test-update-tone"/);
+  assert.doesNotMatch(page, /id="test-update-tone"/);
   assert.match(page, /Playback defaults/);
   assert.match(page, /Card behavior/);
   assert.match(page, /Network tools/);
@@ -201,7 +214,7 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /showUpdateProgress\("Restarting Nexus Core/);
   assert.match(script, /api\("\/api\/v1\/system\/tone"/);
   assert.match(script, /playUpdateCue\("success"\)/);
-  assert.match(script, /test-update-tone/);
+  assert.doesNotMatch(script, /test-update-tone/);
   assert.match(script, /connectivity\/tools\/ping/);
 });
 
@@ -254,6 +267,9 @@ test("serves the offline media player demo", async () => {
   assert.match(page, /Queue folder/);
   assert.match(page, /Installed packs/);
   assert.match(page, /id="expansion-audio-tree"/);
+  for (const sound of ["Thunder", "Ancient Door", "Blade Clash", "Arcane Pulse", "Dice Roll", "Footsteps", "Trap Click", "Healing Chime"]) {
+    assert.match(page, new RegExp(sound));
+  }
   assert.doesNotMatch(page, /Assign a card/);
   assert.doesNotMatch(page, /Create folder/);
   assert.match(page, /Local · USB · Live/);
@@ -266,6 +282,8 @@ test("serves the offline media player demo", async () => {
   assert.match(mediaScript, /album-art-image/);
   assert.match(mediaScript, /renderExpansionAudioTree/);
   assert.match(mediaScript, /queueSingleTrack/);
+  assert.match(mediaScript, /countTreeAmbience/);
+  assert.match(mediaScript, /track\.kind === "effect"/);
   assert.match(mediaScript, /buildFolderTree/);
   assert.match(mediaScript, /is now the scene queue/);
   const mediaStyles = await fetch(`${baseUrl}/assets/media.css`).then((styleResponse) => styleResponse.text());
@@ -331,6 +349,10 @@ test("serves separate RFID and media library management pages", async () => {
   const rfidScript = await fetch(`${baseUrl}/assets/rfid.js`).then((response) => response.text());
   assert.match(rfidScript, /applyLatestScanToForm\(scan\)/);
   assert.match(rfidScript, /Latest scan loaded/);
+  const libraryScript = await fetch(`${baseUrl}/assets/library.js`).then((response) => response.text());
+  assert.match(libraryScript, /No managed audio files yet/);
+  assert.match(libraryScript, /Delete/);
+  assert.match(libraryScript, /method:"DELETE"/);
 });
 
 test("serves the GM campaign invitation surface", async () => {
@@ -369,7 +391,7 @@ test("serves the Player Controllers management page", async () => {
 test("manages the persistent audio library and playback state", async () => {
   const library = await fetch(`${baseUrl}/api/v1/audio/library`).then((response) => response.json());
   assert.equal(library.data.filter((item) => item.kind === "ambience").length, 4);
-  assert.equal(library.data.filter((item) => item.kind === "effect").length, 6);
+  assert.equal(library.data.filter((item) => item.kind === "effect").length, 10);
   assert.equal(library.data.find((item) => item.item_id === "radio-iheart-2157").source.stream_url, "https://stream.revma.ihrhls.com/zc2157");
 
   const played = await fetch(`${baseUrl}/api/v1/audio/play`, {
@@ -390,6 +412,9 @@ test("manages the persistent audio library and playback state", async () => {
   const effect = await fetch(`${baseUrl}/api/v1/audio/effects/thunder/trigger`, { method: "POST" }).then((response) => response.json());
   assert.equal(effect.data.last_effect.item_id, "thunder");
   assert.ok(effect.data.last_effect.event_id);
+  const newEffect = await fetch(`${baseUrl}/api/v1/audio/effects/healing-chime/trigger`, { method: "POST" }).then((response) => response.json());
+  assert.equal(newEffect.data.last_effect.item_id, "healing-chime");
+  assert.ok(newEffect.data.last_effect.event_id);
 
   const paused = await fetch(`${baseUrl}/api/v1/audio/pause`, { method: "POST" }).then((response) => response.json());
   assert.equal(paused.data.state, "paused");
@@ -421,6 +446,27 @@ test("manages the persistent audio library and playback state", async () => {
     body: JSON.stringify({ name: "Unsafe", url: "file:///etc/passwd" }),
   });
   assert.equal(unsafeRadio.status, 422);
+});
+
+test("uploads and deletes individual managed audio files", async () => {
+  const uploaded = await fetch(`${baseUrl}/api/v1/audio/files/upload?filename=delete-me.mp3&folder=Cleanup&kind=ambience`, {
+    method: "POST",
+    headers: { "content-type": "audio/mpeg" },
+    body: Buffer.from("ID3delete-me"),
+  }).then((response) => response.json());
+  assert.equal(uploaded.data.name, "delete me");
+  assert.equal(uploaded.data.folder_path, "Cleanup");
+
+  const content = await fetch(`${baseUrl}/api/v1/audio/files/${encodeURIComponent(uploaded.data.item_id)}/content`);
+  assert.equal(content.status, 200);
+
+  const deleted = await fetch(`${baseUrl}/api/v1/audio/files/${encodeURIComponent(uploaded.data.item_id)}`, { method: "DELETE" }).then((response) => response.json());
+  assert.equal(deleted.data.item_id, uploaded.data.item_id);
+
+  const missingContent = await fetch(`${baseUrl}/api/v1/audio/files/${encodeURIComponent(uploaded.data.item_id)}/content`);
+  assert.equal(missingContent.status, 404);
+  const library = await fetch(`${baseUrl}/api/v1/audio/library`).then((response) => response.json());
+  assert.equal(library.data.some((item) => item.item_id === uploaded.data.item_id), false);
 });
 
 test("binds RFID cards to audio actions and records scans", async () => {
@@ -665,6 +711,12 @@ test("manages expansion audio packs like installable packs", async () => {
   const catalog = await fetch(`${baseUrl}/api/v1/audio-packs`).then((response) => response.json());
   assert.equal(catalog.data.length, 1);
   assert.equal(catalog.data[0].pack_id, "fantasy-battle-mode");
+  assert.equal(catalog.data[0].genre, "Fantasy");
+  assert.equal(catalog.data[0].scene, "Battle Mode");
+  assert.equal(catalog.data[0].content_type, "scene_audio");
+  assert.equal(catalog.data[0].commerce.label, "Free for testing");
+  assert.equal(catalog.data[0].commerce.future_label, "Try them");
+  assert.equal(catalog.data[0].sample_track, "Battle Mode/battle-drums.mp3");
   assert.equal(catalog.data[0].installed, false);
   assert.equal(catalog.data[0].file_count, 1);
   assert.equal((await fetch(`${baseUrl}/api/v1/audio-packs/missing/install`, { method: "POST" })).status, 404);

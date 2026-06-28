@@ -27,7 +27,9 @@ export function renderSynthesisWave(item) {
     let sample = 0;
     for (const frequency of frequencies) {
       const phase = time * frequency;
-      sample += synthesis.wave === "sawtooth" ? 2 * (phase - Math.floor(phase + 0.5)) : Math.sin(phase * Math.PI * 2);
+      if (synthesis.wave === "sawtooth") sample += 2 * (phase - Math.floor(phase + 0.5));
+      else if (synthesis.wave === "square") sample += Math.sin(phase * Math.PI * 2) >= 0 ? 1 : -1;
+      else sample += Math.sin(phase * Math.PI * 2);
     }
     sample = sample / Math.max(1, frequencies.length) * 0.28;
     noiseState = (noiseState * 1664525 + 1013904223) >>> 0;

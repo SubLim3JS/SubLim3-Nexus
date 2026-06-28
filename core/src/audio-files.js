@@ -265,6 +265,25 @@ export class AudioFileService {
     return updated;
   }
 
+  async delete(itemId) {
+    const item = await this.libraryStore.get(itemId);
+    if (!item || item.source?.type !== "file") throw mediaError("Audio file not found", 404);
+    if (item.source.relative_path) await rm(this.managedPath(item.source.relative_path), { force: true });
+    if (item.artwork?.relative_path) await rm(this.managedPath(item.artwork.relative_path), { force: true });
+    await this.libraryStore.delete(item.item_id);
+    if (item.folder_path) await this.pruneEmptyManagedFolders(item.folder_path);
+    return item;
+  }
+
+  async pruneEmptyManagedFolders(folderPath) {
+    let current = this.managedPath(normalizeAudioFolder(folderPath));
+    while (within(this.rootDirectory, current) && current !== this.rootDirectory) {
+      try { await rmdir(current); }
+      catch { break; }
+      current = path.dirname(current);
+    }
+  }
+
   async open(itemId) {
     const item = await this.libraryStore.get(itemId);
     if (!item || item.source?.type !== "file") throw mediaError("Audio file not found", 404);
