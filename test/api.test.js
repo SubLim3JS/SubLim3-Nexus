@@ -16,6 +16,7 @@ let baseUrl;
 let server;
 let temporaryDirectory;
 let audioPackSourceDirectory;
+const testExpansionDirectory = path.resolve("test", "fixtures", "expansion-repo");
 const connectivityActions = [];
 const systemActions = [];
 
@@ -61,7 +62,7 @@ before(async () => {
     settings: () => playerSettings.get(),
   });
   await rfid.initialize();
-  const expansionPacks = await loadBundledExpansionPacks();
+  const expansionPacks = await loadBundledExpansionPacks({ expansionDirectory: testExpansionDirectory });
   for (const { system, preinstalled } of expansionPacks) if (preinstalled) await systemStore.put(system.system_id, system);
   server = createServer(createApp({
     campaignStore: store,
@@ -238,10 +239,10 @@ test("serves Android app update downloads", async () => {
   const metadata = await fetch(`${baseUrl}/downloads/android-apps.json`);
   assert.equal(metadata.status, 200);
   const catalog = await metadata.json();
-  assert.equal(catalog.apps.owner.versionName, "0.1.2");
-  assert.equal(catalog.apps.owner.versionCode, 3);
-  assert.equal(catalog.apps.player.versionName, "0.1.1");
-  assert.equal(catalog.apps.player.versionCode, 2);
+  assert.equal(catalog.apps.owner.versionName, "0.1.3");
+  assert.equal(catalog.apps.owner.versionCode, 4);
+  assert.equal(catalog.apps.player.versionName, "0.1.2");
+  assert.equal(catalog.apps.player.versionCode, 3);
 
   for (const file of ["SubLim3_Nexus_Owner.apk", "SubLim3_Nexus_Player.apk"]) {
     const response = await fetch(`${baseUrl}/downloads/${file}`);

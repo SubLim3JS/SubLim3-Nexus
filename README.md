@@ -89,8 +89,9 @@ device enrollment is introduced.
 Version 1.2 adds the first template contract. Installed game systems define typed
 character fields, resources, condition vocabularies, companion pages, and actions.
 Campaigns bind to one installed system; new characters receive its defaults and
-record the template version that shaped them. Custom RPG and D&D 5e ship as the
-first built-in templates, while the Admin dashboard exposes the installed library.
+record the template version that shaped them. Custom RPG ships as the built-in
+starter template, while optional systems such as D&D 5e install from the
+expansion repository.
 
 Version 1.3 adds reusable success/failure trackers and uses the first one for D&D
 5e death saves. At zero HP, the GM can record successes, failures, natural 1s,
@@ -102,7 +103,7 @@ when Nexus Core starts.
 Version 1.4 introduces the expansion-pack catalog. A fresh Nexus starts with only
 Custom RPG enabled: eight editable Warrior, Rogue, Mage, and Healer presets across
 male and female presentations. D&D 5e and six original advanced packs remain
-optional until an Admin installs them from the local catalog. Installed packs use
+optional until an Admin installs them from the expansion repository catalog. Installed packs use
 a dynamic editor generated from their fields and resources. Pack manifests already
 carry availability and licensing metadata; every current optional pack is free.
 
@@ -465,6 +466,12 @@ POST /api/v1/audio/radio/play
 POST /api/v1/audio/import
 ```
 
+Core ships the Custom RPG pack so a fresh Nexus always has a default table
+system with the SubLim3 quick-start presets. Optional game systems should live
+in the separate `SubLim3-Nexus-Expansions` repository under
+`packs/<pack_id>/`; `/game-packs/` reads that repository cache and installs
+those systems on demand.
+
 Optional audio should live in the separate
 `SubLim3-Nexus-Expansions` repository and be installed into the managed Nexus
 audio library without checking large media files into this core repo. Owners can
@@ -785,7 +792,7 @@ sublim3-nexus/
 ### Phase 3 - RPG Template System
 
 * Game system and character-sheet template contract complete
-* Built-in Custom RPG and D&D 5e templates complete
+* Built-in Custom RPG template complete; optional game templates live in the expansion repository
 * Template-defined success/failure trackers and D&D death saves complete
 * Add custom template editor
 * Expand system-specific condition and action tooling

@@ -1,9 +1,9 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeGameSystem, validateGameSystem } from "./game-system.js";
 
-const DEFAULT_PACK_DIRECTORY = fileURLToPath(new URL("../packs", import.meta.url));
+const DEFAULT_CORE_PACK_DIRECTORY = fileURLToPath(new URL("../packs", import.meta.url));
 const SAFE_ID = /^[a-z0-9]+(?:[a-z0-9_-]*[a-z0-9])?$/;
 
 function text(value, fallback = "", maximum = 120) {
@@ -49,10 +49,22 @@ function normalizeManifest(input, directoryName) {
   };
 }
 
-export async function loadBundledExpansionPacks(directory = DEFAULT_PACK_DIRECTORY) {
+async function pathExists(target) {
+  try {
+    await stat(target);
+    return true;
+  } catch (error) {
+    if (error.code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+async function loadPackDirectory(directory, { include = () => true } = {}) {
+  if (!directory || !(await pathExists(directory))) return [];
   const entries = await readdir(directory, { withFileTypes: true });
   const packs = [];
   for (const entry of entries.filter((item) => item.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) {
+    if (!include(entry.name)) continue;
     const packDirectory = path.join(directory, entry.name);
     const [manifestInput, systemInput] = await Promise.all([
       readFile(path.join(packDirectory, "manifest.json"), "utf8").then(JSON.parse),
@@ -67,6 +79,26 @@ export async function loadBundledExpansionPacks(directory = DEFAULT_PACK_DIRECTO
     const packSummary = { ...manifest };
     packs.push({ ...packSummary, system: { ...normalized, built_in: true, pack: packSummary } });
   }
+  return packs;
+}
+
+function normalizeOptions(input) {
+  if (typeof input === "string") return { coreDirectory: input };
+  return input && typeof input === "object" ? input : {};
+}
+
+export async function loadBundledExpansionPacks(options = {}) {
+  const {
+    coreDirectory = DEFAULT_CORE_PACK_DIRECTORY,
+    expansionDirectory = null,
+  } = normalizeOptions(options);
+  const externalPackDirectory = expansionDirectory
+    ? path.basename(expansionDirectory) === "packs" ? expansionDirectory : path.join(expansionDirectory, "packs")
+    : null;
+  const packs = [
+    ...await loadPackDirectory(coreDirectory, { include: (packId) => packId === "custom" }),
+    ...await loadPackDirectory(externalPackDirectory, { include: (packId) => packId !== "custom" }),
+  ];
   const systemIds = new Set();
   for (const pack of packs) {
     if (systemIds.has(pack.system_id)) throw new Error(`Multiple expansion packs provide ${pack.system_id}`);

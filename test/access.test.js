@@ -17,6 +17,7 @@ let server;
 let temporaryDirectory;
 let gmToken;
 let persistedGmPin = "222222";
+const testExpansionDirectory = path.resolve("test", "fixtures", "expansion-repo");
 
 function bearer(token) { return { authorization: `Bearer ${token}` }; }
 async function pair(input) {
@@ -40,7 +41,7 @@ before(async () => {
   const playerSettings = new PlayerSettingsService({ store: new JsonStore(path.join(temporaryDirectory, "settings")) });
   await playerSettings.initialize();
   await audio.initialize();
-  const expansionPacks = await loadBundledExpansionPacks();
+  const expansionPacks = await loadBundledExpansionPacks({ expansionDirectory: testExpansionDirectory });
   for (const { system, preinstalled } of expansionPacks) if (preinstalled) await systemStore.put(system.system_id, system);
   await campaignStore.put("green_realm", { campaign_id: "green_realm", name: "Green Realm", system_id: "custom" });
   await campaignStore.put("red_realm", { campaign_id: "red_realm", name: "Red Realm", system_id: "custom" });

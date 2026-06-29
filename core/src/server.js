@@ -62,7 +62,7 @@ await rfid.initialize();
 const hardware = shouldStartHardware()
   ? new HardwareInputService({ rfid, audio, settings: () => playerSettings.get() })
   : null;
-const expansionPacks = await loadBundledExpansionPacks();
+const expansionPacks = await loadBundledExpansionPacks({ expansionDirectory: expansionSourceDirectory });
 for (const { system, preinstalled } of expansionPacks) {
   const existing = await systemStore.get(system.system_id);
   if ((existing?.built_in && existing.version !== system.version) || (!existing && preinstalled)) await systemStore.put(system.system_id, system);

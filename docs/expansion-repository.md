@@ -14,6 +14,10 @@ SubLim3-Nexus-Expansions/
   catalog.json
 
   packs/
+    d20-fantasy/
+      manifest.json
+      system.json
+
     dnd5e/
       manifest.json
       system.json
@@ -29,6 +33,18 @@ SubLim3-Nexus-Expansions/
         SFX/
           sword-clash.wav
 
+    narrative-adventure/
+      manifest.json
+      system.json
+
+    percentile-horror/
+      manifest.json
+      system.json
+
+    post-apocalyptic/
+      manifest.json
+      system.json
+
     scifi-dice-pool/
       manifest.json
       system.json
@@ -36,6 +52,10 @@ SubLim3-Nexus-Expansions/
         Battle Mode/
         Starship/
         SFX/
+
+    superheroes/
+      manifest.json
+      system.json
 
   audio-packs/
     fantasy-battle-mode/
@@ -68,6 +88,9 @@ SubLim3-Nexus-Expansions/
       files/
         Tension/
 ```
+
+Keep `custom` in Core as the always-available starter system. Optional game
+systems belong under this repository's `packs/` directory.
 
 ## Where to put audio files
 
