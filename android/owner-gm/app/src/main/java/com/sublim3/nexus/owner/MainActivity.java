@@ -9,6 +9,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -87,6 +89,16 @@ public class MainActivity extends AppCompatActivity {
                 pageRefreshProgress.setVisibility(View.GONE);
                 super.onPageFinished(view, url);
             }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                if (request != null && request.isForMainFrame()) {
+                    pageRefreshProgress.setVisibility(View.GONE);
+                    showConnectionHelpPage();
+                    return;
+                }
+                super.onReceivedError(view, request, error);
+            }
         });
 
         WebSettings settings = webView.getSettings();
@@ -121,6 +133,8 @@ public class MainActivity extends AppCompatActivity {
         Button adminButton = findViewById(R.id.adminButton);
         Button gmButton = findViewById(R.id.gmButton);
         Button changeHostButton = findViewById(R.id.changeHostButton);
+        Button setupHelpButton = findViewById(R.id.setupHelpButton);
+        Button helpButton = findViewById(R.id.helpButton);
 
         connectButton.setOnClickListener(v -> {
             String host = normalizeHost(hostInput.getText().toString());
@@ -136,6 +150,8 @@ public class MainActivity extends AppCompatActivity {
         adminButton.setOnClickListener(v -> switchRoute(ROUTE_ADMIN));
         gmButton.setOnClickListener(v -> switchRoute(ROUTE_GM));
         changeHostButton.setOnClickListener(v -> showSetup());
+        setupHelpButton.setOnClickListener(v -> showConnectionHelpDialog(false));
+        helpButton.setOnClickListener(v -> showConnectionHelpDialog(true));
     }
 
     private void configureBackButton() {
@@ -178,6 +194,30 @@ public class MainActivity extends AppCompatActivity {
         pageRefreshProgress.setVisibility(View.VISIBLE);
         Toast.makeText(this, R.string.refreshing, Toast.LENGTH_SHORT).show();
         webView.reload();
+    }
+
+    private void showConnectionHelpPage() {
+        String html = "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+            + "<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0f121c;color:#f8fafc;font-family:system-ui,-apple-system,Segoe UI,sans-serif;text-align:center;padding:28px;box-sizing:border-box}"
+            + ".card{max-width:420px;border:1px solid rgba(148,163,184,.28);border-radius:22px;background:linear-gradient(145deg,rgba(24,28,42,.96),rgba(15,18,28,.96));padding:28px;box-shadow:0 24px 70px rgba(0,0,0,.35)}"
+            + "h1{font-size:28px;line-height:1.08;margin:0 0 14px}p,ol{color:#aeb3c2;font-size:15px;line-height:1.5;margin:0 0 18px}ol{text-align:left;padding-left:22px}.hint{color:#39ff14;font-weight:700}</style></head>"
+            + "<body><main class=\"card\"><h1>" + getString(R.string.connection_error_title) + "</h1>"
+            + "<p>" + getString(R.string.connection_error_help) + "</p>"
+            + "<ol><li>Check that Nexus is powered on.</li><li>Connect to the Nexus WiFi / Wi-Fi Direct network.</li><li>For Local/Recovery WiFi, use http://10.10.10.1:3000.</li><li>For Home WiFi, use the same router network as Nexus.</li></ol>"
+            + "<p class=\"hint\">" + getString(R.string.connection_error_retry) + "</p></main></body></html>";
+        webView.loadDataWithBaseURL(currentHost(), html, "text/html", "UTF-8", null);
+    }
+
+    private void showConnectionHelpDialog(boolean canRetry) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+            .setTitle(R.string.connection_help_title)
+            .setMessage(R.string.connection_help_message)
+            .setNegativeButton(R.string.close, null)
+            .setNeutralButton(R.string.change, (dialog, which) -> showSetup());
+        if (canRetry) {
+            builder.setPositiveButton(R.string.try_again, (dialog, which) -> refreshCurrentPage());
+        }
+        builder.show();
     }
 
     private void switchRoute(String route) {
