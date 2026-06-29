@@ -8,6 +8,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.WindowInsets;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -60,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        configureSystemInsets();
 
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         setupView = findViewById(R.id.setupView);
@@ -80,6 +82,15 @@ public class MainActivity extends AppCompatActivity {
         } else {
             openNexus(savedHost, currentRoute);
         }
+    }
+
+    private void configureSystemInsets() {
+        View root = findViewById(R.id.main);
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            view.setPadding(0, insets.getSystemWindowInsetTop(), 0, insets.getSystemWindowInsetBottom());
+            return insets;
+        });
+        root.requestApplyInsets();
     }
 
     private void configureWebView() {
