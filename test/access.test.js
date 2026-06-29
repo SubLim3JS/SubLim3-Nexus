@@ -96,13 +96,17 @@ test("scopes GM access to one campaign and permits table mutations", async () =>
 
 test("lets Admin view sessions and rotate the GM PIN", async () => {
   const admin = await pair({ role: "admin", pin: "111111", device_name: "Admin laptop" });
+  const duplicateAdmin = await pair({ role: "admin", pin: "111111", device_name: "Admin laptop" });
+  assert.equal(duplicateAdmin.response.status, 201);
   assert.equal((await fetch(`${baseUrl}/api/v1/settings/player`, { headers:bearer(admin.body.token) })).status, 200);
   const pairing = await fetch(`${baseUrl}/api/v1/auth/pairing`, { headers: bearer(admin.body.token) }).then((response) => response.json());
   assert.equal(pairing.data.gm_pin, "222222");
   const sessions = await fetch(`${baseUrl}/api/v1/auth/sessions`, { headers: bearer(admin.body.token) }).then((response) => response.json());
   assert.ok(sessions.data.some((session) => session.device_name === "GM tablet"));
+  assert.deepEqual(sessions.data.filter((session) => session.device_name === "Admin laptop").map((session) => session.session_id), [admin.body.data.session_id]);
   const revokeOthers = await fetch(`${baseUrl}/api/v1/auth/sessions/revoke-others`, { method: "POST", headers: bearer(admin.body.token) }).then((response) => response.json());
   assert.ok(revokeOthers.data.revoked_count >= 1);
+  assert.equal((await fetch(`${baseUrl}/api/v1/auth/me`, { headers: bearer(duplicateAdmin.body.token) })).status, 401);
   assert.equal((await fetch(`${baseUrl}/api/v1/auth/me`, { headers: bearer(admin.body.token) })).status, 200);
   assert.equal((await fetch(`${baseUrl}/api/v1/auth/me`, { headers: bearer(gmToken) })).status, 401);
   const remainingSessions = await fetch(`${baseUrl}/api/v1/auth/sessions`, { headers: bearer(admin.body.token) }).then((response) => response.json());

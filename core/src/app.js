@@ -361,8 +361,7 @@ export function createApp({
       }
 
       if (access && request.method === "GET" && url.pathname === `${API_PREFIX}/auth/sessions`) {
-        await access.authorize(request, { roles: ["admin"] });
-        return sendJson(response, 200, { data: await access.list() });
+        return sendJson(response, 200, { data: await access.visibleSessions(request) });
       }
 
       if (access && request.method === "GET" && url.pathname === `${API_PREFIX}/auth/pairing`) {

@@ -39,6 +39,23 @@ async function request(path, options) {
   return response.status === 204 ? null : response.json();
 }
 
+function devicePlatformName() {
+  const ua = navigator.userAgent || "";
+  const platform = /Android/i.test(ua) ? "Android" : /iPhone|iPad|iPod/i.test(ua) ? "iOS" : /Windows/i.test(ua) ? "Windows" : /Macintosh|Mac OS/i.test(ua) ? "Mac" : /Linux/i.test(ua) ? "Linux" : "Device";
+  const browser = /Edg\//.test(ua) ? "Edge" : /Chrome|CriOS/.test(ua) ? "Chrome" : /Firefox|FxiOS/.test(ua) ? "Firefox" : /Safari/.test(ua) ? "Safari" : "Browser";
+  return `${platform} ${browser}`;
+}
+
+function devicePairingName(role = "Owner") {
+  const key = "nexus-device-instance-id";
+  let instance = localStorage.getItem(key);
+  if (!instance) {
+    instance = Math.random().toString(16).slice(2, 6).toUpperCase();
+    localStorage.setItem(key, instance);
+  }
+  return `${role} · ${devicePlatformName()} · ${instance}`;
+}
+
 async function loadSystemInfo() {
   const info = await request("/api/v1/system/info");
   $("#version").textContent = `v${info.version}`;
@@ -442,6 +459,29 @@ function accessSessionRow(session) {
   return row;
 }
 
+function sessionDedupeKey(session) {
+  return [
+    session.role || "",
+    (session.device_name || "Browser").trim().toLowerCase(),
+    session.campaign_id || "",
+    session.character_id || "",
+  ].join("|");
+}
+
+function dedupeAccessSessions(sessions) {
+  const deduped = new Map();
+  for (const session of sessions) {
+    const key = sessionDedupeKey(session);
+    const existing = deduped.get(key);
+    const sessionIsCurrent = session.session_id === currentAdminSessionId;
+    const existingIsCurrent = existing?.session_id === currentAdminSessionId;
+    const sessionCreated = Date.parse(session.created_at || session.expires_at || 0);
+    const existingCreated = Date.parse(existing?.created_at || existing?.expires_at || 0);
+    if (!existing || sessionIsCurrent || (!existingIsCurrent && sessionCreated > existingCreated)) deduped.set(key, session);
+  }
+  return [...deduped.values()].sort((left, right) => Date.parse(right.created_at || right.expires_at || 0) - Date.parse(left.created_at || left.expires_at || 0));
+}
+
 function renderGmPin() {
   $("#gm-pin-display").textContent = gmPinRevealed ? currentGmPin : "••••••";
   $("#gm-pin-reveal").textContent = gmPinRevealed ? "Hide" : "Reveal";
@@ -449,11 +489,12 @@ function renderGmPin() {
 
 async function loadAccessPanel() {
   const [{ data: pairing }, { data: sessions }] = await Promise.all([request("/api/v1/auth/pairing"), request("/api/v1/auth/sessions")]);
+  const visibleSessions = dedupeAccessSessions(sessions);
   currentGmPin = pairing.gm_pin;
   renderGmPin();
-  $("#session-count").textContent = `${sessions.length} ${sessions.length === 1 ? "session" : "sessions"}`;
+  $("#session-count").textContent = `${visibleSessions.length} ${visibleSessions.length === 1 ? "session" : "sessions"}`;
   const list = $("#access-session-list");
-  if (sessions.length) list.replaceChildren(...sessions.map(accessSessionRow));
+  if (visibleSessions.length) list.replaceChildren(...visibleSessions.map(accessSessionRow));
   else { const empty = document.createElement("p"); empty.className = "access-session-empty"; empty.textContent = "No paired clients."; list.replaceChildren(empty); }
 }
 
@@ -501,7 +542,7 @@ $("#admin-pair-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const message = $("#admin-pair-message");
   try {
-    const response = await fetch("/api/v1/auth/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role: "admin", pin: $("#admin-pin").value, device_name: "System Admin browser" }) });
+    const response = await fetch("/api/v1/auth/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role: "admin", pin: $("#admin-pin").value, device_name: devicePairingName("Owner") }) });
     const body = await response.json();
     if (!response.ok) throw new Error(body.message || body.error || "Pairing failed");
     authToken = body.token;

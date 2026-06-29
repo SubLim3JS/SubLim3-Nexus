@@ -144,6 +144,10 @@ test("serves the dashboard with secure response headers", async () => {
   assert.match(adminScript, /\[401, 403\]\.includes\(error\.status\)/);
   assert.match(adminScript, /some data could not be loaded/);
   assert.match(adminScript, /auth\/sessions\/revoke-others/);
+  assert.match(adminScript, /dedupeAccessSessions/);
+  assert.match(adminScript, /currentAdminSessionId/);
+  assert.match(adminScript, /devicePairingName\("Owner"\)/);
+  assert.doesNotMatch(adminScript, /System Admin browser/);
 });
 
 test("serves the Nexus logo asset", async () => {
@@ -221,6 +225,8 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /connectivity\/tools\/ping/);
   assert.match(script, /\/downloads\/android-apps\.json/);
   assert.match(script, /window\.NexusAndroid\?\.getAppInfo/);
+  assert.match(script, /devicePairingName\("Owner"\)/);
+  assert.doesNotMatch(script, /System Admin settings/);
 });
 
 test("serves Android app update downloads", async () => {
@@ -388,6 +394,8 @@ test("serves the GM campaign invitation surface", async () => {
   const gmScript = await fetch(`${baseUrl}/assets/gm.js`).then((asset) => asset.text());
   assert.match(gmScript, /nexus-admin-token/);
   assert.match(gmScript, /identity\.role/);
+  assert.match(gmScript, /devicePairingName\("GM"\)/);
+  assert.doesNotMatch(gmScript, /GM \/ DM browser/);
   assert.match(gmScript, /function copyText/);
   assert.match(gmScript, /document\.execCommand\("copy"\)/);
   assert.match(gmScript, /Share is unavailable here, so the Player link was copied instead/);
@@ -899,6 +907,8 @@ test("validates character input and serves the player view", async () => {
   assert.match(playerScript, /function adjustHealth/);
   assert.match(playerScript, /resources\/health\/adjust/);
   assert.match(playerScript, /player-health-controls/);
+  assert.match(playerScript, /devicePairingName\("Player"\)/);
+  assert.doesNotMatch(playerScript, /Player browser/);
   assert.match(playerStyles, /\.player-health-controls/);
   assert.equal((await fetch(`${baseUrl}/api/v1/campaigns/character_test`, { method: "DELETE" })).status, 204);
 });

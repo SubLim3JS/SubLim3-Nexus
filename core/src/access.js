@@ -89,6 +89,34 @@ export class AccessService {
     return (await this.sessionStore.list()).filter((session) => Date.parse(session.expires_at) > now);
   }
 
+  sessionDedupeKey(session) {
+    return [
+      session.role || "",
+      String(session.device_name || "Browser").trim().toLowerCase(),
+      session.campaign_id || "",
+      session.character_id || "",
+    ].join("|");
+  }
+
+  dedupeSessions(sessions, currentSession = null) {
+    const deduped = new Map();
+    for (const session of sessions) {
+      const key = this.sessionDedupeKey(session);
+      const existing = deduped.get(key);
+      const sessionIsCurrent = session.session_id === currentSession?.session_id;
+      const existingIsCurrent = existing?.session_id === currentSession?.session_id;
+      const sessionCreated = Date.parse(session.created_at || session.expires_at || 0);
+      const existingCreated = Date.parse(existing?.created_at || existing?.expires_at || 0);
+      if (!existing || sessionIsCurrent || (!existingIsCurrent && sessionCreated > existingCreated)) deduped.set(key, session);
+    }
+    return [...deduped.values()].sort((left, right) => Date.parse(right.created_at || right.expires_at || 0) - Date.parse(left.created_at || left.expires_at || 0));
+  }
+
+  async visibleSessions(request) {
+    const current = await this.authorize(request, { roles: ["admin"] });
+    return this.dedupeSessions(await this.list(), current);
+  }
+
   async revokeById(sessionId) {
     return this.sessionStore.delete(sessionId);
   }

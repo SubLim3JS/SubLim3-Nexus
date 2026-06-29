@@ -10,6 +10,8 @@ function headers(json = false) { return { ...(json ? { "content-type": "applicat
 async function api(path, options = {}) { const response = await fetch(path, options); const body = await response.json().catch(() => ({})); if (!response.ok) { const error=new Error(body.message || body.details?.join(". ") || body.error || "Request failed");error.status=response.status;throw error; } return body; }
 function lockControls(locked) { document.querySelectorAll(".locked-control").forEach((element) => element.classList.toggle("is-locked", locked)); }
 function enablePlayerSettings(enabled) { document.querySelectorAll(".player-settings-panel input,.player-settings-panel select,.player-settings-panel button").forEach((element) => { element.disabled = !enabled; }); }
+function devicePlatformName(){const ua=navigator.userAgent||"";const platform=/Android/i.test(ua)?"Android":/iPhone|iPad|iPod/i.test(ua)?"iOS":/Windows/i.test(ua)?"Windows":/Macintosh|Mac OS/i.test(ua)?"Mac":/Linux/i.test(ua)?"Linux":"Device";const browser=/Edg\//.test(ua)?"Edge":/Chrome|CriOS/.test(ua)?"Chrome":/Firefox|FxiOS/.test(ua)?"Firefox":/Safari/.test(ua)?"Safari":"Browser";return `${platform} ${browser}`;}
+function devicePairingName(role="Owner"){const key="nexus-device-instance-id";let instance=localStorage.getItem(key);if(!instance){instance=Math.random().toString(16).slice(2,6).toUpperCase();localStorage.setItem(key,instance);}return `${role} · ${devicePlatformName()} · ${instance}`;}
 
 function saveUpdateNotice(message, type) { sessionStorage.setItem(UPDATE_NOTICE_KEY, JSON.stringify({ message, type })); }
 function takeUpdateNotice() { try { const notice=JSON.parse(sessionStorage.getItem(UPDATE_NOTICE_KEY));sessionStorage.removeItem(UPDATE_NOTICE_KEY);return notice?.message?notice:null; } catch { sessionStorage.removeItem(UPDATE_NOTICE_KEY);return null; } }
@@ -99,7 +101,7 @@ async function loadSettingsPage() {
 $("#pin-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
-    const response = await fetch("/api/v1/auth/pair", { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({ role:"admin", pin:$("#settings-pin").value.trim(), device_name:"System Admin settings" }) });
+    const response = await fetch("/api/v1/auth/pair", { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({ role:"admin", pin:$("#settings-pin").value.trim(), device_name:devicePairingName("Owner") }) });
     const body = await response.json();
     if (!response.ok) throw new Error(body.message || body.error || "Pairing failed");
     adminToken = body.token; localStorage.setItem("nexus-admin-token", adminToken);

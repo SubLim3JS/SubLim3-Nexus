@@ -15,6 +15,23 @@ async function api(path, options = {}, authenticated = true) {
   return body;
 }
 
+function devicePlatformName() {
+  const ua = navigator.userAgent || "";
+  const platform = /Android/i.test(ua) ? "Android" : /iPhone|iPad|iPod/i.test(ua) ? "iOS" : /Windows/i.test(ua) ? "Windows" : /Macintosh|Mac OS/i.test(ua) ? "Mac" : /Linux/i.test(ua) ? "Linux" : "Device";
+  const browser = /Edg\//.test(ua) ? "Edge" : /Chrome|CriOS/.test(ua) ? "Chrome" : /Firefox|FxiOS/.test(ua) ? "Firefox" : /Safari/.test(ua) ? "Safari" : "Browser";
+  return `${platform} ${browser}`;
+}
+
+function devicePairingName(role = "Player") {
+  const key = "nexus-device-instance-id";
+  let instance = localStorage.getItem(key);
+  if (!instance) {
+    instance = Math.random().toString(16).slice(2, 6).toUpperCase();
+    localStorage.setItem(key, instance);
+  }
+  return `${role} · ${devicePlatformName()} · ${instance}`;
+}
+
 async function adjustHealth(delta) {
   await api(`/api/v1/campaigns/${encodeURIComponent(campaignId)}/characters/${encodeURIComponent(characterId)}/resources/health/adjust`, {
     method: "POST",
@@ -120,7 +137,7 @@ function startLiveUpdates() {
 }
 
 async function pairPlayer() {
-  const body = await api("/api/v1/auth/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role: "player", campaign_id: campaignId, character_id: characterId, device_name: "Player browser" }) }, false);
+  const body = await api("/api/v1/auth/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ role: "player", campaign_id: campaignId, character_id: characterId, device_name: devicePairingName("Player") }) }, false);
   playerToken = body.token; localStorage.setItem("nexus-player-token", playerToken);
   await refresh(); startLiveUpdates();
 }
