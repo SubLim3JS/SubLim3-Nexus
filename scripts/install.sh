@@ -147,9 +147,37 @@ ensure_setting() {
   grep -q "^${key}=" /etc/default/sublim3-nexus || printf '%s=%s\n' "${key}" "${value}" >> /etc/default/sublim3-nexus
 }
 
+quote_setting_value() {
+  local value="${1//\'/\'\\\'\'}"
+  printf "'%s'" "${value}"
+}
+
+set_setting() {
+  local key="$1" value="$2" quoted_value escaped_value
+  quoted_value="$(quote_setting_value "${value}")"
+  escaped_value="${quoted_value//\\/\\\\}"
+  escaped_value="${escaped_value//&/\\&}"
+  escaped_value="${escaped_value//|/\\|}"
+  if grep -q "^${key}=" /etc/default/sublim3-nexus; then
+    sed -i "s|^${key}=.*|${key}=${escaped_value}|" /etc/default/sublim3-nexus
+  else
+    printf '%s=%s\n' "${key}" "${quoted_value}" >> /etc/default/sublim3-nexus
+  fi
+}
+
 replace_setting_if_value() {
   local key="$1" current_value="$2" new_value="$3"
   grep -q "^${key}=${current_value}$" /etc/default/sublim3-nexus && sed -i "s|^${key}=${current_value}$|${key}=${new_value}|" /etc/default/sublim3-nexus
+}
+
+adopt_active_home_connection() {
+  local active_connection active_type
+  active_connection="$(nmcli -g GENERAL.CONNECTION device show "${NEXUS_WIFI_INTERFACE:-wlan0}" 2>/dev/null || true)"
+  [[ -n "${active_connection}" && "${active_connection}" != "--" && "${active_connection}" != "${NEXUS_HOTSPOT_CONNECTION:-sublim3-hotspot}" ]] || return 0
+  active_type="$(nmcli -g connection.type connection show "${active_connection}" 2>/dev/null || true)"
+  [[ "${active_type}" == "802-11-wireless" ]] || return 0
+  set_setting NEXUS_HOME_CONNECTION "${active_connection}"
+  set_setting NEXUS_WIFI_MODE home
 }
 
 settings_pin="101010"
@@ -178,6 +206,7 @@ ensure_setting NEXUS_RFID_RESET_GPIO 25
 ensure_setting NEXUS_RFID_IRQ_GPIO 24
 ensure_setting NEXUS_BUTTON_DOWN_GPIO 15
 ensure_setting NEXUS_BUTTON_UP_GPIO 5
+adopt_active_home_connection
 chown root:"${SERVICE_USER}" /etc/default/sublim3-nexus
 chmod 0640 /etc/default/sublim3-nexus
 

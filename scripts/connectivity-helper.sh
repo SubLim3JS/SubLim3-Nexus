@@ -37,6 +37,30 @@ valid_cidr "${HOTSPOT_ADDRESS}" || { echo "Invalid hotspot IPv4 address." >&2; e
 valid_positive_integer "${HOME_RECONNECT_ATTEMPTS}" || { echo "Invalid home Wi-Fi reconnect attempt count." >&2; exit 2; }
 valid_positive_integer "${HOME_RECONNECT_DELAY_SECONDS}" || { echo "Invalid home Wi-Fi reconnect delay." >&2; exit 2; }
 
+persist_config_permissions() {
+  chown root:nexus "${CONFIG_FILE}"
+  chmod 0640 "${CONFIG_FILE}"
+}
+
+quote_config_value() {
+  local value="${1//\'/\'\\\'\'}"
+  printf "'%s'" "${value}"
+}
+
+set_config_value() {
+  local key="$1" value="$2" quoted_value escaped_value
+  quoted_value="$(quote_config_value "${value}")"
+  escaped_value="${quoted_value//\\/\\\\}"
+  escaped_value="${escaped_value//&/\\&}"
+  escaped_value="${escaped_value//|/\\|}"
+  if grep -q "^${key}=" "${CONFIG_FILE}"; then
+    sed -i "s|^${key}=.*|${key}=${escaped_value}|" "${CONFIG_FILE}"
+  else
+    printf '%s=%s\n' "${key}" "${quoted_value}" >> "${CONFIG_FILE}"
+  fi
+  persist_config_permissions
+}
+
 git_as_repository_owner() {
   local repository_owner
   repository_owner="$(stat -c '%U' "${APP_DIR}")"
@@ -57,9 +81,13 @@ git_as_repository_owner() {
 set_wifi_mode() {
   local mode="$1"
   [[ "${mode}" == "local" || "${mode}" == "home" ]] || exit 2
-  if grep -q '^NEXUS_WIFI_MODE=' "${CONFIG_FILE}"; then sed -i "s/^NEXUS_WIFI_MODE=.*/NEXUS_WIFI_MODE=${mode}/" "${CONFIG_FILE}"; else printf 'NEXUS_WIFI_MODE=%s\n' "${mode}" >> "${CONFIG_FILE}"; fi
-  chown root:nexus "${CONFIG_FILE}"
-  chmod 0640 "${CONFIG_FILE}"
+  set_config_value NEXUS_WIFI_MODE "${mode}"
+}
+
+set_home_connection() {
+  [[ -n "$1" && "$1" != "--" && "$1" != "${HOTSPOT_CONNECTION}" ]] || return 1
+  HOME_CONNECTION="$1"
+  set_config_value NEXUS_HOME_CONNECTION "${HOME_CONNECTION}"
 }
 
 stop_hotspot() {
@@ -122,7 +150,10 @@ ensure_connected() {
     start_hotspot
     exit 0
   fi
-  [[ "${state}" == 100* && "${active_connection}" != "${HOTSPOT_CONNECTION}" ]] && exit 0
+  if [[ "${state}" == 100* && -n "${active_connection}" && "${active_connection}" != "--" && "${active_connection}" != "${HOTSPOT_CONNECTION}" ]]; then
+    [[ "${active_connection}" != "${HOME_CONNECTION}" ]] && set_home_connection "${active_connection}"
+    exit 0
+  fi
   nmcli radio wifi on >/dev/null
   nmcli device set "${WIFI_INTERFACE}" managed yes >/dev/null 2>&1 || true
   nmcli device wifi rescan ifname "${WIFI_INTERFACE}" >/dev/null 2>&1 || true
