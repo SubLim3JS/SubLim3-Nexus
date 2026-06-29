@@ -188,6 +188,10 @@ async function updateSystem() {
 
 $("#update-system").addEventListener("click", () => {
   if (!confirm("Install the latest SubLim3 Nexus version from GitHub? Nexus Core will restart when the update finishes.")) return;
+  if (window.NexusAndroid?.startSystemUpdate) {
+    window.NexusAndroid.startSystemUpdate(adminToken);
+    return;
+  }
   updateSystem();
 });
 

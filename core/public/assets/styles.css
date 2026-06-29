@@ -32,6 +32,7 @@ nav { display: grid; gap: 6px; margin-top: 56px; }
 .nav-item.active { color: white; background: linear-gradient(90deg, rgba(57,255,20,.18), rgba(57,255,20,.04)); border: 1px solid rgba(57,255,20,.2); }
 .nav-item.muted { color: #626878; }
 .nav-icon { width: 20px; text-align: center; font-size: 18px; }
+.nav-icon-pack{position:relative;width:20px;height:20px;display:inline-grid;grid-template-columns:repeat(2,7px);grid-template-rows:repeat(2,7px);gap:2px;place-content:center}.nav-icon-pack::before,.nav-icon-pack::after{content:"";display:block;width:7px;height:7px;border:1px solid currentColor;border-radius:2px;box-shadow:9px 0 0 -1px currentColor,0 9px 0 -1px currentColor,9px 9px 0 -1px currentColor}.nav-icon-pack::after{position:absolute;inset:0;margin:auto;opacity:.28;transform:translate(2px,2px)}
 .nav-item em { margin-left: auto; font-size: 8px; font-style: normal; text-transform: uppercase; letter-spacing: .1em; }
 .nav-divider { display:block; height:1px; margin:7px 12px; background:linear-gradient(90deg,rgba(255,255,255,.16),rgba(255,255,255,.045)); }
 .nav-section-title { display:block; margin:12px 12px 6px; color:#697080; font-size:9px; font-weight:750; text-transform:uppercase; letter-spacing:.14em; }

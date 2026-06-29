@@ -2,7 +2,10 @@ package com.sublim3.nexus.owner;
 
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -13,7 +16,18 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
     private static final String PREFS_NAME = "nexus_owner_prefs";
@@ -29,6 +43,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView activeRouteLabel;
     private SharedPreferences prefs;
     private String currentRoute = ROUTE_ADMIN;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,6 +81,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
 
+        webView.addJavascriptInterface(new NexusAndroidBridge(), "NexusAndroid");
         WebView.setWebContentsDebuggingEnabled(true);
     }
 
@@ -149,5 +166,131 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return "http://" + trimmed;
+    }
+
+    private String currentHost() {
+        String host = prefs.getString(PREF_NEXUS_HOST, "");
+        return host == null || host.isBlank() ? DEFAULT_NEXUS_HOST : host;
+    }
+
+    private void startNativeSystemUpdate(String token) {
+        mainHandler.post(() -> {
+            TextView statusView = new TextView(this);
+            int padding = Math.round(24 * getResources().getDisplayMetrics().density);
+            statusView.setPadding(padding, padding / 2, padding, 0);
+            statusView.setText(R.string.update_native_starting);
+
+            AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.update_native_title)
+                .setView(statusView)
+                .setNegativeButton(R.string.close, null)
+                .create();
+            dialog.setOnShowListener(listener -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false));
+            dialog.show();
+
+            executor.execute(() -> runSystemUpdate(token == null ? "" : token, statusView, dialog));
+        });
+    }
+
+    private void runSystemUpdate(String token, TextView statusView, AlertDialog dialog) {
+        long startedAt = System.currentTimeMillis();
+        boolean requestStarted = false;
+        try {
+            postStatus(statusView, getString(R.string.update_native_downloading));
+            postJson("/api/v1/system/update", token);
+            requestStarted = true;
+        } catch (IOException error) {
+            requestStarted = true;
+        } catch (Exception error) {
+            finishNativeUpdate(statusView, dialog, getString(R.string.update_native_failed, error.getMessage()), true);
+            return;
+        }
+
+        postStatus(statusView, getString(requestStarted ? R.string.update_native_reconnecting : R.string.update_native_waiting));
+        try {
+            String status = waitForCore(startedAt + 120_000);
+            finishNativeUpdate(statusView, dialog, getString(R.string.update_native_complete, status), false);
+            mainHandler.post(() -> webView.reload());
+        } catch (Exception error) {
+            finishNativeUpdate(statusView, dialog, getString(R.string.update_native_unknown, error.getMessage()), true);
+        }
+    }
+
+    private void postJson(String path, String token) throws IOException {
+        HttpURLConnection connection = openConnection(path, token);
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setDoOutput(true);
+        connection.getOutputStream().write("{}".getBytes(StandardCharsets.UTF_8));
+        int code = connection.getResponseCode();
+        if (code < 200 || code >= 300) {
+            throw new IllegalStateException(readBody(connection.getErrorStream()));
+        }
+    }
+
+    private String waitForCore(long deadlineMs) throws Exception {
+        Exception lastError = null;
+        while (System.currentTimeMillis() < deadlineMs) {
+            try {
+                HttpURLConnection connection = openConnection("/api/v1/system/status", "");
+                connection.setRequestMethod("GET");
+                if (connection.getResponseCode() >= 200 && connection.getResponseCode() < 300) {
+                    return readBody(connection.getInputStream());
+                }
+            } catch (Exception error) {
+                lastError = error;
+            }
+            Thread.sleep(1_000);
+        }
+        throw lastError == null ? new IOException("Nexus Core did not return before the timeout.") : lastError;
+    }
+
+    private HttpURLConnection openConnection(String path, String token) throws IOException {
+        URL url = new URL(currentHost() + path);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setConnectTimeout(4_000);
+        connection.setReadTimeout(20_000);
+        connection.setRequestProperty("Accept", "application/json");
+        if (token != null && !token.isBlank()) {
+            connection.setRequestProperty("Authorization", "Bearer " + token);
+        }
+        return connection;
+    }
+
+    private String readBody(InputStream stream) throws IOException {
+        if (stream == null) return "";
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+            StringBuilder body = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                body.append(line);
+            }
+            return body.toString();
+        }
+    }
+
+    private void postStatus(TextView statusView, String message) {
+        mainHandler.post(() -> statusView.setText(message));
+    }
+
+    private void finishNativeUpdate(TextView statusView, AlertDialog dialog, String message, boolean failed) {
+        mainHandler.post(() -> {
+            statusView.setText(message);
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(true);
+            Toast.makeText(this, failed ? R.string.update_native_failed_toast : R.string.update_native_complete_toast, Toast.LENGTH_LONG).show();
+        });
+    }
+
+    @Override
+    protected void onDestroy() {
+        executor.shutdownNow();
+        super.onDestroy();
+    }
+
+    private class NexusAndroidBridge {
+        @JavascriptInterface
+        public void startSystemUpdate(String token) {
+            MainActivity.this.startNativeSystemUpdate(token);
+        }
     }
 }

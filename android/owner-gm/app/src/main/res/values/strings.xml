@@ -9,6 +9,17 @@
     <string name="admin">Admin</string>
     <string name="gm">GM</string>
     <string name="change">Change</string>
+    <string name="close">Close</string>
     <string name="route_admin">Owner Console</string>
     <string name="route_gm">GM Workspace</string>
+    <string name="update_native_title">Nexus Maintenance</string>
+    <string name="update_native_starting">Preparing the Nexus Core update.</string>
+    <string name="update_native_downloading">Downloading and installing the latest Nexus release. Keep this app open.</string>
+    <string name="update_native_reconnecting">The update request was sent. Waiting for Nexus Core to restart.</string>
+    <string name="update_native_waiting">Waiting for Nexus Core to return.</string>
+    <string name="update_native_complete">Nexus Core is back online.\n\n%1$s</string>
+    <string name="update_native_failed">Update failed:\n\n%1$s</string>
+    <string name="update_native_unknown">The update may have completed, but Nexus Core did not return before timeout:\n\n%1$s</string>
+    <string name="update_native_complete_toast">Nexus Core update complete.</string>
+    <string name="update_native_failed_toast">Nexus Core update needs attention.</string>
 </resources>
