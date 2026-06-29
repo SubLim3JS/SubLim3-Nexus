@@ -191,6 +191,9 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, /Player App QR/);
   assert.match(page, /\/assets\/player-app-qr\.png/);
   assert.match(page, /QR code for the SubLim3 Nexus Player app/);
+  assert.match(page, /App updates/);
+  assert.match(page, /\/downloads\/SubLim3_Nexus_Owner\.apk/);
+  assert.match(page, /\/downloads\/SubLim3_Nexus_Player\.apk/);
   assert.match(page, />Update<\/button>[\s\S]*>Reboot<\/button>[\s\S]*>Shut Down<\/button>/);
   assert.match(page, /id="update-progress-panel"/);
   assert.match(page, /id="update-progress-stage"/);
@@ -216,6 +219,25 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /playUpdateCue\("success"\)/);
   assert.doesNotMatch(script, /test-update-tone/);
   assert.match(script, /connectivity\/tools\/ping/);
+  assert.match(script, /\/downloads\/android-apps\.json/);
+  assert.match(script, /window\.NexusAndroid\?\.getAppInfo/);
+});
+
+test("serves Android app update downloads", async () => {
+  const metadata = await fetch(`${baseUrl}/downloads/android-apps.json`);
+  assert.equal(metadata.status, 200);
+  const catalog = await metadata.json();
+  assert.equal(catalog.apps.owner.versionName, "0.1.1");
+  assert.equal(catalog.apps.owner.versionCode, 2);
+  assert.equal(catalog.apps.player.versionName, "0.1.1");
+  assert.equal(catalog.apps.player.versionCode, 2);
+
+  for (const file of ["SubLim3_Nexus_Owner.apk", "SubLim3_Nexus_Player.apk"]) {
+    const response = await fetch(`${baseUrl}/downloads/${file}`);
+    assert.equal(response.status, 200);
+    assert.ok(Number(response.headers.get("content-length")) > 1_000_000);
+    assert.match(response.headers.get("content-type"), /android\.package-archive/);
+  }
 });
 
 test("protects and persists player settings", async () => {

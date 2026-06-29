@@ -71,6 +71,25 @@ function renderPlayerSettings(settings) {
   $("#function-cards-bypass").checked = settings.function_cards_bypass_delay;
 }
 async function loadPlayerSettings() { const { data } = await api("/api/v1/settings/player", { headers:headers() }); renderPlayerSettings(data); }
+async function loadAppUpdateInfo() {
+  const panel = $("#app-update-status");
+  if (!panel) return;
+  try {
+    const response = await fetch("/downloads/android-apps.json", { cache:"no-store" });
+    if (!response.ok) throw new Error("App download metadata is not available yet.");
+    const catalog = await response.json();
+    const owner = catalog.apps?.owner;
+    const player = catalog.apps?.player;
+    let current = null;
+    if (window.NexusAndroid?.getAppInfo) current = JSON.parse(window.NexusAndroid.getAppInfo());
+    const ownerLine = owner ? `Owner/GM latest: <strong>v${owner.versionName}</strong>` : "Owner/GM APK unavailable";
+    const playerLine = player ? `Player latest: <strong>v${player.versionName}</strong>` : "Player APK unavailable";
+    const currentLine = current ? `Installed app shell: <strong>v${current.versionName}</strong>${owner && current.versionCode < owner.versionCode ? " — update available." : " — current."}` : "Open this page inside the Owner/GM app to compare the installed app shell version.";
+    panel.innerHTML = `${currentLine}<br>${ownerLine}<br>${playerLine}`;
+  } catch (error) {
+    panel.textContent = error.message;
+  }
+}
 async function loadSettingsPage() {
   await loadStatus();
   try { await loadPlayerSettings(); enablePlayerSettings(true); return true; }
@@ -208,6 +227,7 @@ $("#shutdown-system").addEventListener("click", () => {
 const updateNotice=takeUpdateNotice();
 history.scrollRestoration="manual";
 lockControls(!adminToken);
+loadAppUpdateInfo();
 const initialization=adminToken
   ? loadSettingsPage().then((playerSettingsAvailable) => { lockControls(false);if(!playerSettingsAvailable)alertMessage("Settings unlocked. Restart Nexus Core to enable the new player settings."); }).catch((error) => { if([401,403].includes(error.status)){adminToken="";localStorage.removeItem("nexus-admin-token");alertMessage("Owner access has expired. Use the recovery PIN to reconnect this browser.");}else alertMessage(`Settings are temporarily unavailable: ${error.message}`,"error");lockControls(true); })
   : Promise.resolve(alertMessage("Use the recovery PIN to connect this browser as Owner."));

@@ -289,6 +289,16 @@ public class MainActivity extends AppCompatActivity {
 
     private class NexusAndroidBridge {
         @JavascriptInterface
+        public String getAppInfo() {
+            try {
+                android.content.pm.PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+                return "{\"name\":\"SubLim3 Nexus Owner\",\"packageName\":\"" + getPackageName() + "\",\"versionName\":\"" + info.versionName + "\",\"versionCode\":" + info.versionCode + "}";
+            } catch (Exception error) {
+                return "{\"name\":\"SubLim3 Nexus Owner\",\"packageName\":\"" + getPackageName() + "\",\"versionName\":\"unknown\",\"versionCode\":0}";
+            }
+        }
+
+        @JavascriptInterface
         public void startSystemUpdate(String token) {
             MainActivity.this.startNativeSystemUpdate(token);
         }
