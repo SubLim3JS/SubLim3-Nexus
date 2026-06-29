@@ -1,3 +1,5 @@
+import { qrSvg } from "/assets/qr.js";
+
 const $ = (selector) => document.querySelector(selector);
 let adminToken = localStorage.getItem("nexus-admin-token") ?? "";
 const UPDATE_NOTICE_KEY = "nexus-update-notice";
@@ -12,6 +14,13 @@ function lockControls(locked) { document.querySelectorAll(".locked-control").for
 function enablePlayerSettings(enabled) { document.querySelectorAll(".player-settings-panel input,.player-settings-panel select,.player-settings-panel button").forEach((element) => { element.disabled = !enabled; }); }
 function devicePlatformName(){const ua=navigator.userAgent||"";const platform=/Android/i.test(ua)?"Android":/iPhone|iPad|iPod/i.test(ua)?"iOS":/Windows/i.test(ua)?"Windows":/Macintosh|Mac OS/i.test(ua)?"Mac":/Linux/i.test(ua)?"Linux":"Device";const browser=/Edg\//.test(ua)?"Edge":/Chrome|CriOS/.test(ua)?"Chrome":/Firefox|FxiOS/.test(ua)?"Firefox":/Safari/.test(ua)?"Safari":"Browser";return `${platform} ${browser}`;}
 function devicePairingName(role="Owner"){const key="nexus-device-instance-id";let instance=localStorage.getItem(key);if(!instance){instance=Math.random().toString(16).slice(2,6).toUpperCase();localStorage.setItem(key,instance);}return `${role} · ${devicePlatformName()} · ${instance}`;}
+function absoluteDownloadUrl(path) { return new URL(path, window.location.origin).toString(); }
+function renderAppInstallQrCodes() {
+  const ownerQr = $("#owner-app-qr");
+  const playerQr = $("#player-app-qr");
+  if (ownerQr) ownerQr.innerHTML = qrSvg(absoluteDownloadUrl("/downloads/SubLim3_Nexus_Owner.apk"), { title:"Install SubLim3 Nexus Owner/GM app" });
+  if (playerQr) playerQr.innerHTML = qrSvg(absoluteDownloadUrl("/downloads/SubLim3_Nexus_Player.apk"), { title:"Install SubLim3 Nexus Player app" });
+}
 
 function saveUpdateNotice(message, type) { sessionStorage.setItem(UPDATE_NOTICE_KEY, JSON.stringify({ message, type })); }
 function takeUpdateNotice() { try { const notice=JSON.parse(sessionStorage.getItem(UPDATE_NOTICE_KEY));sessionStorage.removeItem(UPDATE_NOTICE_KEY);return notice?.message?notice:null; } catch { sessionStorage.removeItem(UPDATE_NOTICE_KEY);return null; } }
@@ -237,6 +246,7 @@ $("#shutdown-system").addEventListener("click", () => {
 const updateNotice=takeUpdateNotice();
 history.scrollRestoration="manual";
 lockControls(!adminToken);
+renderAppInstallQrCodes();
 loadAppUpdateInfo();
 const initialization=adminToken
   ? loadSettingsPage().then((playerSettingsAvailable) => { lockControls(false);if(!playerSettingsAvailable)alertMessage("Settings unlocked. Restart Nexus Core to enable the new player settings."); }).catch((error) => { if([401,403].includes(error.status)){adminToken="";localStorage.removeItem("nexus-admin-token");alertMessage("Owner access has expired. Use the recovery PIN to reconnect this browser.");}else alertMessage(`Settings are temporarily unavailable: ${error.message}`,"error");lockControls(true); })

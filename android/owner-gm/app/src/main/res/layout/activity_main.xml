@@ -104,6 +104,14 @@
 
         </LinearLayout>
 
+        <ProgressBar
+            android:id="@+id/pageRefreshProgress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:indeterminate="true"
+            android:visibility="gone" />
+
         <WebView
             android:id="@+id/nexusWebView"
             android:layout_width="match_parent"

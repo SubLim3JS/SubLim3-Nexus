@@ -10,6 +10,7 @@
     <string name="gm">GM</string>
     <string name="change">Change</string>
     <string name="close">Close</string>
+    <string name="refreshing">Refreshing…</string>
     <string name="route_admin">Owner Console</string>
     <string name="route_gm">GM Workspace</string>
     <string name="update_native_title">Nexus Maintenance</string>

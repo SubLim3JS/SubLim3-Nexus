@@ -193,8 +193,10 @@ test("serves the connectivity Settings page", async () => {
   assert.equal(response.status, 200);
   const page = await response.text();
   assert.match(page, /Bluetooth visibility/);
-  assert.match(page, /Player App QR/);
-  assert.match(page, /\/assets\/player-app-qr\.png/);
+  assert.match(page, /Install QR codes/);
+  assert.match(page, /id="owner-app-qr"/);
+  assert.match(page, /id="player-app-qr"/);
+  assert.match(page, /QR code for the SubLim3 Nexus Owner\/GM app/);
   assert.match(page, /QR code for the SubLim3 Nexus Player app/);
   assert.match(page, /App updates/);
   assert.match(page, /\/downloads\/SubLim3_Nexus_Owner\.apk/);
@@ -230,6 +232,8 @@ test("serves the connectivity Settings page", async () => {
   assert.doesNotMatch(script, /test-update-tone/);
   assert.match(script, /connectivity\/tools\/ping/);
   assert.match(script, /\/downloads\/android-apps\.json/);
+  assert.match(script, /qrSvg\(absoluteDownloadUrl\("\/downloads\/SubLim3_Nexus_Owner\.apk"\)/);
+  assert.match(script, /qrSvg\(absoluteDownloadUrl\("\/downloads\/SubLim3_Nexus_Player\.apk"\)/);
   assert.match(script, /window\.NexusAndroid\?\.getAppInfo/);
   assert.match(script, /devicePairingName\("Owner"\)/);
   assert.doesNotMatch(script, /System Admin settings/);

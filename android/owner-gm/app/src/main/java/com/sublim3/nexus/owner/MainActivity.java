@@ -5,7 +5,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -42,9 +44,13 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout webShell;
     private EditText hostInput;
     private WebView webView;
+    private ProgressBar pageRefreshProgress;
     private TextView activeRouteLabel;
     private SharedPreferences prefs;
     private String currentRoute = ROUTE_ADMIN;
+    private float touchStartY;
+    private boolean pullRefreshTriggered;
+    private int pullRefreshThreshold;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
@@ -58,7 +64,9 @@ public class MainActivity extends AppCompatActivity {
         webShell = findViewById(R.id.webShell);
         hostInput = findViewById(R.id.hostInput);
         webView = findViewById(R.id.nexusWebView);
+        pageRefreshProgress = findViewById(R.id.pageRefreshProgress);
         activeRouteLabel = findViewById(R.id.activeRouteLabel);
+        pullRefreshThreshold = ViewConfiguration.get(this).getScaledTouchSlop() * 8;
 
         configureWebView();
         configureActions();
@@ -73,7 +81,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void configureWebView() {
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                pageRefreshProgress.setVisibility(View.GONE);
+                super.onPageFinished(view, url);
+            }
+        });
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -84,6 +98,21 @@ public class MainActivity extends AppCompatActivity {
         settings.setUseWideViewPort(true);
 
         webView.addJavascriptInterface(new NexusAndroidBridge(), "NexusAndroid");
+        webView.setOnTouchListener((view, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                touchStartY = event.getY();
+                pullRefreshTriggered = false;
+            } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                float pullDistance = event.getY() - touchStartY;
+                if (!pullRefreshTriggered && webView.getScrollY() == 0 && pullDistance > pullRefreshThreshold) {
+                    pullRefreshTriggered = true;
+                    refreshCurrentPage();
+                }
+            } else if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                pullRefreshTriggered = false;
+            }
+            return false;
+        });
         WebView.setWebContentsDebuggingEnabled(true);
     }
 
@@ -141,7 +170,14 @@ public class MainActivity extends AppCompatActivity {
         setupView.setVisibility(View.GONE);
         webShell.setVisibility(View.VISIBLE);
         activeRouteLabel.setText(route.equals(ROUTE_GM) ? R.string.route_gm : R.string.route_admin);
+        pageRefreshProgress.setVisibility(View.VISIBLE);
         webView.loadUrl(host + route);
+    }
+
+    private void refreshCurrentPage() {
+        pageRefreshProgress.setVisibility(View.VISIBLE);
+        Toast.makeText(this, R.string.refreshing, Toast.LENGTH_SHORT).show();
+        webView.reload();
     }
 
     private void switchRoute(String route) {

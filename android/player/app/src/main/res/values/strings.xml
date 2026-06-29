@@ -8,5 +8,6 @@
     <string name="host_required">Enter a Nexus address first.</string>
     <string name="reload">Reload</string>
     <string name="change">Change</string>
+    <string name="refreshing">Refreshing…</string>
     <string name="route_player">Player</string>
 </resources>
