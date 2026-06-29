@@ -58,20 +58,30 @@
           <figure class="player-app-qr"><img src="/assets/player-app-qr.png" alt="QR code for the SubLim3 Nexus Player app"><figcaption>Player App</figcaption></figure>
         </article>
 
-        <article class="settings-card local-panel locked-control">
-          <p class="eyebrow">DIRECT CONNECTION</p><h2>Local Wi-Fi</h2>
-          <p class="settings-copy">Broadcast the Nexus access point. Connect directly, then return to <strong>http://sublim3-nexus.local:3000</strong>.</p>
-          <button id="local-mode" class="primary-button" type="button">Switch to Local Mode</button>
-        </article>
-
-        <article class="settings-card home-panel locked-control">
-          <p class="eyebrow">EXISTING NETWORK</p><h2>Home Wi-Fi</h2>
-          <p class="settings-copy">Scan for a network, enter its password, and move Nexus onto that LAN.</p>
+        <article class="settings-card home-panel wide-panel locked-control">
+          <div class="home-wifi-intro">
+            <div>
+              <p class="eyebrow">NETWORK TESTING</p><h2>Connect to Home Wi-Fi</h2>
+              <p class="settings-copy">Use this when testing Nexus on a different router or venue network. Scan, choose the SSID, enter the password, and Nexus will move from Local Mode onto that LAN.</p>
+            </div>
+            <ol class="wifi-test-steps">
+              <li>Connect to <strong>SubLim3-Nexus</strong> Local Wi-Fi first.</li>
+              <li>Connect Nexus to the target Home Wi-Fi below.</li>
+              <li>Move this phone/laptop to that same Wi-Fi and reopen <strong>http://sublim3-nexus.local:3000</strong>.</li>
+            </ol>
+          </div>
           <form id="home-form">
             <label>Network<div class="input-action"><input id="home-ssid" list="wifi-networks" required maxlength="32" placeholder="Choose or type an SSID"><datalist id="wifi-networks"></datalist><button id="scan-wifi" class="secondary-button" type="button">Scan</button></div></label>
             <label>Password<input id="home-password" type="password" autocomplete="new-password" maxlength="64" placeholder="Wi-Fi password"></label>
             <button class="primary-button" type="submit">Connect to Home Wi-Fi</button>
           </form>
+          <p class="wifi-recovery-note">If the Home Wi-Fi connection fails, Nexus should restore Local Mode. Rejoin <strong>SubLim3-Nexus</strong> and open <strong>http://10.10.10.1:3000/settings/</strong>.</p>
+        </article>
+
+        <article class="settings-card local-panel locked-control">
+          <p class="eyebrow">RECOVERY NETWORK</p><h2>Local Wi-Fi</h2>
+          <p class="settings-copy">Broadcast the Nexus access point for setup and recovery. Connect directly, then open <strong>http://10.10.10.1:3000</strong>.</p>
+          <button id="local-mode" class="primary-button" type="button">Switch to Local Mode</button>
         </article>
 
         <article class="settings-card bluetooth-panel locked-control">

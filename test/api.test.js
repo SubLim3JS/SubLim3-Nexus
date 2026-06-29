@@ -198,6 +198,11 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, /App updates/);
   assert.match(page, /\/downloads\/SubLim3_Nexus_Owner\.apk/);
   assert.match(page, /\/downloads\/SubLim3_Nexus_Player\.apk/);
+  assert.match(page, /NETWORK TESTING/);
+  assert.match(page, /Connect to Home Wi-Fi/);
+  assert.match(page, /different router or venue network/);
+  assert.match(page, /http:\/\/10\.10\.10\.1:3000\/settings\//);
+  assert.match(page, /RECOVERY NETWORK/);
   assert.match(page, />Update<\/button>[\s\S]*>Reboot<\/button>[\s\S]*>Shut Down<\/button>/);
   assert.match(page, /id="update-progress-panel"/);
   assert.match(page, /id="update-progress-stage"/);
@@ -233,8 +238,8 @@ test("serves Android app update downloads", async () => {
   const metadata = await fetch(`${baseUrl}/downloads/android-apps.json`);
   assert.equal(metadata.status, 200);
   const catalog = await metadata.json();
-  assert.equal(catalog.apps.owner.versionName, "0.1.1");
-  assert.equal(catalog.apps.owner.versionCode, 2);
+  assert.equal(catalog.apps.owner.versionName, "0.1.2");
+  assert.equal(catalog.apps.owner.versionCode, 3);
   assert.equal(catalog.apps.player.versionName, "0.1.1");
   assert.equal(catalog.apps.player.versionCode, 2);
 

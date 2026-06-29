@@ -218,11 +218,19 @@ $("#update-system").addEventListener("click", () => {
 
 $("#reboot-system").addEventListener("click", () => {
   if (!confirm("Reboot Nexus Core now? The table will be unavailable for a moment.")) return;
+  if (window.NexusAndroid?.startSystemAction) {
+    window.NexusAndroid.startSystemAction("reboot", adminToken);
+    return;
+  }
   systemAction("reboot", "Rebooting Nexus Core…", "Reboot requested. Reconnect in a moment.");
 });
 
 $("#shutdown-system").addEventListener("click", () => {
   if (!confirm("Shut down Nexus Core? You will need physical access to turn it back on.")) return;
+  if (window.NexusAndroid?.startSystemAction) {
+    window.NexusAndroid.startSystemAction("shutdown", adminToken);
+    return;
+  }
   systemAction("shutdown", "Shutting down Nexus Core safely…", "Shutdown requested. It is safe to disconnect power after the Pi turns off.");
 });
 

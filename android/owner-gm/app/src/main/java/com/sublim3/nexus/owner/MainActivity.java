@@ -4,6 +4,7 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Gravity;
 import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
@@ -12,6 +13,7 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -175,24 +177,55 @@ public class MainActivity extends AppCompatActivity {
 
     private void startNativeSystemUpdate(String token) {
         mainHandler.post(() -> {
-            TextView statusView = new TextView(this);
-            int padding = Math.round(24 * getResources().getDisplayMetrics().density);
-            statusView.setPadding(padding, padding / 2, padding, 0);
-            statusView.setText(R.string.update_native_starting);
-
-            AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(R.string.update_native_title)
-                .setView(statusView)
-                .setNegativeButton(R.string.close, null)
-                .create();
-            dialog.setOnShowListener(listener -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false));
-            dialog.show();
-
-            executor.execute(() -> runSystemUpdate(token == null ? "" : token, statusView, dialog));
+            MaintenanceDialog maintenance = showMaintenanceDialog(R.string.update_native_starting);
+            executor.execute(() -> runSystemUpdate(token == null ? "" : token, maintenance.statusView, maintenance.progressBar, maintenance.dialog));
         });
     }
 
-    private void runSystemUpdate(String token, TextView statusView, AlertDialog dialog) {
+    private void startNativeSystemAction(String action, String token) {
+        mainHandler.post(() -> {
+            int startingMessage = "reboot".equals(action) ? R.string.reboot_native_starting : R.string.shutdown_native_starting;
+            MaintenanceDialog maintenance = showMaintenanceDialog(startingMessage);
+            executor.execute(() -> runSystemAction(action, token == null ? "" : token, maintenance.statusView, maintenance.progressBar, maintenance.dialog));
+        });
+    }
+
+    private MaintenanceDialog showMaintenanceDialog(int startingMessage) {
+        LinearLayout updateView = new LinearLayout(this);
+        updateView.setOrientation(LinearLayout.VERTICAL);
+        updateView.setPadding(0, Math.round(12 * getResources().getDisplayMetrics().density), 0, 0);
+
+        int padding = Math.round(24 * getResources().getDisplayMetrics().density);
+        ProgressBar progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        progressBar.setIndeterminate(true);
+        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        progressParams.gravity = Gravity.CENTER_HORIZONTAL;
+        progressParams.setMargins(padding, 0, padding, 0);
+        updateView.addView(progressBar, progressParams);
+
+        TextView statusView = new TextView(this);
+        statusView.setPadding(padding, padding / 2, padding, 0);
+        statusView.setText(startingMessage);
+        updateView.addView(statusView, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+            .setTitle(R.string.update_native_title)
+            .setView(updateView)
+            .setNegativeButton(R.string.close, null)
+            .create();
+        dialog.setOnShowListener(listener -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false));
+        dialog.show();
+
+        return new MaintenanceDialog(statusView, progressBar, dialog);
+    }
+
+    private void runSystemUpdate(String token, TextView statusView, ProgressBar progressBar, AlertDialog dialog) {
         long startedAt = System.currentTimeMillis();
         boolean requestStarted = false;
         try {
@@ -202,17 +235,45 @@ public class MainActivity extends AppCompatActivity {
         } catch (IOException error) {
             requestStarted = true;
         } catch (Exception error) {
-            finishNativeUpdate(statusView, dialog, getString(R.string.update_native_failed, error.getMessage()), true);
+            finishNativeUpdate(statusView, progressBar, dialog, getString(R.string.update_native_failed, error.getMessage()), true);
             return;
         }
 
         postStatus(statusView, getString(requestStarted ? R.string.update_native_reconnecting : R.string.update_native_waiting));
         try {
             String status = waitForCore(startedAt + 120_000);
-            finishNativeUpdate(statusView, dialog, getString(R.string.update_native_complete, status), false);
+            finishNativeUpdate(statusView, progressBar, dialog, getString(R.string.update_native_complete, status), false);
             mainHandler.post(() -> webView.reload());
         } catch (Exception error) {
-            finishNativeUpdate(statusView, dialog, getString(R.string.update_native_unknown, error.getMessage()), true);
+            finishNativeUpdate(statusView, progressBar, dialog, getString(R.string.update_native_unknown, error.getMessage()), true);
+        }
+    }
+
+    private void runSystemAction(String action, String token, TextView statusView, ProgressBar progressBar, AlertDialog dialog) {
+        long startedAt = System.currentTimeMillis();
+        boolean isReboot = "reboot".equals(action);
+        try {
+            postStatus(statusView, getString(isReboot ? R.string.reboot_native_requesting : R.string.shutdown_native_requesting));
+            postJson("/api/v1/system/" + action, token);
+        } catch (IOException error) {
+            // Reboot and shutdown commonly interrupt the active HTTP request.
+        } catch (Exception error) {
+            finishNativeUpdate(statusView, progressBar, dialog, getString(R.string.system_action_native_failed, error.getMessage()), true);
+            return;
+        }
+
+        if (!isReboot) {
+            finishNativeUpdate(statusView, progressBar, dialog, getString(R.string.shutdown_native_complete), false);
+            return;
+        }
+
+        postStatus(statusView, getString(R.string.reboot_native_reconnecting));
+        try {
+            String status = waitForCore(startedAt + 120_000);
+            finishNativeUpdate(statusView, progressBar, dialog, getString(R.string.reboot_native_complete, status), false);
+            mainHandler.post(() -> webView.reload());
+        } catch (Exception error) {
+            finishNativeUpdate(statusView, progressBar, dialog, getString(R.string.reboot_native_unknown, error.getMessage()), true);
         }
     }
 
@@ -273,8 +334,9 @@ public class MainActivity extends AppCompatActivity {
         mainHandler.post(() -> statusView.setText(message));
     }
 
-    private void finishNativeUpdate(TextView statusView, AlertDialog dialog, String message, boolean failed) {
+    private void finishNativeUpdate(TextView statusView, ProgressBar progressBar, AlertDialog dialog, String message, boolean failed) {
         mainHandler.post(() -> {
+            progressBar.setVisibility(View.GONE);
             statusView.setText(message);
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(true);
             Toast.makeText(this, failed ? R.string.update_native_failed_toast : R.string.update_native_complete_toast, Toast.LENGTH_LONG).show();
@@ -301,6 +363,24 @@ public class MainActivity extends AppCompatActivity {
         @JavascriptInterface
         public void startSystemUpdate(String token) {
             MainActivity.this.startNativeSystemUpdate(token);
+        }
+
+        @JavascriptInterface
+        public void startSystemAction(String action, String token) {
+            if (!"reboot".equals(action) && !"shutdown".equals(action)) return;
+            MainActivity.this.startNativeSystemAction(action, token);
+        }
+    }
+
+    private static class MaintenanceDialog {
+        final TextView statusView;
+        final ProgressBar progressBar;
+        final AlertDialog dialog;
+
+        MaintenanceDialog(TextView statusView, ProgressBar progressBar, AlertDialog dialog) {
+            this.statusView = statusView;
+            this.progressBar = progressBar;
+            this.dialog = dialog;
         }
     }
 }
