@@ -11,7 +11,7 @@ class FakeRunner {
 test("reports Raspberry Pi Wi-Fi and Bluetooth state", async () => {
   const runner = new FakeRunner(new Map([
     ["nmcli -g GENERAL.CONNECTION device show wlan0", "sublim3-hotspot"],
-    ["nmcli -g IP4.ADDRESS device show wlan0", "10.99.0.1/24"],
+    ["nmcli -g IP4.ADDRESS device show wlan0", "10.10.10.1/24"],
     ["nmcli -g 802-11-wireless.ssid connection show sublim3-hotspot", "SubLim3-Nexus"],
     ["bluetoothctl show", "Powered: yes\nDiscoverable: yes\nPairable: yes"],
     ["bluetoothctl devices Connected", "Device AA:BB:CC:DD:EE:FF Table Speaker"],

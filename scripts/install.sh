@@ -147,11 +147,16 @@ ensure_setting() {
   grep -q "^${key}=" /etc/default/sublim3-nexus || printf '%s=%s\n' "${key}" "${value}" >> /etc/default/sublim3-nexus
 }
 
-settings_pin="$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')"
-settings_pin="$((settings_pin % 900000 + 100000))"
+replace_setting_if_value() {
+  local key="$1" current_value="$2" new_value="$3"
+  grep -q "^${key}=${current_value}$" /etc/default/sublim3-nexus && sed -i "s|^${key}=${current_value}$|${key}=${new_value}|" /etc/default/sublim3-nexus
+}
+
+settings_pin="101010"
 gm_pin="$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')"
 gm_pin="$((gm_pin % 900000 + 100000))"
 hotspot_password="Nexus-$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')"
+replace_setting_if_value NEXUS_HOTSPOT_ADDRESS 10.99.0.1/24 10.10.10.1/24
 ensure_setting NEXUS_SETTINGS_PIN "${settings_pin}"
 ensure_setting NEXUS_ADMIN_PIN "${settings_pin}"
 ensure_setting NEXUS_GM_PIN "${gm_pin}"
@@ -160,7 +165,7 @@ ensure_setting NEXUS_WIFI_INTERFACE wlan0
 ensure_setting NEXUS_HOTSPOT_CONNECTION sublim3-hotspot
 ensure_setting NEXUS_HOME_CONNECTION sublim3-home
 ensure_setting NEXUS_HOTSPOT_SSID SubLim3-Nexus
-ensure_setting NEXUS_HOTSPOT_ADDRESS 10.99.0.1/24
+ensure_setting NEXUS_HOTSPOT_ADDRESS 10.10.10.1/24
 ensure_setting NEXUS_WIFI_MODE local
 ensure_setting NEXUS_HOME_RECONNECT_ATTEMPTS 12
 ensure_setting NEXUS_HOME_RECONNECT_DELAY_SECONDS 5

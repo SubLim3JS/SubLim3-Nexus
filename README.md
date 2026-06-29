@@ -66,7 +66,7 @@ a shareable local player view that combines live resources, conditions, GM notes
 scene information, and battle turn state without requiring a cloud connection.
 
 Role-specific entry points are available at `/admin/`, `/gm/`, and `/player/`.
-An Owner browser uses the installer-generated recovery PIN once, then keeps a
+An Owner browser uses the recovery PIN once, then keeps a
 persistent session across the Command Center and GM workspace. Player devices select a
 campaign and character and receive a character-scoped session with a bounded
 self-service health adjustment.
@@ -874,7 +874,7 @@ sudo ./scripts/install.sh
 
 The installer creates a restricted `nexus` service account, stores runtime data under `/var/lib/sublim3-nexus`, and enables Nexus Core at boot. Runtime settings can be changed in `/etc/default/sublim3-nexus`.
 
-The installer also configures the Network Settings helper, generates Admin and GM PINs plus a Local Wi-Fi password, and prints them. Open `/settings/` to switch between the Nexus hotspot and Home Wi-Fi or toggle Bluetooth visibility. Re-run the installer after pulling a release that changes system services or access credentials.
+The installer also configures the Network Settings helper, sets the temporary Owner/Admin recovery PIN default to `101010`, generates the GM PIN plus a Local Wi-Fi password, and prints them. Open `/settings/` to switch between the Nexus hotspot and Home Wi-Fi or toggle Bluetooth visibility. Re-run the installer after pulling a release that changes system services or access credentials.
 
 ```bash
 systemctl status sublim3-nexus
