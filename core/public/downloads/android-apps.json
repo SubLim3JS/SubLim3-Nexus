@@ -3,8 +3,8 @@
     "owner": {
       "name": "SubLim3 Nexus Owner/GM",
       "packageName": "com.sublim3.nexus.owner",
-      "versionName": "0.1.6",
-      "versionCode": 7,
+      "versionName": "0.1.7",
+      "versionCode": 8,
       "apk": "/downloads/SubLim3_Nexus_Owner.apk"
     },
     "player": {

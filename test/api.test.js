@@ -248,8 +248,8 @@ test("serves Android app update downloads", async () => {
   const metadata = await fetch(`${baseUrl}/downloads/android-apps.json`);
   assert.equal(metadata.status, 200);
   const catalog = await metadata.json();
-  assert.equal(catalog.apps.owner.versionName, "0.1.6");
-  assert.equal(catalog.apps.owner.versionCode, 7);
+  assert.equal(catalog.apps.owner.versionName, "0.1.7");
+  assert.equal(catalog.apps.owner.versionCode, 8);
   assert.equal(catalog.apps.player.versionName, "0.1.5");
   assert.equal(catalog.apps.player.versionCode, 6);
 

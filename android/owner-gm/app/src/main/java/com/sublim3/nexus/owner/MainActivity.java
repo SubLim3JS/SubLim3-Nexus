@@ -1,16 +1,21 @@
 package com.sublim3.nexus.owner;
 
+import android.content.ActivityNotFoundException;
+import android.content.ClipData;
 import android.content.SharedPreferences;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
-import android.view.Menu;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.WindowInsets;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -19,12 +24,13 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -35,6 +41,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -44,10 +51,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String DEFAULT_NEXUS_HOST = "http://sublim3-nexus.local:3000";
     private static final String ROUTE_ADMIN = "/admin/";
     private static final String ROUTE_GM = "/gm/";
-    private static final int MENU_ADMIN = 1;
-    private static final int MENU_GM = 2;
-    private static final int MENU_CHANGE_NEXUS = 3;
-    private static final int MENU_HELP = 4;
 
     private LinearLayout setupView;
     private LinearLayout webShell;
@@ -56,6 +59,8 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar pageRefreshProgress;
     private TextView activeRouteLabel;
     private SharedPreferences prefs;
+    private ActivityResultLauncher<Intent> fileChooserLauncher;
+    private ValueCallback<Uri[]> filePathCallback;
     private String currentRoute = ROUTE_ADMIN;
     private float touchStartY;
     private boolean pullRefreshTriggered;
@@ -66,6 +71,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        configureFileChooser();
         setContentView(R.layout.activity_main);
         configureSystemInsets();
 
@@ -100,6 +106,29 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void configureWebView() {
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> filePath, FileChooserParams fileChooserParams) {
+                if (filePathCallback != null) {
+                    filePathCallback.onReceiveValue(null);
+                }
+
+                filePathCallback = filePath;
+                Intent intent = fileChooserParams.createIntent();
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, fileChooserParams.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE);
+                try {
+                    fileChooserLauncher.launch(intent);
+                } catch (ActivityNotFoundException error) {
+                    filePathCallback = null;
+                    Toast.makeText(MainActivity.this, R.string.file_picker_unavailable, Toast.LENGTH_SHORT).show();
+                    return false;
+                }
+                return true;
+            }
+        });
+
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
@@ -122,6 +151,8 @@ public class MainActivity extends AppCompatActivity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
+        settings.setAllowContentAccess(true);
+        settings.setAllowFileAccess(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
@@ -145,10 +176,42 @@ public class MainActivity extends AppCompatActivity {
         WebView.setWebContentsDebuggingEnabled(true);
     }
 
+    private void configureFileChooser() {
+        fileChooserLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            if (filePathCallback == null) return;
+            Uri[] uris = parseFileChooserResult(result.getResultCode(), result.getData());
+            filePathCallback.onReceiveValue(uris);
+            filePathCallback = null;
+        });
+    }
+
+    private Uri[] parseFileChooserResult(int resultCode, Intent data) {
+        if (resultCode != RESULT_OK || data == null) return null;
+
+        ArrayList<Uri> selectedUris = new ArrayList<>();
+        ClipData clipData = data.getClipData();
+        if (clipData != null) {
+            for (int index = 0; index < clipData.getItemCount(); index++) {
+                Uri uri = clipData.getItemAt(index).getUri();
+                if (uri != null) selectedUris.add(uri);
+            }
+        }
+
+        Uri singleUri = data.getData();
+        if (singleUri != null && !selectedUris.contains(singleUri)) {
+            selectedUris.add(singleUri);
+        }
+
+        return selectedUris.isEmpty() ? WebChromeClient.FileChooserParams.parseResult(resultCode, data) : selectedUris.toArray(new Uri[0]);
+    }
+
     private void configureActions() {
         Button connectButton = findViewById(R.id.connectButton);
-        Button menuButton = findViewById(R.id.menuButton);
+        Button adminButton = findViewById(R.id.adminButton);
+        Button gmButton = findViewById(R.id.gmButton);
+        Button changeHostButton = findViewById(R.id.changeHostButton);
         Button setupHelpButton = findViewById(R.id.setupHelpButton);
+        Button helpButton = findViewById(R.id.helpButton);
 
         connectButton.setOnClickListener(v -> {
             String host = normalizeHost(hostInput.getText().toString());
@@ -161,37 +224,11 @@ public class MainActivity extends AppCompatActivity {
             openNexus(host, currentRoute);
         });
 
-        menuButton.setOnClickListener(this::showNavigationMenu);
+        adminButton.setOnClickListener(v -> switchRoute(ROUTE_ADMIN));
+        gmButton.setOnClickListener(v -> switchRoute(ROUTE_GM));
+        changeHostButton.setOnClickListener(v -> showSetup());
         setupHelpButton.setOnClickListener(v -> showConnectionHelpDialog(false));
-    }
-
-    private void showNavigationMenu(View anchor) {
-        PopupMenu menu = new PopupMenu(this, anchor);
-        menu.getMenu().add(Menu.NONE, MENU_ADMIN, Menu.NONE, R.string.admin);
-        menu.getMenu().add(Menu.NONE, MENU_GM, Menu.NONE, R.string.gm);
-        menu.getMenu().add(Menu.NONE, MENU_CHANGE_NEXUS, Menu.NONE, R.string.change_nexus);
-        menu.getMenu().add(Menu.NONE, MENU_HELP, Menu.NONE, R.string.help);
-        menu.setOnMenuItemClickListener(item -> {
-            int itemId = item.getItemId();
-            if (itemId == MENU_ADMIN) {
-                switchRoute(ROUTE_ADMIN);
-                return true;
-            }
-            if (itemId == MENU_GM) {
-                switchRoute(ROUTE_GM);
-                return true;
-            }
-            if (itemId == MENU_CHANGE_NEXUS) {
-                showSetup();
-                return true;
-            }
-            if (itemId == MENU_HELP) {
-                showConnectionHelpDialog(true);
-                return true;
-            }
-            return false;
-        });
-        menu.show();
+        helpButton.setOnClickListener(v -> showConnectionHelpDialog(true));
     }
 
     private void configureBackButton() {
