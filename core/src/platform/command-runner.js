@@ -31,7 +31,7 @@ export class CommandRunner {
       child.on("close", (code) => {
         clearTimeout(timer);
         if (code === 0) resolve(stdout.trim());
-        else reject(new Error(stderr.trim() || `Privileged helper exited with code ${code}`));
+        else reject(Object.assign(new Error(stderr.trim() || `Privileged helper exited with code ${code}`), { statusCode: 502 }));
       });
       child.stdin.end(input);
     });

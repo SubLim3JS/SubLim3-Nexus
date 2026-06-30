@@ -57,3 +57,9 @@ test("runs updates with an isolated Git environment outside the Core sandbox", a
   assert.match(installer, /Owner PIN:/);
   assert.doesNotMatch(installer, /Admin PIN:/);
 });
+
+test("allows the privileged helper to persist runtime network settings", async () => {
+  const service = await readFile(new URL("../deploy/systemd/sublim3-nexus.service", import.meta.url), "utf8");
+  assert.match(service, /ProtectSystem=full/);
+  assert.match(service, /ReadWritePaths=.*\/var\/lib\/sublim3-nexus.*\/etc\/default/);
+});

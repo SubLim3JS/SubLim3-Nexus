@@ -40,6 +40,17 @@ test("delegates only validated connectivity mutations", async () => {
   await assert.rejects(() => service.ping("-bad"), /valid hostname/);
 });
 
+test("surfaces privileged Wi-Fi failures to callers", async () => {
+  const service = new ConnectivityService({
+    runner: { runPrivileged: async () => { throw Object.assign(new Error("hotspot activation failed"), { statusCode: 502 }); } },
+    platform: "linux",
+  });
+  await assert.rejects(
+    () => service.switchWifi({ mode: "local" }),
+    (error) => error.statusCode === 502 && error.message === "hotspot activation failed",
+  );
+});
+
 test("parses and orders escaped Wi-Fi scan results", async () => {
   const runner = new FakeRunner(new Map(), new Map([["wifi-scan", "Cafe\\:Table:72:WPA2\nGuest:30:"]]));
   const service = new ConnectivityService({ runner, platform: "linux" });
