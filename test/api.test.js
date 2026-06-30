@@ -210,6 +210,9 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, /id="update-progress-panel"/);
   assert.match(page, /id="update-progress-stage"/);
   assert.match(page, /Do not leave this page/);
+  assert.match(page, /SubLim3-Nexus says/);
+  assert.match(page, /Install the latest version of the SubLim3 Nexus/);
+  assert.doesNotMatch(page, /latest release from GitHub/);
   assert.doesNotMatch(page, /id="test-update-tone"/);
   assert.match(page, /Playback defaults/);
   assert.match(page, /Card behavior/);
@@ -227,6 +230,8 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /Please keep this page open/);
   assert.match(script, /beginUpdateProgress/);
   assert.match(script, /showUpdateProgress\("Restarting Nexus Core/);
+  assert.match(script, /confirmSettingsAction/);
+  assert.doesNotMatch(script, /from GitHub/);
   assert.match(script, /api\("\/api\/v1\/system\/tone"/);
   assert.match(script, /playUpdateCue\("success"\)/);
   assert.doesNotMatch(script, /test-update-tone/);

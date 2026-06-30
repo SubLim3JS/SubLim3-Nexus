@@ -33,6 +33,17 @@ function updateElapsedTime() { const elapsed=Math.max(0,Math.floor((Date.now()-u
 function showUpdateProgress(stage, detail, state = "running") { const panel=$("#update-progress-panel");panel.hidden=false;panel.classList.toggle("is-complete",state==="complete");panel.classList.toggle("is-error",state==="error");$("#update-progress-stage").textContent=stage;$("#update-progress-detail").textContent=detail;updateElapsedTime(); }
 function beginUpdateProgress() { updateProgressStartedAt=Date.now();clearInterval(updateProgressTimer);showUpdateProgress("Starting update…","Nexus is contacting the updater.");updateProgressTimer=setInterval(updateElapsedTime,1_000); }
 function finishUpdateProgress(stage, detail, state) { clearInterval(updateProgressTimer);updateProgressTimer=null;showUpdateProgress(stage,detail,state); }
+function confirmSettingsAction({ message, detail = "", okLabel = "OK" }) {
+  const dialog = $("#settings-confirm-dialog");
+  if (!dialog?.showModal) return Promise.resolve(window.confirm(`${message}${detail ? `\n\n${detail}` : ""}`));
+  $("#settings-confirm-message").textContent = message;
+  $("#settings-confirm-detail").textContent = detail;
+  $("#settings-confirm-ok").textContent = okLabel;
+  return new Promise((resolve) => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue === "confirm"), { once:true });
+    dialog.showModal();
+  });
+}
 
 function renderWifiNetworks(networks) {
   $("#wifi-networks").replaceChildren(...networks.map((network) => {
@@ -233,8 +244,13 @@ async function updateSystem() {
   }
 }
 
-$("#update-system").addEventListener("click", () => {
-  if (!confirm("Install the latest SubLim3 Nexus version from GitHub? Nexus Core will restart when the update finishes.")) return;
+$("#update-system").addEventListener("click", async () => {
+  const confirmed = await confirmSettingsAction({
+    message: "Install the latest version of the SubLim3 Nexus?",
+    detail: "Nexus Core will restart when the update finishes.",
+    okLabel: "Update",
+  });
+  if (!confirmed) return;
   if (window.NexusAndroid?.startSystemUpdate) {
     window.NexusAndroid.startSystemUpdate(adminToken);
     return;
