@@ -9,8 +9,11 @@
     <string name="admin">Admin</string>
     <string name="gm">GM</string>
     <string name="change">Change</string>
+    <string name="change_nexus">Change Nexus</string>
     <string name="close">Close</string>
     <string name="help">Help</string>
+    <string name="menu">&#9776;</string>
+    <string name="menu_description">Open navigation menu</string>
     <string name="refreshing">Refreshing...</string>
     <string name="connection_error_title">Are you connected to the Nexus WiFi?</string>
     <string name="connection_error_help">The app could not reach SubLim3 Nexus. Make sure Nexus is powered on, join the Nexus WiFi or Wi-Fi Direct network, then swipe down from the top to refresh.</string>

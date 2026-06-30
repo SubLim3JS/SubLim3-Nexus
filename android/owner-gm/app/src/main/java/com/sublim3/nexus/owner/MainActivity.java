@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
+import android.view.Menu;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -18,6 +19,7 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -42,6 +44,10 @@ public class MainActivity extends AppCompatActivity {
     private static final String DEFAULT_NEXUS_HOST = "http://sublim3-nexus.local:3000";
     private static final String ROUTE_ADMIN = "/admin/";
     private static final String ROUTE_GM = "/gm/";
+    private static final int MENU_ADMIN = 1;
+    private static final int MENU_GM = 2;
+    private static final int MENU_CHANGE_NEXUS = 3;
+    private static final int MENU_HELP = 4;
 
     private LinearLayout setupView;
     private LinearLayout webShell;
@@ -141,11 +147,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void configureActions() {
         Button connectButton = findViewById(R.id.connectButton);
-        Button adminButton = findViewById(R.id.adminButton);
-        Button gmButton = findViewById(R.id.gmButton);
-        Button changeHostButton = findViewById(R.id.changeHostButton);
+        Button menuButton = findViewById(R.id.menuButton);
         Button setupHelpButton = findViewById(R.id.setupHelpButton);
-        Button helpButton = findViewById(R.id.helpButton);
 
         connectButton.setOnClickListener(v -> {
             String host = normalizeHost(hostInput.getText().toString());
@@ -158,11 +161,37 @@ public class MainActivity extends AppCompatActivity {
             openNexus(host, currentRoute);
         });
 
-        adminButton.setOnClickListener(v -> switchRoute(ROUTE_ADMIN));
-        gmButton.setOnClickListener(v -> switchRoute(ROUTE_GM));
-        changeHostButton.setOnClickListener(v -> showSetup());
+        menuButton.setOnClickListener(this::showNavigationMenu);
         setupHelpButton.setOnClickListener(v -> showConnectionHelpDialog(false));
-        helpButton.setOnClickListener(v -> showConnectionHelpDialog(true));
+    }
+
+    private void showNavigationMenu(View anchor) {
+        PopupMenu menu = new PopupMenu(this, anchor);
+        menu.getMenu().add(Menu.NONE, MENU_ADMIN, Menu.NONE, R.string.admin);
+        menu.getMenu().add(Menu.NONE, MENU_GM, Menu.NONE, R.string.gm);
+        menu.getMenu().add(Menu.NONE, MENU_CHANGE_NEXUS, Menu.NONE, R.string.change_nexus);
+        menu.getMenu().add(Menu.NONE, MENU_HELP, Menu.NONE, R.string.help);
+        menu.setOnMenuItemClickListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == MENU_ADMIN) {
+                switchRoute(ROUTE_ADMIN);
+                return true;
+            }
+            if (itemId == MENU_GM) {
+                switchRoute(ROUTE_GM);
+                return true;
+            }
+            if (itemId == MENU_CHANGE_NEXUS) {
+                showSetup();
+                return true;
+            }
+            if (itemId == MENU_HELP) {
+                showConnectionHelpDialog(true);
+                return true;
+            }
+            return false;
+        });
+        menu.show();
     }
 
     private void configureBackButton() {
