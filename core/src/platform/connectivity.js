@@ -11,6 +11,7 @@ function parseBluetooth(output) {
   return {
     available: Boolean(output),
     powered: value("Powered") === "yes",
+    blocked: /PowerState:\s*off-blocked/mi.test(output),
     visible: value("Discoverable") === "yes",
     pairable: value("Pairable") === "yes",
   };

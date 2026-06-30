@@ -59,7 +59,7 @@ function renderStatus(status) {
   $("#mode-badge").textContent = status.supported ? `${wifiMode} mode` : "Unavailable";
   $("#wifi-ssid").textContent = status.wifi.ssid || status.wifi.connection || "Not connected";
   $("#wifi-address").textContent = status.wifi.addresses?.[0] || "No address";
-  $("#bluetooth-state").textContent = status.bluetooth.available ? status.bluetooth.visible ? "Visible" : status.bluetooth.powered ? "Hidden" : "Powered off" : "Unavailable";
+  $("#bluetooth-state").textContent = status.bluetooth.available ? status.bluetooth.blocked ? "Blocked" : status.bluetooth.visible ? "Visible" : status.bluetooth.powered ? "Hidden" : "Powered off" : "Unavailable";
   $("#bluetooth-visible").checked = Boolean(status.bluetooth.visible);
   $("#bluetooth-visible").disabled = bluetoothVisibilityPending || !adminToken || !status.bluetooth.available;
   const devices = status.bluetooth.connected_devices ?? [];

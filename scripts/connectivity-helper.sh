@@ -253,7 +253,14 @@ case "${1:-}" in
   ensure-connected) [[ $# -eq 1 ]] || exit 2; ensure_connected ;;
   bluetooth-visible)
     [[ $# -eq 2 && ( "$2" == "on" || "$2" == "off" ) ]] || { echo "Visibility must be on or off." >&2; exit 2; }
+    if [[ "$2" == "on" ]] && command -v rfkill >/dev/null 2>&1; then
+      rfkill unblock bluetooth >/dev/null 2>&1 || true
+    fi
     bluetoothctl power on >/dev/null
+    if ! bluetoothctl show | grep -q '^.*Powered: yes'; then
+      echo "Bluetooth is blocked or unavailable. Check rfkill and adapter power state." >&2
+      exit 1
+    fi
     if [[ "$2" == "on" ]]; then
       bluetoothctl pairable-timeout 0 >/dev/null
       bluetoothctl discoverable-timeout 0 >/dev/null

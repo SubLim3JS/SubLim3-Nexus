@@ -24,6 +24,21 @@ test("reports Raspberry Pi Wi-Fi and Bluetooth state", async () => {
   assert.equal(status.bluetooth.connected_devices[0].name, "Table Speaker");
 });
 
+test("reports blocked Bluetooth power state", async () => {
+  const runner = new FakeRunner(new Map([
+    ["nmcli -g GENERAL.CONNECTION device show wlan0", "sublim3-hotspot"],
+    ["nmcli -g IP4.ADDRESS device show wlan0", "10.10.10.1/24"],
+    ["nmcli -g 802-11-wireless.ssid connection show sublim3-hotspot", "SubLim3-Nexus"],
+    ["bluetoothctl show", "Powered: no\nPowerState: off-blocked\nDiscoverable: no\nPairable: no"],
+    ["bluetoothctl devices Connected", ""],
+  ]));
+  const status = await new ConnectivityService({ runner, platform: "linux" }).status();
+  assert.equal(status.bluetooth.available, true);
+  assert.equal(status.bluetooth.powered, false);
+  assert.equal(status.bluetooth.blocked, true);
+  assert.equal(status.bluetooth.visible, false);
+});
+
 test("delegates only validated connectivity mutations", async () => {
   const runner = new FakeRunner();
   const service = new ConnectivityService({ runner, platform: "linux" });
