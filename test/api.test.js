@@ -449,6 +449,13 @@ test("manages the persistent audio library and playback state", async () => {
   }).then((response) => response.json());
   assert.equal(volume.data.volume, 37);
 
+  const output = await fetch(`${baseUrl}/api/v1/audio/output`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ output_device: "bluetooth" }),
+  }).then((response) => response.json());
+  assert.equal(output.data.output.output_device, "bluetooth");
+
   const effect = await fetch(`${baseUrl}/api/v1/audio/effects/thunder/trigger`, { method: "POST" }).then((response) => response.json());
   assert.equal(effect.data.last_effect.item_id, "thunder");
   assert.ok(effect.data.last_effect.event_id);

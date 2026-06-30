@@ -44,18 +44,21 @@ const rfidCardStore = new JsonStore(path.join(dataDirectory, "rfid", "cards"));
 const rfidStateStore = new JsonStore(path.join(dataDirectory, "rfid", "state"));
 const playerSettings = new PlayerSettingsService({ store: playerSettingsStore });
 await Promise.all([campaignStore.initialize(), sessionStore.initialize(), characterStore.initialize(), systemStore.initialize(), accessSessionStore.initialize(), audioLibraryStore.initialize(), audioStateStore.initialize(), playerSettings.initialize(), rfidCardStore.initialize(), rfidStateStore.initialize()]);
+const initialPlayerSettings = await playerSettings.get();
 const usbRoots = process.env.NEXUS_USB_IMPORT_ROOTS
   ? process.env.NEXUS_USB_IMPORT_ROOTS.split(path.delimiter).filter(Boolean)
   : process.platform === "linux" ? ["/media", "/mnt"] : [];
 const audioFiles = new AudioFileService({ rootDirectory: path.join(dataDirectory, "audio", "files"), libraryStore: audioLibraryStore, usbRoots });
 const audioOutput = process.env.NEXUS_AUDIO_DRIVER === "browser"
-  ? new BrowserAudioOutput()
+  ? new BrowserAudioOutput({ outputDevice: initialPlayerSettings.audio_output_device })
   : new MpvAudioOutput({
       command: process.env.NEXUS_MPV_PATH ?? "/usr/bin/mpv",
       audioDevice: process.env.NEXUS_AUDIO_DEVICE ?? "auto",
+      bluetoothAudioDevice: process.env.NEXUS_BLUETOOTH_AUDIO_DEVICE ?? "auto",
+      outputDevice: initialPlayerSettings.audio_output_device,
       cacheDirectory: path.join(dataDirectory, "audio", "cache"),
     });
-const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: audioStateStore, files: audioFiles, output: audioOutput, preferences: await playerSettings.get() });
+const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: audioStateStore, files: audioFiles, output: audioOutput, preferences: initialPlayerSettings });
 await audio.initialize();
 const rfid = new RfidService({ cardStore: rfidCardStore, stateStore: rfidStateStore, audio, settings: () => playerSettings.get() });
 await rfid.initialize();

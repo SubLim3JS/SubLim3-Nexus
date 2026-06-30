@@ -7,9 +7,9 @@
     <title>Media Player • SubLim3 Nexus</title>
     <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
     <link rel="stylesheet" href="/assets/styles.css?v=1.0.0">
-    <link rel="stylesheet" href="/assets/media.css?v=1.6.1">
+    <link rel="stylesheet" href="/assets/media.css?v=1.6.3">
     <script type="module" src="/assets/navigation.js?v=1.0.0"></script>
-    <script type="module" src="/assets/media.js?v=1.6.2"></script>
+    <script type="module" src="/assets/media.js?v=1.6.3"></script>
   </head>
   <body>
     <div class="app-shell media-shell">
@@ -31,7 +31,10 @@
 
       <section class="media-intro">
         <div><p class="eyebrow">TABLE AUDIO</p><h1>Soundscapes</h1><p>Layer atmosphere into every scene. Nexus Core drives Raspberry Pi audio automatically and keeps browser playback available as a fallback.</p></div>
-        <div class="output-card"><span>Output driver</span><strong id="output-name">Detecting output…</strong><small>Automatic • Pi audio with browser fallback</small></div>
+        <div class="output-card">
+          <label><span>Output driver</span><select id="output-driver"><option value="pi">Raspberry Pi</option><option value="bluetooth">Bluetooth speaker</option></select></label>
+          <strong id="output-name">Detecting output…</strong><small id="output-detail">Pi audio is the default output.</small>
+        </div>
       </section>
 
       <p id="media-message" class="media-message" role="status" aria-live="polite"></p>

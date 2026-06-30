@@ -140,7 +140,7 @@ export class AudioService {
     let position = this.position(state);
     if (item?.duration_seconds && item.loop) position %= item.duration_seconds;
     else if (item?.duration_seconds) position = Math.min(position, item.duration_seconds);
-    return { ...state, position_seconds: position, item };
+    return { ...state, output: this.output.info(), position_seconds: position, item };
   }
 
   async change(mutator) {
@@ -166,8 +166,13 @@ export class AudioService {
   }
 
   async applyPreferences(preferences) {
+    const previousOutput = this.output.info();
     this.preferences = { ...DEFAULT_PLAYER_SETTINGS, ...preferences };
+    await this.outputCall("applyPreferences", this.preferences);
     const status = await this.status();
+    if (status.state === "playing" && previousOutput.output_device && previousOutput.output_device !== status.output?.output_device && status.item) {
+      await this.outputCall("play", status.item, { files: this.files, position: status.position_seconds, volume: status.volume });
+    }
     if (status.volume > this.preferences.maximum_volume) return this.setVolume(this.preferences.maximum_volume);
     this.scheduleStop(status);
     return status;

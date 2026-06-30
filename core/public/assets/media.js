@@ -396,6 +396,10 @@ async function renderAudioState(status, allowAudio = false) {
   $("#master-volume").value = String(status.volume);
   $("#volume-value").textContent = `${status.volume}%`;
   $("#output-name").textContent = status.output?.name ?? "Browser renderer";
+  $("#output-driver").value = status.output?.output_device === "bluetooth" ? "bluetooth" : "pi";
+  $("#output-detail").textContent = status.output?.server_playback
+    ? `${status.output.driver} · ${status.output.audio_device ?? "auto"}`
+    : "Browser fallback on this device";
   if (masterGain && audioContext) masterGain.gain.setTargetAtTime(status.volume / 100, audioContext.currentTime, 0.025);
   renderTrack();
   renderPlayback();
@@ -541,6 +545,19 @@ $("#previous-track").addEventListener("click", () => playTrack(currentTrack - 1)
 $("#next-track").addEventListener("click", () => playTrack(currentTrack + 1));
 $("#queue-folder").addEventListener("change", (event) => {
   queueFolder(event.target.value);
+});
+$("#output-driver").addEventListener("change", async (event) => {
+  event.target.disabled = true;
+  try {
+    const status = await api("/api/v1/audio/output", { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify({ output_device:event.target.value }) });
+    await applyStatus(status, { allowAudio:true });
+    message(`Output switched to ${event.target.selectedOptions[0].textContent}.`, "success");
+  } catch (error) {
+    message(error.message, "error");
+    if (serverStatus) await renderAudioState(serverStatus);
+  } finally {
+    event.target.disabled = false;
+  }
 });
 document.querySelectorAll("[data-sfx]").forEach((button) => button.addEventListener("click", () => control(`/api/v1/audio/effects/${encodeURIComponent(button.dataset.sfx)}/trigger`)));
 $("#master-volume").addEventListener("input", (event) => {

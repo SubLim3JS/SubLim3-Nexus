@@ -9,6 +9,7 @@ export const DEFAULT_PLAYER_SETTINGS = Object.freeze({
   rfid_second_scan: "toggle",
   rfid_rescan_delay_seconds: 2,
   function_cards_bypass_delay: true,
+  audio_output_device: "pi",
 });
 
 function settingsError(message) {
@@ -54,6 +55,7 @@ export class PlayerSettingsService {
       rfid_second_scan: input.rfid_second_scan === undefined ? current.rfid_second_scan : choice(input.rfid_second_scan, ["toggle", "restart", "ignore"], "Second scan action"),
       rfid_rescan_delay_seconds: input.rfid_rescan_delay_seconds === undefined ? current.rfid_rescan_delay_seconds : choice(Number(input.rfid_rescan_delay_seconds), [0, 1, 2, 3, 5, 10], "RFID rescan delay"),
       function_cards_bypass_delay: input.function_cards_bypass_delay === undefined ? current.function_cards_bypass_delay : input.function_cards_bypass_delay,
+      audio_output_device: input.audio_output_device === undefined ? current.audio_output_device : choice(input.audio_output_device, ["pi", "bluetooth"], "Audio output device"),
       updated_at: this.now().toISOString(),
     };
     if (typeof next.function_cards_bypass_delay !== "boolean") throw settingsError("Function-card delay bypass must be true or false");

@@ -42,8 +42,13 @@ export function renderSynthesisWave(item) {
 }
 
 export class BrowserAudioOutput {
+  constructor({ outputDevice = "pi" } = {}) {
+    this.outputDevice = ["pi", "bluetooth"].includes(outputDevice) ? outputDevice : "pi";
+  }
+
   async initialize() {}
-  info() { return { driver: "browser_preview", name: "Browser renderer", available: true, server_playback: false }; }
+  info() { return { driver: "browser_preview", name: "Browser renderer", available: true, server_playback: false, output_device: this.outputDevice }; }
+  async applyPreferences(preferences = {}) { if (preferences.audio_output_device && ["pi", "bluetooth"].includes(preferences.audio_output_device)) this.outputDevice = preferences.audio_output_device; }
   async play() { return false; }
   async pause() { return false; }
   async stop() { return false; }
@@ -55,13 +60,17 @@ export class MpvAudioOutput {
   constructor({
     command = "/usr/bin/mpv",
     audioDevice = "auto",
+    bluetoothAudioDevice = "auto",
+    outputDevice = "pi",
     cacheDirectory,
     platform = process.platform,
     spawnProcess = spawn,
     accessFile = access,
   } = {}) {
     this.command = command;
-    this.audioDevice = audioDevice;
+    this.piAudioDevice = audioDevice;
+    this.bluetoothAudioDevice = bluetoothAudioDevice;
+    this.outputDevice = ["pi", "bluetooth"].includes(outputDevice) ? outputDevice : "pi";
     this.cacheDirectory = cacheDirectory;
     this.platform = platform;
     this.spawnProcess = spawnProcess;
@@ -87,6 +96,22 @@ export class MpvAudioOutput {
       : { driver: "browser_preview", name: "Browser renderer", available: true, server_playback: false };
   }
 
+  activeAudioDevice() {
+    return this.outputDevice === "bluetooth" ? this.bluetoothAudioDevice : this.piAudioDevice;
+  }
+
+  applyPreferences(preferences = {}) {
+    if (preferences.audio_output_device && ["pi", "bluetooth"].includes(preferences.audio_output_device)) this.outputDevice = preferences.audio_output_device;
+  }
+
+  info() {
+    const audioDevice = this.activeAudioDevice();
+    const routeName = this.outputDevice === "bluetooth" ? "Bluetooth speaker" : "Raspberry Pi audio";
+    return this.available
+      ? { driver: "mpv", name: audioDevice === "auto" ? routeName : `${routeName} · ${audioDevice}`, available: true, server_playback: true, output_device: this.outputDevice, audio_device: audioDevice }
+      : { driver: "browser_preview", name: "Browser renderer", available: true, server_playback: false, output_device: "browser" };
+  }
+
   async synthesisPath(item) {
     const filename = `${item.item_id}-${item.kind === "effect" ? "effect" : "loop"}.wav`;
     const destination = path.join(this.cacheDirectory, filename);
@@ -105,7 +130,8 @@ export class MpvAudioOutput {
 
   spawnItem(source, { loop = false, position = 0, volume = 50, ipc = false } = {}) {
     const args = ["--no-config", "--no-video", "--really-quiet", "--no-terminal", "--ao=alsa", `--volume=${Math.round(volume)}`];
-    if (this.audioDevice !== "auto") args.push(`--audio-device=${this.audioDevice}`);
+    const audioDevice = this.activeAudioDevice();
+    if (audioDevice !== "auto") args.push(`--audio-device=${audioDevice}`);
     if (position > 0) args.push(`--start=${position}`);
     if (loop) args.push("--loop-file=inf");
     if (ipc) args.push(`--input-ipc-server=${this.socketPath}`);

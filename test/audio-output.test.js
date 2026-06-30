@@ -40,6 +40,7 @@ test("uses mpv for Pi playback and falls back safely elsewhere", async () => {
     platform: "linux",
     command: "/usr/bin/mpv",
     audioDevice: "alsa/default",
+    bluetoothAudioDevice: "alsa/bluealsa",
     cacheDirectory: await temporaryDirectory("nexus-audio-mpv-"),
     accessFile: async () => {},
     spawnProcess,
@@ -53,11 +54,15 @@ test("uses mpv for Pi playback and falls back safely elsewhere", async () => {
   assert.ok(calls[0].args.includes("--volume=42"));
   assert.ok(calls[0].args.includes("--start=3"));
   assert.ok(calls[0].args.includes("--audio-device=alsa/default"));
+  output.applyPreferences({ audio_output_device: "bluetooth" });
+  assert.equal(output.info().output_device, "bluetooth");
+  await output.play({ item_id: "bluetooth-loop", kind: "ambience", loop: true, synthesis: { frequencies: [110] } }, { volume: 42 });
+  assert.ok(calls.at(-1).args.includes("--audio-device=alsa/bluealsa"));
   await output.stop();
   assert.equal(children[0].killedWith, "SIGTERM");
   await output.triggerEffect({ item_id: "hit", kind: "effect", synthesis: { frequencies: [440], duration_seconds: 0.25 } }, { volume: 60 });
-  assert.equal(calls.length, 2);
-  assert.ok(!calls[1].args.includes("--loop-file=inf"));
+  assert.equal(calls.length, 3);
+  assert.ok(!calls.at(-1).args.includes("--loop-file=inf"));
 });
 
 test("routes AudioService controls to the configured server output", async () => {
@@ -89,4 +94,3 @@ test("routes AudioService controls to the configured server output", async () =>
   assert.equal(calls[1][1], "lantern-and-oak");
   assert.match(calls[5][1], /^radio-/);
 });
-

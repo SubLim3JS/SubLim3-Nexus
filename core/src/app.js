@@ -234,6 +234,15 @@ export function createApp({
         return sendJson(response, 200, { data: await audio.status() });
       }
 
+      if (audio && request.method === "POST" && url.pathname === `${API_PREFIX}/audio/output`) {
+        if (access) await access.authorize(request, { roles: ["admin", "gm"] });
+        const input = await readJson(request);
+        if (!["pi", "bluetooth"].includes(input?.output_device)) return sendJson(response, 422, { error: "validation_failed", details: ["output_device must be pi or bluetooth"] });
+        const settings = playerSettings ? await playerSettings.update({ audio_output_device: input.output_device }) : { audio_output_device: input.output_device };
+        const status = playerSettings ? await audio.applyPreferences(settings) : await audio.status();
+        return sendJson(response, 200, { data: status });
+      }
+
       const audioContent = audio?.files && request.method === "GET" ? url.pathname.match(/^\/api\/v1\/audio\/files\/([^/]+)\/content$/) : null;
       if (audioContent) {
         const opened = await audio.files.open(decodeURIComponent(audioContent[1]));
