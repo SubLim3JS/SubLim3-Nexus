@@ -99,10 +99,25 @@ stop_hotspot() {
   nmcli connection delete "${HOTSPOT_CONNECTION}" >/dev/null 2>&1 || true
 }
 
+disable_home_autoconnect() {
+  local active_connection
+  active_connection="$(nmcli -g GENERAL.CONNECTION device show "${WIFI_INTERFACE}" 2>/dev/null || true)"
+  if [[ -n "${HOME_CONNECTION}" && "${HOME_CONNECTION}" != "--" && "${HOME_CONNECTION}" != "${HOTSPOT_CONNECTION}" ]]; then
+    nmcli connection modify "${HOME_CONNECTION}" connection.autoconnect no >/dev/null 2>&1 || true
+  fi
+  if [[ -n "${active_connection}" && "${active_connection}" != "--" && "${active_connection}" != "${HOTSPOT_CONNECTION}" ]]; then
+    nmcli connection modify "${active_connection}" connection.autoconnect no >/dev/null 2>&1 || true
+    nmcli connection down "${active_connection}" >/dev/null 2>&1 || true
+  fi
+}
+
 start_hotspot() {
   [[ ${#HOTSPOT_SSID} -ge 1 && ${#HOTSPOT_SSID} -le 32 ]] || { echo "Hotspot SSID must be 1-32 characters." >&2; exit 2; }
   [[ ${#HOTSPOT_PASSWORD} -ge 8 && ${#HOTSPOT_PASSWORD} -le 63 ]] || { echo "Hotspot password must be 8-63 characters." >&2; exit 2; }
+  disable_home_autoconnect
   stop_hotspot
+  nmcli radio wifi on >/dev/null
+  nmcli device set "${WIFI_INTERFACE}" managed yes >/dev/null 2>&1 || true
   nmcli device wifi hotspot ifname "${WIFI_INTERFACE}" con-name "${HOTSPOT_CONNECTION}" ssid "${HOTSPOT_SSID}" password "${HOTSPOT_PASSWORD}"
   nmcli connection modify "${HOTSPOT_CONNECTION}" ipv4.method shared ipv4.addresses "${HOTSPOT_ADDRESS}"
   nmcli connection down "${HOTSPOT_CONNECTION}" >/dev/null 2>&1 || true
@@ -136,6 +151,7 @@ connect_home() {
   else
     nmcli device wifi connect "${ssid}" ifname "${WIFI_INTERFACE}" name "${HOME_CONNECTION}" || restore_hotspot_after_home_failure "Unable to join open home Wi-Fi. Restored Local Mode."
   fi
+  nmcli connection modify "${HOME_CONNECTION}" connection.autoconnect yes >/dev/null 2>&1 || true
   for _ in {1..20}; do
     local active_connection addresses
     active_connection="$(nmcli -g GENERAL.CONNECTION device show "${WIFI_INTERFACE}" 2>/dev/null || true)"

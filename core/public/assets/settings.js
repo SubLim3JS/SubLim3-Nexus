@@ -128,7 +128,7 @@ $("#local-mode").addEventListener("click", async () => {
   if (!confirm("Switch to Local Wi-Fi? This browser will disconnect while Nexus starts its own network.")) return;
   alertMessage("Switching to Local Wi-Fi. Reconnect to the SubLim3-Nexus network, then reopen this page.");
   try { await api("/api/v1/connectivity/wifi/mode", { method:"POST", headers:headers(true), body:JSON.stringify({ mode:"local" }) }); }
-  catch { /* A dropped request is expected when the Wi-Fi radio changes mode. */ }
+  catch (error) { if (!(error instanceof TypeError)) alertMessage(error.message, "error"); }
 });
 
 $("#home-form").addEventListener("submit", async (event) => {
