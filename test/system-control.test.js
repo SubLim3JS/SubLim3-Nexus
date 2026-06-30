@@ -47,8 +47,13 @@ test("runs updates with an isolated Git environment outside the Core sandbox", a
   assert.match(helper, /play_update_tone success/);
   assert.match(helper, /play_update_tone failure/);
   assert.match(helper, /system-tone\)/);
+  assert.match(helper, /restart_core\(\)/);
+  assert.match(helper, /systemctl restart --no-block sublim3-nexus\.service/);
+  assert.match(helper, /wifi-local\).*start_hotspot; restart_core/);
   assert.match(installer, /NEXUS_INSTALL_TRANSIENT/);
   assert.match(installer, /systemd-run --quiet --wait --pipe --collect/);
   assert.match(installer, /--unit=sublim3-nexus-install/);
   assert.match(installer, /chown -R "\$\{repository_owner\}:\$\{repository_group\}" "\$\{APP_DIR\}"/);
+  assert.match(installer, /Owner PIN:/);
+  assert.doesNotMatch(installer, /Admin PIN:/);
 });

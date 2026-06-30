@@ -167,7 +167,9 @@ set_setting() {
 
 replace_setting_if_value() {
   local key="$1" current_value="$2" new_value="$3"
-  grep -q "^${key}=${current_value}$" /etc/default/sublim3-nexus && sed -i "s|^${key}=${current_value}$|${key}=${new_value}|" /etc/default/sublim3-nexus
+  if grep -q "^${key}=${current_value}$" /etc/default/sublim3-nexus; then
+    sed -i "s|^${key}=${current_value}$|${key}=${new_value}|" /etc/default/sublim3-nexus
+  fi
 }
 
 adopt_active_home_connection() {
@@ -221,10 +223,7 @@ systemctl enable "${RECOVERY_SERVICE}"
 systemctl enable "${SERVICE_NAME}"
 systemctl restart "${SERVICE_NAME}"
 
-echo "SubLim3 Nexus Core is installed and running."
-echo "Status: systemctl status ${SERVICE_NAME}"
-echo "Logs:   journalctl -u ${SERVICE_NAME} -f"
-echo "Admin PIN:    $(grep '^NEXUS_ADMIN_PIN=' /etc/default/sublim3-nexus | cut -d= -f2-)"
-echo "GM PIN:       $(grep '^NEXUS_GM_PIN=' /etc/default/sublim3-nexus | cut -d= -f2-)"
-echo "Local Wi-Fi:  $(grep '^NEXUS_HOTSPOT_SSID=' /etc/default/sublim3-nexus | cut -d= -f2-)"
-echo "Wi-Fi key:    $(grep '^NEXUS_HOTSPOT_PASSWORD=' /etc/default/sublim3-nexus | cut -d= -f2-)"
+echo "Wi-Fi SSID:       $(grep '^NEXUS_HOTSPOT_SSID=' /etc/default/sublim3-nexus | cut -d= -f2-)"
+echo "Wi-Fi password:   $(grep '^NEXUS_HOTSPOT_PASSWORD=' /etc/default/sublim3-nexus | cut -d= -f2-)"
+echo "Owner PIN:        $(grep '^NEXUS_ADMIN_PIN=' /etc/default/sublim3-nexus | cut -d= -f2-)"
+echo "GM PIN:           $(grep '^NEXUS_GM_PIN=' /etc/default/sublim3-nexus | cut -d= -f2-)"

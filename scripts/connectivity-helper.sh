@@ -90,6 +90,10 @@ set_home_connection() {
   set_config_value NEXUS_HOME_CONNECTION "${HOME_CONNECTION}"
 }
 
+restart_core() {
+  systemctl restart --no-block sublim3-nexus.service >/dev/null 2>&1 || true
+}
+
 stop_hotspot() {
   nmcli connection down "${HOTSPOT_CONNECTION}" >/dev/null 2>&1 || true
   nmcli connection delete "${HOTSPOT_CONNECTION}" >/dev/null 2>&1 || true
@@ -109,6 +113,7 @@ restore_hotspot_after_home_failure() {
   echo "$1" >&2
   set_wifi_mode local
   start_hotspot
+  restart_core
   exit 1
 }
 
@@ -135,7 +140,10 @@ connect_home() {
     local active_connection addresses
     active_connection="$(nmcli -g GENERAL.CONNECTION device show "${WIFI_INTERFACE}" 2>/dev/null || true)"
     addresses="$(nmcli -g IP4.ADDRESS device show "${WIFI_INTERFACE}" 2>/dev/null || true)"
-    [[ "${active_connection}" == "${HOME_CONNECTION}" && -n "${addresses}" ]] && exit 0
+    if [[ "${active_connection}" == "${HOME_CONNECTION}" && -n "${addresses}" ]]; then
+      restart_core
+      exit 0
+    fi
     sleep 1
   done
   restore_hotspot_after_home_failure "Joined home Wi-Fi but did not receive an IPv4 address. Restored Local Mode."
@@ -222,7 +230,7 @@ run_system_update() {
 }
 
 case "${1:-}" in
-  wifi-local) [[ $# -eq 1 ]] || exit 2; set_wifi_mode local; start_hotspot ;;
+  wifi-local) [[ $# -eq 1 ]] || exit 2; set_wifi_mode local; start_hotspot; restart_core ;;
   wifi-home) shift; connect_home "$@" ;;
   wifi-scan) [[ $# -eq 1 ]] || exit 2; nmcli -t --escape yes -f SSID,SIGNAL,SECURITY device wifi list ifname "${WIFI_INTERFACE}" --rescan yes ;;
   diagnostic-ping) shift; diagnostic_ping "$@" ;;
