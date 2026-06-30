@@ -6,6 +6,7 @@ const UPDATE_NOTICE_KEY = "nexus-update-notice";
 let updateProgressTimer = null;
 let updateProgressStartedAt = 0;
 let autoWifiScanStarted = false;
+let bluetoothVisibilityPending = false;
 
 function alertMessage(message, type = "") { const alert = $("#settings-alert"); alert.textContent = message; alert.className = `settings-alert ${type}`; }
 function headers(json = false) { return { ...(json ? { "content-type": "application/json" } : {}), ...(adminToken ? { authorization: `Bearer ${adminToken}` } : {}) }; }
@@ -60,6 +61,7 @@ function renderStatus(status) {
   $("#wifi-address").textContent = status.wifi.addresses?.[0] || "No address";
   $("#bluetooth-state").textContent = status.bluetooth.available ? status.bluetooth.visible ? "Visible" : status.bluetooth.powered ? "Hidden" : "Powered off" : "Unavailable";
   $("#bluetooth-visible").checked = Boolean(status.bluetooth.visible);
+  $("#bluetooth-visible").disabled = bluetoothVisibilityPending || !adminToken || !status.bluetooth.available;
   const devices = status.bluetooth.connected_devices ?? [];
   $("#bluetooth-devices").textContent = devices.length ? devices.map((device) => `${device.name} • ${device.address}`).join("\n") : "No connected devices";
   if (!status.supported) alertMessage("Connectivity controls are available when Nexus Core runs on Raspberry Pi.");
@@ -140,10 +142,25 @@ $("#home-form").addEventListener("submit", async (event) => {
 });
 
 $("#bluetooth-visible").addEventListener("change", async (event) => {
+  const desired = event.target.checked;
+  bluetoothVisibilityPending = true;
   event.target.disabled = true;
-  try { await api("/api/v1/connectivity/bluetooth/visibility", { method:"POST", headers:headers(true), body:JSON.stringify({ visible:event.target.checked }) }); alertMessage(`Bluetooth visibility ${event.target.checked ? "enabled" : "disabled"}.`, "success"); }
-  catch (error) { event.target.checked = !event.target.checked; alertMessage(error.message, "error"); }
-  finally { event.target.disabled = false; }
+  alertMessage(`Turning Bluetooth visibility ${desired ? "on" : "off"}...`);
+  try {
+    await api("/api/v1/connectivity/bluetooth/visibility", { method:"POST", headers:headers(true), body:JSON.stringify({ visible:desired }) });
+    await loadStatus();
+    const actual = $("#bluetooth-visible").checked;
+    alertMessage(actual === desired ? `Bluetooth visibility ${desired ? "enabled" : "disabled"}.` : "Bluetooth command completed, but Nexus reported a different visibility state.", actual === desired ? "success" : "error");
+  }
+  catch (error) {
+    event.target.checked = !desired;
+    alertMessage(error.message, "error");
+  }
+  finally {
+    bluetoothVisibilityPending = false;
+    event.target.disabled = !adminToken;
+    loadStatus().catch(() => {});
+  }
 });
 
 $("#ping-form").addEventListener("submit", async (event) => {

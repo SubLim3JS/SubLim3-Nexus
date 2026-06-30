@@ -254,6 +254,10 @@ case "${1:-}" in
   bluetooth-visible)
     [[ $# -eq 2 && ( "$2" == "on" || "$2" == "off" ) ]] || { echo "Visibility must be on or off." >&2; exit 2; }
     bluetoothctl power on >/dev/null
+    if [[ "$2" == "on" ]]; then
+      bluetoothctl pairable-timeout 0 >/dev/null
+      bluetoothctl discoverable-timeout 0 >/dev/null
+    fi
     bluetoothctl pairable "$2" >/dev/null
     bluetoothctl discoverable "$2" >/dev/null
     ;;
