@@ -67,6 +67,7 @@ export class MpvAudioOutput {
     platform = process.platform,
     spawnProcess = spawn,
     accessFile = access,
+    bluetoothConnected = async () => true,
   } = {}) {
     this.command = command;
     this.piAudioDevice = audioDevice;
@@ -76,6 +77,8 @@ export class MpvAudioOutput {
     this.platform = platform;
     this.spawnProcess = spawnProcess;
     this.accessFile = accessFile;
+    this.bluetoothConnected = bluetoothConnected;
+    this.bluetoothAvailable = true;
     this.available = false;
     this.child = null;
     this.effects = new Set();
@@ -88,6 +91,7 @@ export class MpvAudioOutput {
       await this.accessFile(this.command, constants.X_OK);
       await mkdir(this.cacheDirectory, { recursive: true });
       this.available = true;
+      await this.refreshBluetoothConnection();
     } catch { this.available = false; }
   }
 
@@ -97,25 +101,41 @@ export class MpvAudioOutput {
       : { driver: "browser_preview", name: "Browser renderer", available: true, server_playback: false };
   }
 
+  async refreshBluetoothConnection() {
+    if (this.outputDevice !== "bluetooth") {
+      this.bluetoothAvailable = true;
+      return true;
+    }
+    try { this.bluetoothAvailable = Boolean(await this.bluetoothConnected()); }
+    catch { this.bluetoothAvailable = false; }
+    return this.bluetoothAvailable;
+  }
+
+  effectiveOutputDevice() {
+    return this.outputDevice === "bluetooth" && !this.bluetoothAvailable ? "pi" : this.outputDevice;
+  }
+
   activeAudioDevice() {
-    return this.outputDevice === "bluetooth" ? this.bluetoothAudioDevice : this.piAudioDevice;
+    return this.effectiveOutputDevice() === "bluetooth" ? this.bluetoothAudioDevice : this.piAudioDevice;
   }
 
   async applyPreferences(preferences = {}) {
     if (!AUDIO_OUTPUT_DEVICES.includes(preferences.audio_output_device)) return;
     const previousOutputDevice = this.outputDevice;
     this.outputDevice = preferences.audio_output_device;
+    await this.refreshBluetoothConnection();
     if (previousOutputDevice !== "browser" && this.outputDevice === "browser") await this.stop();
   }
 
   info() {
-    if (this.outputDevice === "browser") {
+    const effectiveOutputDevice = this.effectiveOutputDevice();
+    if (effectiveOutputDevice === "browser") {
       return { driver: "browser_preview", name: "This device", available: true, server_playback: false, output_device: "browser" };
     }
     const audioDevice = this.activeAudioDevice();
-    const routeName = this.outputDevice === "bluetooth" ? "Bluetooth speaker" : "Raspberry Pi audio";
+    const routeName = effectiveOutputDevice === "bluetooth" ? "Bluetooth speaker" : "Raspberry Pi audio";
     return this.available
-      ? { driver: "mpv", name: audioDevice === "auto" ? routeName : `${routeName} · ${audioDevice}`, available: true, server_playback: true, output_device: this.outputDevice, audio_device: audioDevice }
+      ? { driver: "mpv", name: audioDevice === "auto" ? routeName : `${routeName} · ${audioDevice}`, available: true, server_playback: true, output_device: effectiveOutputDevice, preferred_output_device: this.outputDevice, audio_device: audioDevice, fallback_reason: this.outputDevice === "bluetooth" && effectiveOutputDevice === "pi" ? "Bluetooth speaker not connected" : null }
       : { driver: "browser_preview", name: "Browser renderer", available: true, server_playback: false, output_device: "browser" };
   }
 
@@ -149,6 +169,7 @@ export class MpvAudioOutput {
   }
 
   async play(item, { files, position = 0, volume = 50 } = {}) {
+    await this.refreshBluetoothConnection();
     if (this.outputDevice === "browser" || !this.available) return false;
     const source = await this.sourceFor(item, files);
     if (!source) return false;
@@ -193,6 +214,7 @@ export class MpvAudioOutput {
   async setVolume(volume) { return this.send(["set_property", "volume", Math.round(volume)]); }
 
   async triggerEffect(item, { files, volume = 50 } = {}) {
+    await this.refreshBluetoothConnection();
     if (this.outputDevice === "browser" || !this.available) return false;
     const source = await this.sourceFor(item, files);
     if (!source) return false;

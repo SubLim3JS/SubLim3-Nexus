@@ -57,6 +57,7 @@ const audioOutput = process.env.NEXUS_AUDIO_DRIVER === "browser"
       bluetoothAudioDevice: process.env.NEXUS_BLUETOOTH_AUDIO_DEVICE ?? "auto",
       outputDevice: initialPlayerSettings.audio_output_device,
       cacheDirectory: path.join(dataDirectory, "audio", "cache"),
+      bluetoothConnected: async () => (await connectivity.status()).bluetooth.connected_devices.length > 0,
     });
 const audio = new AudioService({ libraryStore: audioLibraryStore, stateStore: audioStateStore, files: audioFiles, output: audioOutput, preferences: initialPlayerSettings });
 await audio.initialize();

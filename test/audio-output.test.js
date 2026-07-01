@@ -70,6 +70,32 @@ test("uses mpv for Pi playback and falls back safely elsewhere", async () => {
   assert.equal(calls.length, 3);
 });
 
+test("falls back to Pi audio when Bluetooth output has no connected speaker", async () => {
+  const calls = [];
+  const spawnProcess = (command, args) => {
+    const child = new EventEmitter(); child.kill = () => child.emit("close", 0);
+    calls.push({ command, args }); return child;
+  };
+  const output = new MpvAudioOutput({
+    platform: "linux",
+    command: "/usr/bin/mpv",
+    audioDevice: "alsa/default",
+    bluetoothAudioDevice: "alsa/bluealsa",
+    outputDevice: "bluetooth",
+    cacheDirectory: await temporaryDirectory("nexus-audio-bluetooth-fallback-"),
+    accessFile: async () => {},
+    spawnProcess,
+    bluetoothConnected: async () => false,
+  });
+  await output.initialize();
+  assert.equal(output.info().output_device, "pi");
+  assert.equal(output.info().preferred_output_device, "bluetooth");
+  assert.equal(output.info().fallback_reason, "Bluetooth speaker not connected");
+  await output.play({ item_id: "fallback-loop", kind: "ambience", loop: true, synthesis: { frequencies: [110] } }, { volume: 42 });
+  assert.ok(calls.at(-1).args.includes("--audio-device=alsa/default"));
+  assert.ok(!calls.at(-1).args.includes("--audio-device=alsa/bluealsa"));
+});
+
 test("routes AudioService controls to the configured server output", async () => {
   const directory = await temporaryDirectory("nexus-audio-service-");
   const calls = [];
