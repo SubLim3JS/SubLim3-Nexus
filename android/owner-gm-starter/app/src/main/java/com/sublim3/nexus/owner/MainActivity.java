@@ -3,6 +3,7 @@ package com.sublim3.nexus.owner;
 import android.content.ActivityNotFoundException;
 import android.content.SharedPreferences;
 import android.content.Intent;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -267,7 +268,8 @@ public class MainActivity extends AppCompatActivity {
         if (canRetry) {
             builder.setPositiveButton(R.string.try_again, (dialog, which) -> refreshCurrentPage());
         }
-        builder.show();
+        AlertDialog dialog = builder.show();
+        styleDialogButtons(dialog);
     }
 
     private void switchRoute(String route) {
@@ -347,8 +349,20 @@ public class MainActivity extends AppCompatActivity {
             .create();
         dialog.setOnShowListener(listener -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false));
         dialog.show();
+        styleDialogButtons(dialog);
 
         return new MaintenanceDialog(statusView, progressBar, dialog);
+    }
+
+    private void styleDialogButtons(AlertDialog dialog) {
+        int primary = Color.parseColor("#39FF14");
+        int secondary = Color.parseColor("#F8FAFC");
+        Button positive = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button negative = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+        Button neutral = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
+        if (positive != null) positive.setTextColor(primary);
+        if (negative != null) negative.setTextColor(secondary);
+        if (neutral != null) neutral.setTextColor(primary);
     }
 
     private void runSystemUpdate(String token, TextView statusView, ProgressBar progressBar, AlertDialog dialog) {

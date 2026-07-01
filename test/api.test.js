@@ -276,11 +276,11 @@ test("serves Android app release metadata", async () => {
   const metadata = await fetch(`${baseUrl}/downloads/android-apps.json`);
   assert.equal(metadata.status, 200);
   const catalog = await metadata.json();
-  assert.equal(catalog.apps.owner.versionName, "0.1.11");
-  assert.equal(catalog.apps.owner.versionCode, 12);
+  assert.equal(catalog.apps.owner.versionName, "0.1.12");
+  assert.equal(catalog.apps.owner.versionCode, 13);
   assert.equal(catalog.apps.owner.apk, "https://github.com/SubLim3JS/SubLim3-Nexus/releases/latest/download/SubLim3_Nexus_Owner.apk");
-  assert.equal(catalog.apps.player.versionName, "0.1.7");
-  assert.equal(catalog.apps.player.versionCode, 8);
+  assert.equal(catalog.apps.player.versionName, "0.1.8");
+  assert.equal(catalog.apps.player.versionCode, 9);
   assert.equal(catalog.apps.player.apk, "https://github.com/SubLim3JS/SubLim3-Nexus/releases/latest/download/SubLim3_Nexus_Player.apk");
 
   for (const file of ["SubLim3_Nexus_Owner.apk", "SubLim3_Nexus_Player.apk"]) {
