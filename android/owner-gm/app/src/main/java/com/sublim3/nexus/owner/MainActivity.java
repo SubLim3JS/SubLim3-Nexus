@@ -395,7 +395,7 @@ public class MainActivity extends AppCompatActivity {
         postStatus(statusView, getString(requestStarted ? R.string.update_native_reconnecting : R.string.update_native_waiting));
         try {
             String status = waitForCore(startedAt + 120_000);
-            finishNativeUpdate(statusView, progressBar, dialog, getString(R.string.update_native_complete, status), false);
+            finishNativeUpdate(statusView, progressBar, dialog, getString(R.string.update_native_complete, versionLine(status)), false);
             mainHandler.post(() -> webView.reload());
         } catch (Exception error) {
             finishNativeUpdate(statusView, progressBar, dialog, getString(R.string.update_native_unknown, error.getMessage()), true);
@@ -423,7 +423,7 @@ public class MainActivity extends AppCompatActivity {
         postStatus(statusView, getString(R.string.reboot_native_reconnecting));
         try {
             String status = waitForCore(startedAt + 120_000);
-            finishNativeUpdate(statusView, progressBar, dialog, getString(R.string.reboot_native_complete, status), false);
+            finishNativeUpdate(statusView, progressBar, dialog, getString(R.string.reboot_native_complete, versionLine(status)), false);
             mainHandler.post(() -> webView.reload());
         } catch (Exception error) {
             finishNativeUpdate(statusView, progressBar, dialog, getString(R.string.reboot_native_unknown, error.getMessage()), true);
@@ -481,6 +481,39 @@ public class MainActivity extends AppCompatActivity {
             }
             return body.toString();
         }
+    }
+
+    private String versionLine(String statusJson) {
+        String version = extractJsonString(statusJson, "version");
+        if (version == null || version.isBlank()) return getString(R.string.update_native_status_ready);
+        return getString(R.string.update_native_version_ready, version);
+    }
+
+    private String extractJsonString(String json, String key) {
+        if (json == null || key == null) return null;
+        String needle = "\"" + key + "\"";
+        int keyIndex = json.indexOf(needle);
+        if (keyIndex < 0) return null;
+        int colonIndex = json.indexOf(":", keyIndex + needle.length());
+        if (colonIndex < 0) return null;
+        int startQuote = json.indexOf("\"", colonIndex + 1);
+        if (startQuote < 0) return null;
+        StringBuilder value = new StringBuilder();
+        boolean escaping = false;
+        for (int index = startQuote + 1; index < json.length(); index++) {
+            char character = json.charAt(index);
+            if (escaping) {
+                value.append(character);
+                escaping = false;
+            } else if (character == '\\') {
+                escaping = true;
+            } else if (character == '"') {
+                return value.toString();
+            } else {
+                value.append(character);
+            }
+        }
+        return null;
     }
 
     private void postStatus(TextView statusView, String message) {
