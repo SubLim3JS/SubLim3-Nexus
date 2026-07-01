@@ -260,7 +260,11 @@ case "${1:-}" in
     if [[ "$2" == "on" ]] && command -v rfkill >/dev/null 2>&1; then
       rfkill unblock bluetooth >/dev/null 2>&1 || true
     fi
-    bluetoothctl power on >/dev/null
+    for attempt in 1 2 3 4 5; do
+      bluetoothctl power on >/dev/null
+      bluetoothctl show | grep -q '^.*Powered: yes' && break
+      sleep 1
+    done
     if ! bluetoothctl show | grep -q '^.*Powered: yes'; then
       echo "Bluetooth is blocked or unavailable. Check rfkill and adapter power state." >&2
       exit 1
@@ -271,6 +275,11 @@ case "${1:-}" in
     fi
     bluetoothctl pairable "$2" >/dev/null
     bluetoothctl discoverable "$2" >/dev/null
+    for attempt in 1 2 3 4 5; do
+      if [[ "$2" == "on" ]] && bluetoothctl show | grep -q '^.*Discoverable: yes'; then break; fi
+      if [[ "$2" == "off" ]] && bluetoothctl show | grep -q '^.*Discoverable: no'; then break; fi
+      sleep 1
+    done
     ;;
   gm-pin)
     [[ $# -eq 1 ]] || exit 2

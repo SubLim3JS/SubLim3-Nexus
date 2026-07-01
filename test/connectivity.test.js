@@ -48,6 +48,13 @@ test("reports blocked Bluetooth power state", async () => {
   assert.equal(status.bluetooth.visible, false);
 });
 
+test("connectivity helper waits for Bluetooth visibility changes", async () => {
+  const helper = await readFile(new URL("../scripts/connectivity-helper.sh", import.meta.url), "utf8");
+  assert.match(helper, /for attempt in 1 2 3 4 5; do[\s\S]*bluetoothctl power on/);
+  assert.match(helper, /Discoverable: yes/);
+  assert.match(helper, /Discoverable: no/);
+});
+
 test("delegates only validated connectivity mutations", async () => {
   const runner = new FakeRunner();
   const service = new ConnectivityService({ runner, platform: "linux" });

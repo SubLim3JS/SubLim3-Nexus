@@ -95,6 +95,20 @@ function renderStatus(status) {
 }
 
 async function loadStatus() { const { data } = await api("/api/v1/connectivity/status", { headers: headers() }); renderStatus(data); }
+async function waitForBluetoothVisibility(expected, timeoutMs = 6_000) {
+  const deadline = Date.now() + timeoutMs;
+  let latest = null;
+  while (Date.now() < deadline) {
+    try {
+      const { data } = await api("/api/v1/connectivity/status", { headers: headers() });
+      latest = data;
+      renderStatus(data);
+      if (!data.bluetooth.available || data.bluetooth.visible === expected) return data;
+    } catch { /* Keep polling while the adapter settles. */ }
+    await new Promise((resolve) => setTimeout(resolve, 750));
+  }
+  return latest;
+}
 function renderPlayerSettings(settings) {
   $("#maximum-volume").value = settings.maximum_volume;
   $("#startup-volume").value = settings.startup_volume;
@@ -180,7 +194,7 @@ $("#bluetooth-visible").addEventListener("change", async (event) => {
   alertMessage(`Turning Bluetooth visibility ${desired ? "on" : "off"}...`);
   try {
     await api("/api/v1/connectivity/bluetooth/visibility", { method:"POST", headers:headers(true), body:JSON.stringify({ visible:desired }) });
-    await loadStatus();
+    await waitForBluetoothVisibility(desired);
     const actual = $("#bluetooth-visible").checked;
     alertMessage(actual === desired ? `Bluetooth visibility ${desired ? "enabled" : "disabled"}.` : "Bluetooth command completed, but Nexus reported a different visibility state.", actual === desired ? "success" : "error");
   }

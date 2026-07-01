@@ -195,6 +195,14 @@ test("protects connectivity controls with the Settings PIN", async () => {
   }).then((response) => response.json());
   assert.equal(ping.data.ok, true);
   assert.deepEqual(connectivityActions.at(-1), ["ping", "192.168.1.1"]);
+
+  const bluetooth = await fetch(`${baseUrl}/api/v1/connectivity/bluetooth/visibility`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-nexus-settings-pin": "123456" },
+    body: JSON.stringify({ visible: true }),
+  });
+  assert.equal(bluetooth.status, 200);
+  assert.deepEqual(connectivityActions.at(-1), ["bluetooth", true]);
 });
 
 test("serves the connectivity Settings page", async () => {
@@ -244,6 +252,8 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /beginUpdateProgress/);
   assert.match(script, /showUpdateProgress\("Restarting Nexus Core/);
   assert.match(script, /confirmSettingsAction/);
+  assert.match(script, /waitForBluetoothVisibility/);
+  assert.match(script, /data\.bluetooth\.visible === expected/);
   assert.match(script, /message: "Switch to Local Wi-Fi\?"/);
   assert.match(script, /http:\/\/10\.10\.10\.1:3000\/settings\//);
   assert.doesNotMatch(script, /Switch to Local Wi-Fi\? This browser will disconnect/);
