@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -47,7 +48,7 @@
             android:inputType="textUri"
             android:singleLine="true" />
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/connectButton"
             android:layout_width="match_parent"
             android:layout_height="52dp"
@@ -59,9 +60,10 @@
             android:textAllCaps="false"
             android:textColor="#031003"
             android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            app:backgroundTint="@null" />
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/setupHelpButton"
             android:layout_width="match_parent"
             android:layout_height="52dp"
@@ -72,7 +74,8 @@
             android:textAllCaps="false"
             android:textColor="#F8FAFC"
             android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            app:backgroundTint="@null" />
 
     </LinearLayout>
 
