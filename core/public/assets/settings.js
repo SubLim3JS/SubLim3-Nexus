@@ -24,8 +24,14 @@ function renderAppInstallQrCodes(catalog = null) {
   const playerQr = $("#player-app-qr");
   const ownerUrl = downloadUrl(catalog?.apps?.owner?.apk ?? OWNER_APP_APK_URL);
   const playerUrl = downloadUrl(catalog?.apps?.player?.apk ?? PLAYER_APP_APK_URL);
-  if (ownerQr) ownerQr.innerHTML = qrSvg(ownerUrl, { title:"Install SubLim3 Nexus Owner/GM app" });
-  if (playerQr) playerQr.innerHTML = qrSvg(playerUrl, { title:"Install SubLim3 Nexus Player app" });
+  if (ownerQr) {
+    try { ownerQr.innerHTML = qrSvg(ownerUrl, { title:"Install SubLim3 Nexus Owner/GM app" }); }
+    catch { ownerQr.textContent = "QR unavailable"; }
+  }
+  if (playerQr) {
+    try { playerQr.innerHTML = qrSvg(playerUrl, { title:"Install SubLim3 Nexus Player app" }); }
+    catch { playerQr.textContent = "QR unavailable"; }
+  }
   const ownerDownload = $("#owner-app-download");
   const playerDownload = $("#player-app-download");
   if (ownerDownload) ownerDownload.href = ownerUrl;
@@ -72,10 +78,14 @@ function renderStatus(status) {
   $("#wifi-ssid").textContent = status.wifi.ssid || status.wifi.connection || "Not connected";
   $("#wifi-address").textContent = status.wifi.addresses?.[0] || "No address";
   $("#bluetooth-state").textContent = status.bluetooth.available ? status.bluetooth.blocked ? "Blocked" : status.bluetooth.visible ? "Visible" : status.bluetooth.powered ? "Hidden" : "Powered off" : "Unavailable";
-  $("#bluetooth-visible").checked = Boolean(status.bluetooth.visible);
-  $("#bluetooth-visible").disabled = bluetoothVisibilityPending || !adminToken || !status.bluetooth.available;
+  const bluetoothVisible = $("#bluetooth-visible");
+  if (bluetoothVisible) {
+    bluetoothVisible.checked = Boolean(status.bluetooth.visible);
+    bluetoothVisible.disabled = bluetoothVisibilityPending || !adminToken || !status.bluetooth.available;
+  }
   const devices = status.bluetooth.connected_devices ?? [];
-  $("#bluetooth-devices").textContent = devices.length ? devices.map((device) => `${device.name} • ${device.address}`).join("\n") : "No connected devices";
+  const bluetoothDevices = $("#bluetooth-devices");
+  if (bluetoothDevices) bluetoothDevices.textContent = devices.length ? devices.map((device) => `${device.name} • ${device.address}`).join("\n") : "No connected devices";
   if (!status.supported) alertMessage("Connectivity controls are available when Nexus Core runs on Raspberry Pi.");
   else alertMessage("Connectivity status is current.", "success");
   if (status.supported && status.wifi.mode === "local" && !autoWifiScanStarted) {

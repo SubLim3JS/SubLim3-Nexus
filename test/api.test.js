@@ -199,13 +199,17 @@ test("serves the connectivity Settings page", async () => {
   assert.equal(response.status, 200);
   const page = await response.text();
   assert.match(page, /Bluetooth visibility/);
-  assert.match(page, /Install QR codes/);
+  assert.match(page, /Install apps/);
+  assert.match(page, /Scan a QR code from another Android device/);
   assert.match(page, /id="owner-app-qr"/);
   assert.match(page, /id="player-app-qr"/);
+  assert.match(page, /id="owner-app-download"/);
+  assert.match(page, /id="player-app-download"/);
   assert.match(page, /QR code for the SubLim3 Nexus Owner\/GM app/);
   assert.match(page, /QR code for the SubLim3 Nexus Player app/);
-  assert.match(page, /App updates/);
-  assert.match(page, /GitHub Releases/);
+  assert.doesNotMatch(page, /App updates/);
+  assert.doesNotMatch(page, /GitHub Releases/);
+  assert.match(page, /Download APK/);
   assert.match(page, /releases\/latest\/download\/SubLim3_Nexus_Owner\.apk/);
   assert.match(page, /releases\/latest\/download\/SubLim3_Nexus_Player\.apk/);
   assert.match(page, /NETWORK TESTING/);
@@ -248,11 +252,18 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /OWNER_APP_APK_URL/);
   assert.match(script, /PLAYER_APP_APK_URL/);
   assert.match(script, /renderAppInstallQrCodes\(catalog\)/);
+  assert.match(script, /QR unavailable/);
+  assert.match(script, /const bluetoothDevices = \$\("#bluetooth-devices"\)/);
   assert.match(script, /releases\/latest\/download\/SubLim3_Nexus_Owner\.apk/);
   assert.match(script, /releases\/latest\/download\/SubLim3_Nexus_Player\.apk/);
   assert.match(script, /window\.NexusAndroid\?\.getAppInfo/);
   assert.match(script, /devicePairingName\("Owner"\)/);
   assert.doesNotMatch(script, /System Admin settings/);
+  const styles = await fetch(`${baseUrl}/assets/settings.css`).then((asset) => asset.text());
+  assert.match(styles, /aspect-ratio:1\/1/);
+  assert.match(styles, /mobile-apps-panel/);
+  assert.match(styles, /app-install-grid/);
+  assert.match(styles, /grid-template-columns:repeat\(2,minmax\(142px,168px\)\)/);
 });
 
 test("serves Android app release metadata", async () => {

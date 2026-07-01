@@ -7,9 +7,9 @@
     <title>Settings • SubLim3 Nexus</title>
     <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
     <link rel="stylesheet" href="/assets/styles.css?v=1.6.3">
-    <link rel="stylesheet" href="/assets/settings.css?v=1.6.4">
+    <link rel="stylesheet" href="/assets/settings.css?v=1.6.6">
     <script type="module" src="/assets/navigation.js?v=1.0.0"></script>
-    <script type="module" src="/assets/settings.js?v=1.6.7"></script>
+    <script type="module" src="/assets/settings.js?v=1.6.9"></script>
   </head>
   <body>
     <div class="app-shell settings-shell">
@@ -54,11 +54,22 @@
           <form id="pin-form"><label>Recovery PIN<input id="settings-pin" inputmode="numeric" autocomplete="off" maxlength="12" required placeholder="000000"></label><button class="primary-button" type="submit">Reconnect</button></form>
         </article>
 
-        <article class="settings-card player-app-qr-panel">
-          <div><p class="eyebrow">ANDROID APPS</p><h2>Install QR codes</h2><p class="settings-copy">Scan from an Android device with internet access to install the latest Owner/GM or Player app shell from GitHub Releases.</p></div>
-          <div class="app-qr-grid">
-            <figure class="player-app-qr"><span id="owner-app-qr" class="app-install-qr" role="img" aria-label="QR code for the SubLim3 Nexus Owner/GM app"></span><figcaption>Owner/GM App</figcaption></figure>
-            <figure class="player-app-qr"><span id="player-app-qr" class="app-install-qr" role="img" aria-label="QR code for the SubLim3 Nexus Player app"></span><figcaption>Player App</figcaption></figure>
+        <article class="settings-card mobile-apps-panel">
+          <div class="mobile-apps-intro">
+            <div><p class="eyebrow">MOBILE APPS</p><h2>Install apps</h2><p class="settings-copy">Scan a QR code from another Android device, or tap Download APK on the device you are using now.</p></div>
+            <div id="app-update-status" class="app-update-status">Checking app package info…</div>
+          </div>
+          <div class="app-install-grid">
+            <figure class="app-install-card">
+              <span id="owner-app-qr" class="app-install-qr" role="img" aria-label="QR code for the SubLim3 Nexus Owner/GM app"></span>
+              <figcaption>Owner/GM App</figcaption>
+              <a id="owner-app-download" class="secondary-button" href="https://github.com/SubLim3JS/SubLim3-Nexus/releases/latest/download/SubLim3_Nexus_Owner.apk">Download APK</a>
+            </figure>
+            <figure class="app-install-card">
+              <span id="player-app-qr" class="app-install-qr" role="img" aria-label="QR code for the SubLim3 Nexus Player app"></span>
+              <figcaption>Player App</figcaption>
+              <a id="player-app-download" class="secondary-button" href="https://github.com/SubLim3JS/SubLim3-Nexus/releases/latest/download/SubLim3_Nexus_Player.apk">Download APK</a>
+            </figure>
           </div>
         </article>
 
@@ -144,15 +155,6 @@
             <button id="update-system" class="primary-button" type="button">Update</button>
             <button id="reboot-system" class="secondary-button" type="button">Reboot</button>
             <button id="shutdown-system" class="danger-button" type="button">Shut Down</button>
-          </div>
-        </article>
-        <article class="settings-card app-update-panel">
-          <p class="eyebrow">MOBILE APPS</p><h2>App updates</h2>
-          <p class="settings-copy">Keep the Owner/GM and Player app shells separate from Nexus Core updates. Install these APKs from GitHub Releases when a new app shell is available.</p>
-          <div id="app-update-status" class="app-update-status">Checking app package info…</div>
-          <div class="app-download-actions">
-            <a id="owner-app-download" class="secondary-button" href="https://github.com/SubLim3JS/SubLim3-Nexus/releases/latest/download/SubLim3_Nexus_Owner.apk">Download Owner/GM APK</a>
-            <a id="player-app-download" class="secondary-button" href="https://github.com/SubLim3JS/SubLim3-Nexus/releases/latest/download/SubLim3_Nexus_Player.apk">Download Player APK</a>
           </div>
         </article>
       </section>
