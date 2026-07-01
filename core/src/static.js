@@ -58,8 +58,6 @@ const FILES = new Map([
   ["/assets/nexus-logo.png", ["assets/nexus-logo.png", "image/png"]],
   ["/assets/player-app-qr.png", ["assets/player-app-qr.png", "image/png"]],
   ["/downloads/android-apps.json", ["downloads/android-apps.json", "application/json; charset=utf-8"]],
-  ["/downloads/SubLim3_Nexus_Owner.apk", ["downloads/SubLim3_Nexus_Owner.apk", "application/vnd.android.package-archive"]],
-  ["/downloads/SubLim3_Nexus_Player.apk", ["downloads/SubLim3_Nexus_Player.apk", "application/vnd.android.package-archive"]],
 ]);
 
 export async function serveStatic(pathname, response, publicDirectory) {

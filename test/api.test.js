@@ -205,8 +205,9 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, /QR code for the SubLim3 Nexus Owner\/GM app/);
   assert.match(page, /QR code for the SubLim3 Nexus Player app/);
   assert.match(page, /App updates/);
-  assert.match(page, /\/downloads\/SubLim3_Nexus_Owner\.apk/);
-  assert.match(page, /\/downloads\/SubLim3_Nexus_Player\.apk/);
+  assert.match(page, /GitHub Releases/);
+  assert.match(page, /releases\/latest\/download\/SubLim3_Nexus_Owner\.apk/);
+  assert.match(page, /releases\/latest\/download\/SubLim3_Nexus_Player\.apk/);
   assert.match(page, /NETWORK TESTING/);
   assert.match(page, /Connect to Home Wi-Fi/);
   assert.match(page, /different router or venue network/);
@@ -218,7 +219,6 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, /Do not leave this page/);
   assert.match(page, /SubLim3 Nexus says/);
   assert.match(page, /Install the latest version of the SubLim3 Nexus/);
-  assert.doesNotMatch(page, /latest release from GitHub/);
   assert.doesNotMatch(page, /id="test-update-tone"/);
   assert.match(page, /Playback defaults/);
   assert.match(page, /Card behavior/);
@@ -240,33 +240,35 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /message: "Switch to Local Wi-Fi\?"/);
   assert.match(script, /http:\/\/10\.10\.10\.1:3000\/settings\//);
   assert.doesNotMatch(script, /Switch to Local Wi-Fi\? This browser will disconnect/);
-  assert.doesNotMatch(script, /from GitHub/);
   assert.match(script, /api\("\/api\/v1\/system\/tone"/);
   assert.match(script, /playUpdateCue\("success"\)/);
   assert.doesNotMatch(script, /test-update-tone/);
   assert.match(script, /connectivity\/tools\/ping/);
   assert.match(script, /\/downloads\/android-apps\.json/);
-  assert.match(script, /qrSvg\(absoluteDownloadUrl\("\/downloads\/SubLim3_Nexus_Owner\.apk"\)/);
-  assert.match(script, /qrSvg\(absoluteDownloadUrl\("\/downloads\/SubLim3_Nexus_Player\.apk"\)/);
+  assert.match(script, /OWNER_APP_APK_URL/);
+  assert.match(script, /PLAYER_APP_APK_URL/);
+  assert.match(script, /renderAppInstallQrCodes\(catalog\)/);
+  assert.match(script, /releases\/latest\/download\/SubLim3_Nexus_Owner\.apk/);
+  assert.match(script, /releases\/latest\/download\/SubLim3_Nexus_Player\.apk/);
   assert.match(script, /window\.NexusAndroid\?\.getAppInfo/);
   assert.match(script, /devicePairingName\("Owner"\)/);
   assert.doesNotMatch(script, /System Admin settings/);
 });
 
-test("serves Android app update downloads", async () => {
+test("serves Android app release metadata", async () => {
   const metadata = await fetch(`${baseUrl}/downloads/android-apps.json`);
   assert.equal(metadata.status, 200);
   const catalog = await metadata.json();
   assert.equal(catalog.apps.owner.versionName, "0.1.9");
   assert.equal(catalog.apps.owner.versionCode, 10);
+  assert.equal(catalog.apps.owner.apk, "https://github.com/SubLim3JS/SubLim3-Nexus/releases/latest/download/SubLim3_Nexus_Owner.apk");
   assert.equal(catalog.apps.player.versionName, "0.1.5");
   assert.equal(catalog.apps.player.versionCode, 6);
+  assert.equal(catalog.apps.player.apk, "https://github.com/SubLim3JS/SubLim3-Nexus/releases/latest/download/SubLim3_Nexus_Player.apk");
 
   for (const file of ["SubLim3_Nexus_Owner.apk", "SubLim3_Nexus_Player.apk"]) {
     const response = await fetch(`${baseUrl}/downloads/${file}`);
-    assert.equal(response.status, 200);
-    assert.ok(Number(response.headers.get("content-length")) > 1_000_000);
-    assert.match(response.headers.get("content-type"), /android\.package-archive/);
+    assert.equal(response.status, 404);
   }
 });
 

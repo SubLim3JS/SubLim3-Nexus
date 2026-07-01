@@ -11,10 +11,10 @@
 
 ## QR responsibilities
 
-The printed guide contains stable download links only:
+The printed guide contains stable GitHub Release download links only:
 
-- **GM App QR:** a universal link that opens the GM app store listing or installation page.
-- **Player App QR:** an optional universal link that opens the Player app store listing or installation page.
+- **GM App QR:** `https://github.com/SubLim3JS/SubLim3-Nexus/releases/latest/download/SubLim3_Nexus_Owner.apk`
+- **Player App QR:** `https://github.com/SubLim3JS/SubLim3-Nexus/releases/latest/download/SubLim3_Nexus_Player.apk`
 
 The device and GM app generate scoped links:
 

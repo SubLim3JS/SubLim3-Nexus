@@ -1,0 +1,46 @@
+name: Android APK Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to upload APKs to"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Build Owner/GM APK
+        working-directory: android/owner-gm
+        run: ./gradlew :app:assembleDebug
+
+      - name: Build Player APK
+        working-directory: android/player
+        run: ./gradlew :app:assembleDebug
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          cp android/owner-gm/app/build/outputs/apk/debug/app-debug.apk release-assets/SubLim3_Nexus_Owner.apk
+          cp android/player/app/build/outputs/apk/debug/app-debug.apk release-assets/SubLim3_Nexus_Player.apk
+
+      - name: Upload APKs to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: gh release upload "$RELEASE_TAG" release-assets/*.apk --clobber

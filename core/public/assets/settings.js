@@ -16,12 +16,20 @@ function lockControls(locked) { document.querySelectorAll(".locked-control").for
 function enablePlayerSettings(enabled) { document.querySelectorAll(".player-settings-panel input,.player-settings-panel select,.player-settings-panel button").forEach((element) => { element.disabled = !enabled; }); }
 function devicePlatformName(){const ua=navigator.userAgent||"";const platform=/Android/i.test(ua)?"Android":/iPhone|iPad|iPod/i.test(ua)?"iOS":/Windows/i.test(ua)?"Windows":/Macintosh|Mac OS/i.test(ua)?"Mac":/Linux/i.test(ua)?"Linux":"Device";const browser=/Edg\//.test(ua)?"Edge":/Chrome|CriOS/.test(ua)?"Chrome":/Firefox|FxiOS/.test(ua)?"Firefox":/Safari/.test(ua)?"Safari":"Browser";return `${platform} ${browser}`;}
 function devicePairingName(role="Owner"){const key="nexus-device-instance-id";let instance=localStorage.getItem(key);if(!instance){instance=Math.random().toString(16).slice(2,6).toUpperCase();localStorage.setItem(key,instance);}return `${role} · ${devicePlatformName()} · ${instance}`;}
-function absoluteDownloadUrl(path) { return new URL(path, window.location.origin).toString(); }
-function renderAppInstallQrCodes() {
+const OWNER_APP_APK_URL = "https://github.com/SubLim3JS/SubLim3-Nexus/releases/latest/download/SubLim3_Nexus_Owner.apk";
+const PLAYER_APP_APK_URL = "https://github.com/SubLim3JS/SubLim3-Nexus/releases/latest/download/SubLim3_Nexus_Player.apk";
+function downloadUrl(value) { return new URL(value, window.location.origin).toString(); }
+function renderAppInstallQrCodes(catalog = null) {
   const ownerQr = $("#owner-app-qr");
   const playerQr = $("#player-app-qr");
-  if (ownerQr) ownerQr.innerHTML = qrSvg(absoluteDownloadUrl("/downloads/SubLim3_Nexus_Owner.apk"), { title:"Install SubLim3 Nexus Owner/GM app" });
-  if (playerQr) playerQr.innerHTML = qrSvg(absoluteDownloadUrl("/downloads/SubLim3_Nexus_Player.apk"), { title:"Install SubLim3 Nexus Player app" });
+  const ownerUrl = downloadUrl(catalog?.apps?.owner?.apk ?? OWNER_APP_APK_URL);
+  const playerUrl = downloadUrl(catalog?.apps?.player?.apk ?? PLAYER_APP_APK_URL);
+  if (ownerQr) ownerQr.innerHTML = qrSvg(ownerUrl, { title:"Install SubLim3 Nexus Owner/GM app" });
+  if (playerQr) playerQr.innerHTML = qrSvg(playerUrl, { title:"Install SubLim3 Nexus Player app" });
+  const ownerDownload = $("#owner-app-download");
+  const playerDownload = $("#player-app-download");
+  if (ownerDownload) ownerDownload.href = ownerUrl;
+  if (playerDownload) playerDownload.href = playerUrl;
 }
 
 function saveUpdateNotice(message, type) { sessionStorage.setItem(UPDATE_NOTICE_KEY, JSON.stringify({ message, type })); }
@@ -95,6 +103,7 @@ async function loadAppUpdateInfo() {
     const response = await fetch("/downloads/android-apps.json", { cache:"no-store" });
     if (!response.ok) throw new Error("App download metadata is not available yet.");
     const catalog = await response.json();
+    renderAppInstallQrCodes(catalog);
     const owner = catalog.apps?.owner;
     const player = catalog.apps?.player;
     let current = null;
