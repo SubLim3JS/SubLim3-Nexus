@@ -259,6 +259,9 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /window\.NexusAndroid\?\.getAppInfo/);
   assert.match(script, /devicePairingName\("Owner"\)/);
   assert.doesNotMatch(script, /System Admin settings/);
+  const dialogsModule = await fetch(`${baseUrl}/assets/dialogs.js`);
+  assert.equal(dialogsModule.status, 200);
+  assert.match(dialogsModule.headers.get("content-type"), /javascript/);
   const styles = await fetch(`${baseUrl}/assets/settings.css`).then((asset) => asset.text());
   assert.match(styles, /aspect-ratio:1\/1/);
   assert.match(styles, /mobile-apps-panel/);

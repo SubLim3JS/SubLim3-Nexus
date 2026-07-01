@@ -38,6 +38,7 @@ const FILES = new Map([
   ["/gm/index.html", ["gm.html", "text/html; charset=utf-8"]],
   ["/assets/styles.css", ["assets/styles.css", "text/css; charset=utf-8"]],
   ["/assets/navigation.js", ["assets/navigation.js", "text/javascript; charset=utf-8"]],
+  ["/assets/dialogs.js", ["assets/dialogs.js", "text/javascript; charset=utf-8"]],
   ["/assets/app.js", ["assets/app.js", "text/javascript; charset=utf-8"]],
   ["/assets/settings.css", ["assets/settings.css", "text/css; charset=utf-8"]],
   ["/assets/settings.js", ["assets/settings.js", "text/javascript; charset=utf-8"]],
