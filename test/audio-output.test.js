@@ -63,6 +63,11 @@ test("uses mpv for Pi playback and falls back safely elsewhere", async () => {
   await output.triggerEffect({ item_id: "hit", kind: "effect", synthesis: { frequencies: [440], duration_seconds: 0.25 } }, { volume: 60 });
   assert.equal(calls.length, 3);
   assert.ok(!calls.at(-1).args.includes("--loop-file=inf"));
+  await output.applyPreferences({ audio_output_device: "browser" });
+  assert.equal(output.info().output_device, "browser");
+  assert.equal(output.info().server_playback, false);
+  await output.play({ item_id: "local-loop", kind: "ambience", loop: true, synthesis: { frequencies: [110] } }, { volume: 42 });
+  assert.equal(calls.length, 3);
 });
 
 test("routes AudioService controls to the configured server output", async () => {

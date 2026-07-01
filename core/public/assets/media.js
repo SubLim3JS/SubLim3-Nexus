@@ -395,11 +395,11 @@ async function renderAudioState(status, allowAudio = false) {
   isPlaying = status.state === "playing";
   $("#master-volume").value = String(status.volume);
   $("#volume-value").textContent = `${status.volume}%`;
-  $("#output-name").textContent = status.output?.name ?? "Browser renderer";
-  $("#output-driver").value = status.output?.output_device === "bluetooth" ? "bluetooth" : "pi";
+  $("#output-name").textContent = status.output?.name ?? "This device";
+  $("#output-driver").value = ["pi", "bluetooth", "browser"].includes(status.output?.output_device) ? status.output.output_device : "pi";
   $("#output-detail").textContent = status.output?.server_playback
     ? `${status.output.driver} · ${status.output.audio_device ?? "auto"}`
-    : "Browser fallback on this device";
+    : "Audio plays from this app or browser";
   if (masterGain && audioContext) masterGain.gain.setTargetAtTime(status.volume / 100, audioContext.currentTime, 0.025);
   renderTrack();
   renderPlayback();

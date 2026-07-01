@@ -356,6 +356,8 @@ test("serves the offline media player demo", async () => {
   assert.match(mediaScript, /album-art-image/);
   assert.match(mediaScript, /renderExpansionAudioTree/);
   assert.match(mediaScript, /queueSingleTrack/);
+  assert.match(mediaScript, /Audio plays from this app or browser/);
+  assert.match(page, /<option value="browser">This device<\/option>/);
   assert.match(mediaScript, /countTreeAmbience/);
   assert.match(mediaScript, /track\.kind === "effect"/);
   assert.match(mediaScript, /buildFolderTree/);
@@ -492,6 +494,13 @@ test("manages the persistent audio library and playback state", async () => {
     body: JSON.stringify({ output_device: "bluetooth" }),
   }).then((response) => response.json());
   assert.equal(output.data.output.output_device, "bluetooth");
+  const deviceOutput = await fetch(`${baseUrl}/api/v1/audio/output`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ output_device: "browser" }),
+  }).then((response) => response.json());
+  assert.equal(deviceOutput.data.output.output_device, "browser");
+  assert.equal(deviceOutput.data.output.server_playback, false);
 
   const effect = await fetch(`${baseUrl}/api/v1/audio/effects/thunder/trigger`, { method: "POST" }).then((response) => response.json());
   assert.equal(effect.data.last_effect.item_id, "thunder");

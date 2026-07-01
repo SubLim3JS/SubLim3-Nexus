@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const SAMPLE_RATE = 44_100;
+const AUDIO_OUTPUT_DEVICES = ["pi", "bluetooth", "browser"];
 
 function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, value));
@@ -43,12 +44,12 @@ export function renderSynthesisWave(item) {
 
 export class BrowserAudioOutput {
   constructor({ outputDevice = "pi" } = {}) {
-    this.outputDevice = ["pi", "bluetooth"].includes(outputDevice) ? outputDevice : "pi";
+    this.outputDevice = AUDIO_OUTPUT_DEVICES.includes(outputDevice) ? outputDevice : "pi";
   }
 
   async initialize() {}
-  info() { return { driver: "browser_preview", name: "Browser renderer", available: true, server_playback: false, output_device: this.outputDevice }; }
-  async applyPreferences(preferences = {}) { if (preferences.audio_output_device && ["pi", "bluetooth"].includes(preferences.audio_output_device)) this.outputDevice = preferences.audio_output_device; }
+  info() { return { driver: "browser_preview", name: "This device", available: true, server_playback: false, output_device: this.outputDevice }; }
+  async applyPreferences(preferences = {}) { if (AUDIO_OUTPUT_DEVICES.includes(preferences.audio_output_device)) this.outputDevice = preferences.audio_output_device; }
   async play() { return false; }
   async pause() { return false; }
   async stop() { return false; }
@@ -70,7 +71,7 @@ export class MpvAudioOutput {
     this.command = command;
     this.piAudioDevice = audioDevice;
     this.bluetoothAudioDevice = bluetoothAudioDevice;
-    this.outputDevice = ["pi", "bluetooth"].includes(outputDevice) ? outputDevice : "pi";
+    this.outputDevice = AUDIO_OUTPUT_DEVICES.includes(outputDevice) ? outputDevice : "pi";
     this.cacheDirectory = cacheDirectory;
     this.platform = platform;
     this.spawnProcess = spawnProcess;
@@ -100,11 +101,17 @@ export class MpvAudioOutput {
     return this.outputDevice === "bluetooth" ? this.bluetoothAudioDevice : this.piAudioDevice;
   }
 
-  applyPreferences(preferences = {}) {
-    if (preferences.audio_output_device && ["pi", "bluetooth"].includes(preferences.audio_output_device)) this.outputDevice = preferences.audio_output_device;
+  async applyPreferences(preferences = {}) {
+    if (!AUDIO_OUTPUT_DEVICES.includes(preferences.audio_output_device)) return;
+    const previousOutputDevice = this.outputDevice;
+    this.outputDevice = preferences.audio_output_device;
+    if (previousOutputDevice !== "browser" && this.outputDevice === "browser") await this.stop();
   }
 
   info() {
+    if (this.outputDevice === "browser") {
+      return { driver: "browser_preview", name: "This device", available: true, server_playback: false, output_device: "browser" };
+    }
     const audioDevice = this.activeAudioDevice();
     const routeName = this.outputDevice === "bluetooth" ? "Bluetooth speaker" : "Raspberry Pi audio";
     return this.available
@@ -142,7 +149,7 @@ export class MpvAudioOutput {
   }
 
   async play(item, { files, position = 0, volume = 50 } = {}) {
-    if (!this.available) return false;
+    if (this.outputDevice === "browser" || !this.available) return false;
     const source = await this.sourceFor(item, files);
     if (!source) return false;
     await this.stop();
@@ -186,7 +193,7 @@ export class MpvAudioOutput {
   async setVolume(volume) { return this.send(["set_property", "volume", Math.round(volume)]); }
 
   async triggerEffect(item, { files, volume = 50 } = {}) {
-    if (!this.available) return false;
+    if (this.outputDevice === "browser" || !this.available) return false;
     const source = await this.sourceFor(item, files);
     if (!source) return false;
     const child = this.spawnItem(source, { volume });
