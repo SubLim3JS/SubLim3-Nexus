@@ -1,4 +1,5 @@
 import { qrSvg } from "/assets/qr.js";
+import { nexusConfirm } from "/assets/dialogs.js";
 
 const $ = (selector) => document.querySelector(selector);
 let adminToken = localStorage.getItem("nexus-admin-token") ?? "";
@@ -34,15 +35,7 @@ function showUpdateProgress(stage, detail, state = "running") { const panel=$("#
 function beginUpdateProgress() { updateProgressStartedAt=Date.now();clearInterval(updateProgressTimer);showUpdateProgress("Starting update…","Nexus is contacting the updater.");updateProgressTimer=setInterval(updateElapsedTime,1_000); }
 function finishUpdateProgress(stage, detail, state) { clearInterval(updateProgressTimer);updateProgressTimer=null;showUpdateProgress(stage,detail,state); }
 function confirmSettingsAction({ message, detail = "", okLabel = "OK" }) {
-  const dialog = $("#settings-confirm-dialog");
-  if (!dialog?.showModal) return Promise.resolve(window.confirm(`${message}${detail ? `\n\n${detail}` : ""}`));
-  $("#settings-confirm-message").textContent = message;
-  $("#settings-confirm-detail").textContent = detail;
-  $("#settings-confirm-ok").textContent = okLabel;
-  return new Promise((resolve) => {
-    dialog.addEventListener("close", () => resolve(dialog.returnValue === "confirm"), { once:true });
-    dialog.showModal();
-  });
+  return nexusConfirm(message, { detail, okLabel });
 }
 
 function renderWifiNetworks(networks) {
@@ -138,15 +131,24 @@ $("#scan-wifi").addEventListener("click", async () => {
 });
 
 $("#local-mode").addEventListener("click", async () => {
-  if (!confirm("Switch to Local Wi-Fi? This browser will disconnect while Nexus starts its own network.")) return;
-  alertMessage("Switching to Local Wi-Fi. Reconnect to the SubLim3-Nexus network, then reopen this page.");
+  const confirmed = await confirmSettingsAction({
+    message: "Switch to Local Wi-Fi?",
+    detail: "This device may disconnect while Nexus starts its recovery network. Reconnect to SubLim3-Nexus, then open http://10.10.10.1:3000/settings/.",
+    okLabel: "Switch",
+  });
+  if (!confirmed) return;
+  alertMessage("Switching to Local Wi-Fi. Reconnect to SubLim3-Nexus, then open http://10.10.10.1:3000/settings/.");
   try { await api("/api/v1/connectivity/wifi/mode", { method:"POST", headers:headers(true), body:JSON.stringify({ mode:"local" }) }); }
   catch (error) { if (!(error instanceof TypeError)) alertMessage(error.message, "error"); }
 });
 
 $("#home-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const ssid=$("#home-ssid").value;
-  if (!confirm(`Connect Nexus to “${ssid}”? This browser will disconnect. If connection fails, Nexus restores Local Mode.`)) return;
+  if (!await confirmSettingsAction({
+    message: `Connect Nexus to “${ssid}”?`,
+    detail: "This browser will disconnect. If connection fails, Nexus restores Local Mode.",
+    okLabel: "Connect",
+  })) return;
   alertMessage(`Connecting to ${ssid}. Rejoin that network, then open sublim3-nexus.local:3000.`);
   try { await api("/api/v1/connectivity/wifi/mode", { method:"POST", headers:headers(true), body:JSON.stringify({ mode:"home", ssid, password:$("#home-password").value }) }); }
   catch { /* Network switching commonly closes the current request. */ }
@@ -258,8 +260,12 @@ $("#update-system").addEventListener("click", async () => {
   updateSystem();
 });
 
-$("#reboot-system").addEventListener("click", () => {
-  if (!confirm("Reboot Nexus Core now? The table will be unavailable for a moment.")) return;
+$("#reboot-system").addEventListener("click", async () => {
+  if (!await confirmSettingsAction({
+    message: "Reboot Nexus Core now?",
+    detail: "The table will be unavailable for a moment.",
+    okLabel: "Reboot",
+  })) return;
   if (window.NexusAndroid?.startSystemAction) {
     window.NexusAndroid.startSystemAction("reboot", adminToken);
     return;
@@ -267,8 +273,12 @@ $("#reboot-system").addEventListener("click", () => {
   systemAction("reboot", "Rebooting Nexus Core…", "Reboot requested. Reconnect in a moment.");
 });
 
-$("#shutdown-system").addEventListener("click", () => {
-  if (!confirm("Shut down Nexus Core? You will need physical access to turn it back on.")) return;
+$("#shutdown-system").addEventListener("click", async () => {
+  if (!await confirmSettingsAction({
+    message: "Shut down Nexus Core?",
+    detail: "You will need physical access to turn it back on.",
+    okLabel: "Shut down",
+  })) return;
   if (window.NexusAndroid?.startSystemAction) {
     window.NexusAndroid.startSystemAction("shutdown", adminToken);
     return;

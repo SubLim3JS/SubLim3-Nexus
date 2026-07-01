@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#090b12">
     <title>SubLim3 Nexus</title>
     <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
-    <link rel="stylesheet" href="/assets/styles.css?v=1.6.2">
+    <link rel="stylesheet" href="/assets/styles.css?v=1.6.3">
     <script type="module" src="/assets/navigation.js?v=1.0.0"></script>
-    <script type="module" src="/assets/app.js?v=1.5.8"></script>
+    <script type="module" src="/assets/app.js?v=1.5.9"></script>
   </head>
   <body>
     <section id="admin-gate" class="access-gate">
@@ -205,5 +205,16 @@
         <footer><span>SUBLIM3 NEXUS</span><span>Local-first • No cloud required</span></footer>
       </main>
     </div>
+    <dialog id="app-confirm-dialog" class="app-confirm-dialog" aria-labelledby="app-confirm-title">
+      <form method="dialog">
+        <p id="app-confirm-title" class="eyebrow">SubLim3 Nexus says</p>
+        <h2 id="app-confirm-message">Confirm action?</h2>
+        <p id="app-confirm-detail">This action needs confirmation.</p>
+        <div class="app-confirm-actions">
+          <button id="app-confirm-cancel" class="secondary-button" value="cancel" type="submit">Cancel</button>
+          <button id="app-confirm-ok" class="primary-button" value="confirm" type="submit">Confirm</button>
+        </div>
+      </form>
+    </dialog>
   </body>
 </html>

@@ -1,3 +1,5 @@
+import { nexusConfirm } from "./dialogs.js";
+
 const $ = (selector) => document.querySelector(selector);
 const adminToken = localStorage.getItem("nexus-admin-token") ?? "";
 
@@ -33,7 +35,7 @@ async function loadPacks() {
 
 async function togglePack(pack, action) {
   const message=$("#system-message");
-  if(pack.installed&&!window.confirm(`Remove ${pack.name}? Existing campaigns must be removed first.`))return;
+  if(pack.installed&&!await nexusConfirm(`Remove ${pack.name}?`, { detail:"Existing campaigns must be removed first.", okLabel:"Remove pack" }))return;
   action.disabled=true;message.textContent=pack.installed?`Removing ${pack.name}…`:`Installing ${pack.name}…`;
   try {
     await api(`/api/v1/packs/${encodeURIComponent(pack.pack_id)}${pack.installed?"":"/install"}`,{method:pack.installed?"DELETE":"POST"});

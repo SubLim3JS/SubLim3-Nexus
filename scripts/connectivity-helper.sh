@@ -114,6 +114,10 @@ disable_home_autoconnect() {
 start_hotspot() {
   [[ ${#HOTSPOT_SSID} -ge 1 && ${#HOTSPOT_SSID} -le 32 ]] || { echo "Hotspot SSID must be 1-32 characters." >&2; exit 2; }
   [[ ${#HOTSPOT_PASSWORD} -ge 8 && ${#HOTSPOT_PASSWORD} -le 63 ]] || { echo "Hotspot password must be 8-63 characters." >&2; exit 2; }
+  if [[ "${HOTSPOT_ADDRESS}" == "10.42.0.1/24" || "${HOTSPOT_ADDRESS}" == "10.99.0.1/24" ]]; then
+    HOTSPOT_ADDRESS="10.10.10.1/24"
+    set_config_value NEXUS_HOTSPOT_ADDRESS "${HOTSPOT_ADDRESS}"
+  fi
   disable_home_autoconnect
   stop_hotspot
   nmcli radio wifi on >/dev/null

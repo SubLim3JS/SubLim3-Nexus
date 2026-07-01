@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SubLim3 Nexus</string>
+    <string name="setup_title">Connect to SubLim3 Nexus</string>
+    <string name="setup_help">Enter your Nexus Core address.</string>
+    <string name="host_hint">http://sublim3-nexus.local:3000</string>
+    <string name="connect">Connect</string>
+    <string name="host_required">Enter a Nexus address first.</string>
+    <string name="admin">Admin</string>
+    <string name="gm">GM</string>
+    <string name="change">Change</string>
+    <string name="change_nexus">Change Nexus</string>
+    <string name="change_nexus_short">Change</string>
+    <string name="close">Close</string>
+    <string name="help">Help</string>
+    <string name="file_picker_unavailable">No file picker is available on this device.</string>
+    <string name="refreshing">Refreshing...</string>
+    <string name="connection_error_title">Are you connected to the Nexus WiFi?</string>
+    <string name="connection_error_help">The app could not reach SubLim3 Nexus. Make sure Nexus is powered on, join the Nexus WiFi or Wi-Fi Direct network, then swipe down from the top to refresh.</string>
+    <string name="connection_error_retry">Swipe down to try again.</string>
+    <string name="connection_help_title">Nexus connection help</string>
+    <string name="connection_help_message">1. Make sure SubLim3 Nexus is powered on and finished booting.\n\n2. Open your phone WiFi settings and connect to the Nexus WiFi / Wi-Fi Direct network.\n\n3. If using Local/Recovery WiFi, the Nexus address is usually http://10.10.10.1:3000.\n\n4. If using Home WiFi, make sure your phone is on the same router network and use the Nexus home address.\n\n5. Return here and tap Try again, or swipe down from the top of the page to refresh.</string>
+    <string name="try_again">Try again</string>
+    <string name="route_admin">Owner Console</string>
+    <string name="route_gm">GM Workspace</string>
+    <string name="update_native_title">Nexus Maintenance</string>
+    <string name="update_native_starting">Preparing the Nexus Core update.</string>
+    <string name="update_native_downloading">Downloading and installing the latest Nexus release. Keep this app open.</string>
+    <string name="update_native_reconnecting">The update request was sent. Waiting for Nexus Core to restart.</string>
+    <string name="update_native_waiting">Waiting for Nexus Core to return.</string>
+    <string name="update_native_complete">Nexus Core is back online.\n\n%1$s</string>
+    <string name="update_native_failed">Update failed:\n\n%1$s</string>
+    <string name="update_native_unknown">The update may have completed, but Nexus Core did not return before timeout:\n\n%1$s</string>
+    <string name="update_native_complete_toast">Nexus Core update complete.</string>
+    <string name="update_native_failed_toast">Nexus Core update needs attention.</string>
+    <string name="reboot_native_starting">Preparing to reboot Nexus Core.</string>
+    <string name="reboot_native_requesting">Sending reboot request. Keep this app open.</string>
+    <string name="reboot_native_reconnecting">Reboot request sent. Waiting for Nexus Core to return.</string>
+    <string name="reboot_native_complete">Nexus Core is back online.\n\n%1$s</string>
+    <string name="reboot_native_unknown">The reboot may have completed, but Nexus Core did not return before timeout:\n\n%1$s</string>
+    <string name="shutdown_native_starting">Preparing to shut down Nexus Core.</string>
+    <string name="shutdown_native_requesting">Sending shutdown request. Keep this app open until the request is accepted.</string>
+    <string name="shutdown_native_complete">Shutdown requested. It is safe to disconnect power after the Pi turns off.</string>
+    <string name="system_action_native_failed">System action failed:\n\n%1$s</string>
+</resources>

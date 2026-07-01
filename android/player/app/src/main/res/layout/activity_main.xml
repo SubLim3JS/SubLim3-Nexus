@@ -74,12 +74,13 @@
             android:id="@+id/topBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="@drawable/player_top_bar_background"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="8dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="8dp"
-            android:paddingBottom="8dp">
+            android:paddingStart="10dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="10dp">
 
         <TextView
             android:id="@+id/activeRouteLabel"
@@ -87,27 +88,50 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/route_player"
+                android:textColor="@color/nexus_text"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
             <Button
                 android:id="@+id/reloadButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/reload" />
+                android:background="@drawable/player_top_bar_button"
+                android:minHeight="40dp"
+                android:minWidth="0dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="@string/reload"
+                android:textColor="@color/nexus_text"
+                android:textStyle="bold" />
 
             <Button
                 android:id="@+id/changeHostButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="@string/change" />
+                android:background="@drawable/player_top_bar_button"
+                android:minHeight="40dp"
+                android:minWidth="0dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="@string/change"
+                android:textColor="@color/nexus_text"
+                android:textStyle="bold" />
 
             <Button
                 android:id="@+id/helpButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="@string/help" />
+                android:background="@drawable/player_top_bar_button"
+                android:minHeight="40dp"
+                android:minWidth="0dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="@string/help"
+                android:textColor="@color/nexus_text"
+                android:textStyle="bold" />
 
         </LinearLayout>
 

@@ -187,6 +187,7 @@ gm_pin="$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')"
 gm_pin="$((gm_pin % 900000 + 100000))"
 hotspot_password="Nexus-$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')"
 replace_setting_if_value NEXUS_HOTSPOT_ADDRESS 10.99.0.1/24 10.10.10.1/24
+replace_setting_if_value NEXUS_HOTSPOT_ADDRESS 10.42.0.1/24 10.10.10.1/24
 ensure_setting NEXUS_SETTINGS_PIN "${settings_pin}"
 ensure_setting NEXUS_ADMIN_PIN "${settings_pin}"
 ensure_setting NEXUS_GM_PIN "${gm_pin}"

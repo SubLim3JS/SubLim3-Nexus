@@ -1,3 +1,5 @@
+import { nexusConfirm } from "./dialogs.js";
+
 const $ = (selector) => document.querySelector(selector);
 let authToken = localStorage.getItem("nexus-admin-token") ?? "";
 let currentAdminSessionId = "";
@@ -37,6 +39,10 @@ async function request(path, options) {
     throw error;
   }
   return response.status === 204 ? null : response.json();
+}
+
+function confirmAppAction({ message, detail = "", okLabel = "Confirm" }) {
+  return nexusConfirm(message, { detail, okLabel });
 }
 
 function devicePlatformName() {
@@ -82,7 +88,7 @@ function campaignRow(campaign) {
   remove.type = "button";
   remove.textContent = "Delete";
   remove.addEventListener("click", async () => {
-    if (!window.confirm(`Delete “${campaign.name}”? This cannot be undone.`)) return;
+    if (!await nexusConfirm(`Delete “${campaign.name}”?`, { detail:"This cannot be undone.", okLabel:"Delete" })) return;
     remove.disabled = true;
     try { await request(`/api/v1/campaigns/${encodeURIComponent(campaign.campaign_id)}`, { method: "DELETE" }); await loadCampaigns(); }
     catch (error) { showMessage(error.message, "error"); remove.disabled = false; }
@@ -279,7 +285,7 @@ function characterCard(character) {
   remove.type = "button";
   remove.textContent = "Delete";
   remove.addEventListener("click", async () => {
-    if (!window.confirm(`Delete “${character.character_name}”?`)) return;
+    if (!await nexusConfirm(`Delete “${character.character_name}”?`, { okLabel:"Delete" })) return;
     await request(`/api/v1/campaigns/${encodeURIComponent(character.campaign_id)}/characters/${encodeURIComponent(character.character_id)}`, { method: "DELETE" });
     if (editingCharacterId === character.character_id) resetCharacterForm();
     await loadCharacters();
@@ -383,7 +389,7 @@ function renderSession(session) {
 }
 async function loadSession() { const id=$("#session-campaign").value; $("#reset-session").disabled=!id; if(!id)return; const {data}=await request(`/api/v1/campaigns/${encodeURIComponent(id)}/session`); renderSession(data); }
 $("#session-campaign").addEventListener("change",loadSession);
-$("#reset-session").addEventListener("click",async()=>{const id=$("#session-campaign").value;if(!id||!window.confirm("Reset this session? This immediately clears the public scene, encounter, initiative, round, and current turn for every connected client."))return;const button=$("#reset-session"),message=$("#session-message");button.disabled=true;try{const{data}=await request(`/api/v1/campaigns/${encodeURIComponent(id)}/session/reset`,{method:"POST"});renderSession(data);message.textContent="Session reset.";message.className="form-message success";}catch(error){message.textContent=error.message;message.className="form-message error";}finally{button.disabled=false;}});
+$("#reset-session").addEventListener("click",async()=>{const id=$("#session-campaign").value;if(!id||!await nexusConfirm("Reset this session?", { detail:"This immediately clears the public scene, encounter, initiative, round, and current turn for every connected client.", okLabel:"Reset session" }))return;const button=$("#reset-session"),message=$("#session-message");button.disabled=true;try{const{data}=await request(`/api/v1/campaigns/${encodeURIComponent(id)}/session/reset`,{method:"POST"});renderSession(data);message.textContent="Session reset.";message.className="form-message success";}catch(error){message.textContent=error.message;message.className="form-message error";}finally{button.disabled=false;}});
 
 function showMessage(message, type = "") {
   const element = $("#form-message");
@@ -451,7 +457,12 @@ function accessSessionRow(session) {
   revoke.textContent = session.session_id === currentAdminSessionId ? "This browser" : "Revoke";
   revoke.disabled = session.session_id === currentAdminSessionId;
   if (!revoke.disabled) revoke.addEventListener("click", async () => {
-    if (!window.confirm(`Revoke access for ${session.device_name || session.role}?`)) return;
+    const confirmed = await confirmAppAction({
+      message: `Revoke access for ${session.device_name || session.role}?`,
+      detail: "This device will need to pair again before it can access Nexus.",
+      okLabel: "Revoke",
+    });
+    if (!confirmed) return;
     await request(`/api/v1/auth/sessions/${session.session_id}`, { method: "DELETE" });
     await loadAccessPanel();
   });
@@ -501,7 +512,12 @@ async function loadAccessPanel() {
 $("#gm-pin-reveal").addEventListener("click", () => { gmPinRevealed = !gmPinRevealed; renderGmPin(); });
 $("#refresh-sessions").addEventListener("click", () => loadAccessPanel().catch((error) => { $("#access-message").textContent = error.message; }));
 $("#revoke-other-sessions").addEventListener("click", async () => {
-  if (!window.confirm("Revoke every other connected client? This browser will stay paired.")) return;
+  const confirmed = await confirmAppAction({
+    message: "Revoke every other connected client?",
+    detail: "This browser will stay paired. Other devices will need to pair again before they can access Nexus.",
+    okLabel: "Revoke others",
+  });
+  if (!confirmed) return;
   const message = $("#access-message");
   try {
     const { data } = await request("/api/v1/auth/sessions/revoke-others", { method: "POST" });
@@ -511,7 +527,7 @@ $("#revoke-other-sessions").addEventListener("click", async () => {
   } catch (error) { message.textContent = error.message; message.className = "form-message error"; }
 });
 $("#gm-pin-rotate").addEventListener("click", async () => {
-  if (!window.confirm("Rotate the GM PIN? Every paired GM device will be revoked and must enter the new PIN.")) return;
+  if (!await nexusConfirm("Rotate the GM PIN?", { detail:"Every paired GM device will be revoked and must enter the new PIN.", okLabel:"Rotate PIN" })) return;
   const message = $("#access-message");
   try {
     const { data } = await request("/api/v1/auth/gm-pin/rotate", { method: "POST" });

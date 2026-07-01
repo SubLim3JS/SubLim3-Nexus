@@ -1,6 +1,8 @@
 package com.sublim3.nexus.player;
 
 import android.content.SharedPreferences;
+import android.graphics.Insets;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.MotionEvent;
 import android.view.View;
@@ -69,8 +71,29 @@ public class MainActivity extends AppCompatActivity {
 
     private void configureSystemInsets() {
         View root = findViewById(R.id.main);
+        View topBar = findViewById(R.id.topBar);
+        int topBarPaddingLeft = topBar.getPaddingLeft();
+        int topBarPaddingTop = topBar.getPaddingTop();
+        int topBarPaddingRight = topBar.getPaddingRight();
+        int topBarPaddingBottom = topBar.getPaddingBottom();
+        getWindow().setStatusBarColor(getColor(R.color.nexus_surface));
+        getWindow().setNavigationBarColor(getColor(R.color.nexus_primary_dark));
         root.setOnApplyWindowInsetsListener((view, insets) -> {
-            view.setPadding(0, insets.getSystemWindowInsetTop(), 0, insets.getSystemWindowInsetBottom());
+            int statusBarTop = insets.getSystemWindowInsetTop();
+            int navigationBarBottom = insets.getSystemWindowInsetBottom();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                Insets statusBars = insets.getInsets(WindowInsets.Type.statusBars());
+                Insets navigationBars = insets.getInsets(WindowInsets.Type.navigationBars());
+                statusBarTop = statusBars.top;
+                navigationBarBottom = navigationBars.bottom;
+            }
+            topBar.setPadding(
+                topBarPaddingLeft,
+                topBarPaddingTop + statusBarTop,
+                topBarPaddingRight,
+                topBarPaddingBottom
+            );
+            view.setPadding(0, 0, 0, navigationBarBottom);
             return insets;
         });
         root.requestApplyInsets();

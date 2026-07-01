@@ -1,3 +1,5 @@
+import { nexusConfirm } from "./dialogs.js";
+
 const $ = (selector) => document.querySelector(selector);
 const adminToken = localStorage.getItem("nexus-admin-token") ?? "";
 
@@ -56,7 +58,7 @@ async function loadControllers() {
 }
 
 async function unpairController(session) {
-  if (!confirm(`Unpair ${session.device_name || "this Player Controller"}? It will need to pair again before it can sync.`)) return;
+  if (!await nexusConfirm(`Unpair ${session.device_name || "this Player Controller"}?`, { detail:"It will need to pair again before it can sync.", okLabel:"Unpair" })) return;
   try { await api(`/api/v1/auth/sessions/${session.session_id}`, { method:"DELETE" }); await loadControllers(); }
   catch (error) { showError(error); }
 }

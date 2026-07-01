@@ -138,6 +138,8 @@ test("serves the dashboard with secure response headers", async () => {
   assert.match(page, /The table is ready/);
   assert.match(page, /ACCESS &amp; PAIRING/);
   assert.match(page, /id="revoke-other-sessions"/);
+  assert.match(page, /id="app-confirm-dialog"/);
+  assert.match(page, /SubLim3 Nexus says/);
   assert.match(page, /class="nav-divider" role="separator"/);
   assert.match(page, /Connect Owner Console/);
   assert.match(page, /href="\/gm\/"/);
@@ -145,10 +147,14 @@ test("serves the dashboard with secure response headers", async () => {
   assert.match(adminScript, /\[401, 403\]\.includes\(error\.status\)/);
   assert.match(adminScript, /some data could not be loaded/);
   assert.match(adminScript, /auth\/sessions\/revoke-others/);
+  assert.match(adminScript, /confirmAppAction/);
+  assert.match(adminScript, /Revoke every other connected client\?/);
   assert.match(adminScript, /dedupeAccessSessions/);
   assert.match(adminScript, /currentAdminSessionId/);
   assert.match(adminScript, /devicePairingName\("Owner"\)/);
   assert.doesNotMatch(adminScript, /System Admin browser/);
+  assert.doesNotMatch(adminScript, /window\.confirm\(`Revoke access for/);
+  assert.doesNotMatch(adminScript, /window\.confirm\("Revoke every other connected client\?/);
 });
 
 test("serves the Nexus logo asset", async () => {
@@ -210,7 +216,7 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, /id="update-progress-panel"/);
   assert.match(page, /id="update-progress-stage"/);
   assert.match(page, /Do not leave this page/);
-  assert.match(page, /SubLim3-Nexus says/);
+  assert.match(page, /SubLim3 Nexus says/);
   assert.match(page, /Install the latest version of the SubLim3 Nexus/);
   assert.doesNotMatch(page, /latest release from GitHub/);
   assert.doesNotMatch(page, /id="test-update-tone"/);
@@ -231,6 +237,9 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /beginUpdateProgress/);
   assert.match(script, /showUpdateProgress\("Restarting Nexus Core/);
   assert.match(script, /confirmSettingsAction/);
+  assert.match(script, /message: "Switch to Local Wi-Fi\?"/);
+  assert.match(script, /http:\/\/10\.10\.10\.1:3000\/settings\//);
+  assert.doesNotMatch(script, /Switch to Local Wi-Fi\? This browser will disconnect/);
   assert.doesNotMatch(script, /from GitHub/);
   assert.match(script, /api\("\/api\/v1\/system\/tone"/);
   assert.match(script, /playUpdateCue\("success"\)/);
@@ -248,8 +257,8 @@ test("serves Android app update downloads", async () => {
   const metadata = await fetch(`${baseUrl}/downloads/android-apps.json`);
   assert.equal(metadata.status, 200);
   const catalog = await metadata.json();
-  assert.equal(catalog.apps.owner.versionName, "0.1.8");
-  assert.equal(catalog.apps.owner.versionCode, 9);
+  assert.equal(catalog.apps.owner.versionName, "0.1.9");
+  assert.equal(catalog.apps.owner.versionCode, 10);
   assert.equal(catalog.apps.player.versionName, "0.1.5");
   assert.equal(catalog.apps.player.versionCode, 6);
 

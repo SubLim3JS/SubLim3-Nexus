@@ -50,16 +50,27 @@
         <Button
             android:id="@+id/connectButton"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="52dp"
             android:layout_marginTop="16dp"
-            android:text="@string/connect" />
+            android:background="@drawable/setup_button_primary"
+            android:elevation="2dp"
+            android:text="@string/connect"
+            android:textAllCaps="false"
+            android:textColor="#031003"
+            android:textSize="16sp"
+            android:textStyle="bold" />
 
         <Button
             android:id="@+id/setupHelpButton"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="52dp"
             android:layout_marginTop="8dp"
-            android:text="@string/help" />
+            android:background="@drawable/setup_button_secondary"
+            android:text="@string/help"
+            android:textAllCaps="false"
+            android:textColor="#F8FAFC"
+            android:textSize="16sp"
+            android:textStyle="bold" />
 
     </LinearLayout>
 

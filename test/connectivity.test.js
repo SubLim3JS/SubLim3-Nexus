@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import { ConnectivityService } from "../core/src/platform/connectivity.js";
 
@@ -22,6 +23,14 @@ test("reports Raspberry Pi Wi-Fi and Bluetooth state", async () => {
   assert.equal(status.wifi.ssid, "SubLim3-Nexus");
   assert.equal(status.bluetooth.visible, true);
   assert.equal(status.bluetooth.connected_devices[0].name, "Table Speaker");
+});
+
+test("connectivity helper migrates legacy hotspot addresses to the recovery subnet", async () => {
+  const helper = await readFile(new URL("../scripts/connectivity-helper.sh", import.meta.url), "utf8");
+  const installer = await readFile(new URL("../scripts/install.sh", import.meta.url), "utf8");
+  assert.match(installer, /replace_setting_if_value NEXUS_HOTSPOT_ADDRESS 10\.42\.0\.1\/24 10\.10\.10\.1\/24/);
+  assert.match(helper, /HOTSPOT_ADDRESS.*10\.42\.0\.1\/24/);
+  assert.match(helper, /set_config_value NEXUS_HOTSPOT_ADDRESS "\$\{HOTSPOT_ADDRESS\}"/);
 });
 
 test("reports blocked Bluetooth power state", async () => {

@@ -1,3 +1,5 @@
+import { nexusConfirm } from "./dialogs.js";
+
 const $ = (selector) => document.querySelector(selector);
 const adminToken = localStorage.getItem("nexus-admin-token") ?? "";
 
@@ -84,7 +86,7 @@ async function loadPacks() {
 
 async function togglePack(pack, action) {
   const message = $("#audio-pack-message");
-  if (pack.installed && !window.confirm(`Remove ${pack.name}? Its imported audio files will be removed from the managed library.`)) return;
+  if (pack.installed && !await nexusConfirm(`Remove ${pack.name}?`, { detail:"Its imported audio files will be removed from the managed library.", okLabel:"Remove pack" })) return;
   action.disabled = true;
   message.textContent = pack.installed ? `Removing ${pack.name}…` : `Installing ${pack.name}…`;
   try {
