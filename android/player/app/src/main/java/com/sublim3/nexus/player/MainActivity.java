@@ -1,7 +1,10 @@
 package com.sublim3.nexus.player;
 
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Insets;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.MotionEvent;
@@ -102,6 +105,15 @@ public class MainActivity extends AppCompatActivity {
     private void configureWebView() {
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                if (request != null && shouldOpenExternally(request.getUrl())) {
+                    openExternalDownload(request.getUrl().toString());
+                    return true;
+                }
+                return super.shouldOverrideUrlLoading(view, request);
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
                 pageRefreshProgress.setVisibility(View.GONE);
                 super.onPageFinished(view, url);
@@ -117,6 +129,7 @@ public class MainActivity extends AppCompatActivity {
                 super.onReceivedError(view, request, error);
             }
         });
+        webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> openExternalDownload(url));
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -258,6 +271,24 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return "http://" + trimmed;
+    }
+
+    private boolean shouldOpenExternally(Uri uri) {
+        if (uri == null) return false;
+        String url = uri.toString().toLowerCase();
+        return url.endsWith(".apk") || url.contains("/releases/latest/download/") || url.contains("/releases/download/");
+    }
+
+    private void openExternalDownload(String url) {
+        if (url == null || url.isBlank()) return;
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        intent.addCategory(Intent.CATEGORY_BROWSABLE);
+        try {
+            startActivity(intent);
+            Toast.makeText(this, R.string.download_opened, Toast.LENGTH_SHORT).show();
+        } catch (ActivityNotFoundException error) {
+            Toast.makeText(this, R.string.download_unavailable, Toast.LENGTH_LONG).show();
+        }
     }
 
     private String currentHost() {

@@ -9,6 +9,8 @@
     <string name="reload">Reload</string>
     <string name="change">Change</string>
     <string name="help">Help</string>
+    <string name="download_opened">Opening the APK download in your browser.</string>
+    <string name="download_unavailable">No browser or download app is available on this device.</string>
     <string name="refreshing">Refreshing...</string>
     <string name="connection_error_title">Are you connected to the Nexus WiFi?</string>
     <string name="connection_error_help">The app could not reach SubLim3 Nexus. Make sure Nexus is powered on, join the Nexus WiFi or Wi-Fi Direct network, then swipe down from the top to refresh.</string>

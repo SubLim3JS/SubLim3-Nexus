@@ -14,8 +14,8 @@ android {
         applicationId = "com.sublim3.nexus.owner"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "0.1.9"
+        versionCode = 11
+        versionName = "0.1.10"
     }
 
     buildTypes {

@@ -131,6 +131,15 @@ public class MainActivity extends AppCompatActivity {
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                if (request != null && shouldOpenExternally(request.getUrl())) {
+                    openExternalDownload(request.getUrl().toString());
+                    return true;
+                }
+                return super.shouldOverrideUrlLoading(view, request);
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
                 pageRefreshProgress.setVisibility(View.GONE);
                 super.onPageFinished(view, url);
@@ -146,6 +155,7 @@ public class MainActivity extends AppCompatActivity {
                 super.onReceivedError(view, request, error);
             }
         });
+        webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> openExternalDownload(url));
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -326,6 +336,24 @@ public class MainActivity extends AppCompatActivity {
     private String currentHost() {
         String host = prefs.getString(PREF_NEXUS_HOST, "");
         return host == null || host.isBlank() ? DEFAULT_NEXUS_HOST : host;
+    }
+
+    private boolean shouldOpenExternally(Uri uri) {
+        if (uri == null) return false;
+        String url = uri.toString().toLowerCase();
+        return url.endsWith(".apk") || url.contains("/releases/latest/download/") || url.contains("/releases/download/");
+    }
+
+    private void openExternalDownload(String url) {
+        if (url == null || url.isBlank()) return;
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        intent.addCategory(Intent.CATEGORY_BROWSABLE);
+        try {
+            startActivity(intent);
+            Toast.makeText(this, R.string.download_opened, Toast.LENGTH_SHORT).show();
+        } catch (ActivityNotFoundException error) {
+            Toast.makeText(this, R.string.download_unavailable, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void startNativeSystemUpdate(String token) {

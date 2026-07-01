@@ -35,6 +35,12 @@ jobs:
       - name: Make Gradle wrappers executable
         run: chmod +x android/owner-gm/gradlew android/player/gradlew
 
+      - name: Cache Android debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v1
+
       - name: Build Owner/GM APK
         working-directory: android/owner-gm
         run: ./gradlew :app:assembleDebug
