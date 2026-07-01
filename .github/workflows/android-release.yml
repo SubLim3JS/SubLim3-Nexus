@@ -1,13 +1,20 @@
 name: Android APK Release
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "android/owner-gm/**"
+      - "android/player/**"
+      - ".github/workflows/android-release.yml"
   release:
     types: [published]
   workflow_dispatch:
     inputs:
       tag:
         description: "Release tag to upload APKs to"
-        required: true
+        required: false
+        default: "android-latest"
 
 permissions:
   contents: write
@@ -42,5 +49,8 @@ jobs:
       - name: Upload APKs to release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
-        run: gh release upload "$RELEASE_TAG" release-assets/*.apk --clobber
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || 'android-latest' }}
+        run: |
+          gh release view "$RELEASE_TAG" \
+            || gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --title "Android APKs" --notes "Latest SubLim3 Nexus Android app APKs."
+          gh release upload "$RELEASE_TAG" release-assets/*.apk --clobber
