@@ -268,7 +268,7 @@ case "${1:-}" in
       rfkill unblock bluetooth >/dev/null 2>&1 || true
     fi
     for attempt in 1 2 3 4 5; do
-      bluetoothctl power on >/dev/null
+      bluetoothctl power on >/dev/null 2>&1 || true
       bluetoothctl show | grep -q '^.*Powered: yes' && break
       sleep 1
     done
@@ -277,7 +277,6 @@ case "${1:-}" in
       exit 1
     fi
     if [[ "$2" == "on" ]]; then
-      bluetoothctl pairable-timeout 0 >/dev/null
       bluetoothctl discoverable-timeout 0 >/dev/null
     fi
     bluetoothctl pairable "$2" >/dev/null
