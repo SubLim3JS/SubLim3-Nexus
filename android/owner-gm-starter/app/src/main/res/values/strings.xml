@@ -21,7 +21,7 @@
     <string name="connection_help_title">Nexus connection help</string>
     <string name="connection_help_message">1. Make sure SubLim3 Nexus is powered on and finished booting.\n\n2. Open your phone WiFi settings and connect to the Nexus WiFi / Wi-Fi Direct network.\n\n3. If using Local/Recovery WiFi, the Nexus address is usually http://10.10.10.1:3000.\n\n4. If using Home WiFi, make sure your phone is on the same router network and use the Nexus home address.\n\n5. Return here and tap Try again, or swipe down from the top of the page to refresh.</string>
     <string name="try_again">Try again</string>
-    <string name="route_admin">Owner Console</string>
+    <string name="route_admin">Nexus</string>
     <string name="route_gm">GM Workspace</string>
     <string name="update_native_title">Nexus Maintenance</string>
     <string name="update_native_starting">Preparing the Nexus Core update.</string>
