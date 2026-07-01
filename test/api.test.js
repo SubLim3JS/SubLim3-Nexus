@@ -265,8 +265,11 @@ test("serves the connectivity Settings page", async () => {
   const styles = await fetch(`${baseUrl}/assets/settings.css`).then((asset) => asset.text());
   assert.match(styles, /aspect-ratio:1\/1/);
   assert.match(styles, /mobile-apps-panel/);
+  assert.match(styles, /grid-column:1\/-1/);
+  assert.match(styles, /unlock-panel\{order:-1\}/);
   assert.match(styles, /app-install-grid/);
-  assert.match(styles, /grid-template-columns:repeat\(2,minmax\(142px,168px\)\)/);
+  assert.match(styles, /grid-template-columns:repeat\(2,minmax\(180px,220px\)\)/);
+  assert.match(styles, /unlock-panel\{order:0\}/);
 });
 
 test("serves Android app release metadata", async () => {
