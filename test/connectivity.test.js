@@ -53,6 +53,8 @@ test("connectivity helper waits for Bluetooth visibility changes", async () => {
   assert.match(helper, /for attempt in 1 2 3 4 5; do[\s\S]*bluetoothctl power on/);
   assert.match(helper, /Discoverable: yes/);
   assert.match(helper, /Discoverable: no/);
+  assert.match(helper, /adapter did not become visible/);
+  assert.match(helper, /adapter stayed visible/);
 });
 
 test("delegates only validated connectivity mutations", async () => {

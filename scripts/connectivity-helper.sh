@@ -280,6 +280,16 @@ case "${1:-}" in
       if [[ "$2" == "off" ]] && bluetoothctl show | grep -q '^.*Discoverable: no'; then break; fi
       sleep 1
     done
+    if [[ "$2" == "on" ]] && ! bluetoothctl show | grep -q '^.*Discoverable: yes'; then
+      echo "Bluetooth powered on, but the adapter did not become visible. Check the Pi Bluetooth controller, rfkill state, and bluetooth service." >&2
+      bluetoothctl show >&2 || true
+      exit 1
+    fi
+    if [[ "$2" == "off" ]] && ! bluetoothctl show | grep -q '^.*Discoverable: no'; then
+      echo "Bluetooth command completed, but the adapter stayed visible. Check the Pi Bluetooth controller and bluetooth service." >&2
+      bluetoothctl show >&2 || true
+      exit 1
+    fi
     ;;
   gm-pin)
     [[ $# -eq 1 ]] || exit 2

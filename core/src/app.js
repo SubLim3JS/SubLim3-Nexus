@@ -427,7 +427,7 @@ export function createApp({
         const input = await readJson(request);
         if (typeof input.visible !== "boolean") return sendJson(response, 422, { error: "validation_failed", details: ["visible must be boolean"] });
         await connectivity.setBluetoothVisible(input.visible);
-        return sendJson(response, 200, { success: true, visible: input.visible });
+        return sendJson(response, 200, { success: true, data: await connectivity.status() });
       }
 
       if (connectivity && request.method === "POST" && url.pathname === `${API_PREFIX}/connectivity/tools/ping`) {

@@ -193,8 +193,9 @@ $("#bluetooth-visible").addEventListener("change", async (event) => {
   event.target.disabled = true;
   alertMessage(`Turning Bluetooth visibility ${desired ? "on" : "off"}...`);
   try {
-    await api("/api/v1/connectivity/bluetooth/visibility", { method:"POST", headers:headers(true), body:JSON.stringify({ visible:desired }) });
-    await waitForBluetoothVisibility(desired);
+    const result = await api("/api/v1/connectivity/bluetooth/visibility", { method:"POST", headers:headers(true), body:JSON.stringify({ visible:desired }) });
+    if (result.data) renderStatus(result.data);
+    if (result.data?.bluetooth?.visible !== desired) await waitForBluetoothVisibility(desired);
     const actual = $("#bluetooth-visible").checked;
     alertMessage(actual === desired ? `Bluetooth visibility ${desired ? "enabled" : "disabled"}.` : "Bluetooth command completed, but Nexus reported a different visibility state.", actual === desired ? "success" : "error");
   }
