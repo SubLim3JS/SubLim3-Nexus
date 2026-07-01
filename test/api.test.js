@@ -156,7 +156,7 @@ test("serves the dashboard with secure response headers", async () => {
   assert.doesNotMatch(adminScript, /window\.confirm\(`Revoke access for/);
   assert.doesNotMatch(adminScript, /window\.confirm\("Revoke every other connected client\?/);
   const adminStyles = await fetch(`${baseUrl}/assets/styles.css`).then((asset) => asset.text());
-  assert.match(adminStyles, /campaign-form select option/);
+  assert.match(adminStyles, /select option\{background:#0d1019;color:#f4f2ff\}/);
   assert.match(adminStyles, /color-scheme: dark/);
 });
 
@@ -273,6 +273,7 @@ test("serves the connectivity Settings page", async () => {
   assert.match(styles, /app-install-grid/);
   assert.match(styles, /grid-template-columns:repeat\(2,minmax\(180px,220px\)\)/);
   assert.match(styles, /unlock-panel\{order:0\}/);
+  assert.match(styles, /settings-card select option\{background:#0d1019;color:#f4f2ff\}/);
 });
 
 test("serves Android app release metadata", async () => {
@@ -366,6 +367,7 @@ test("serves the offline media player demo", async () => {
   assert.match(mediaStyles, /\.album-art\.has-cover \.visualizer\{display:none\}/);
   assert.match(mediaStyles, /\.folder-toggle/);
   assert.match(mediaStyles, /@media\(max-width:460px\)\{\.sfx-grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(mediaStyles, /media-main select option\{background:#0d1019;color:#f4f2ff\}/);
 });
 
 test("serves Expansion Packs on a dedicated management page", async () => {
