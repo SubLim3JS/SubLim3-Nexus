@@ -34,9 +34,10 @@ test("surfaces privileged update failures to the Settings client", async () => {
 });
 
 test("runs updates with an isolated Git environment outside the Core sandbox", async () => {
-  const [helper, installer] = await Promise.all([
+  const [helper, installer, server] = await Promise.all([
     readFile(new URL("../scripts/connectivity-helper.sh", import.meta.url), "utf8"),
     readFile(new URL("../scripts/install.sh", import.meta.url), "utf8"),
+    readFile(new URL("../core/src/server.js", import.meta.url), "utf8"),
   ]);
   assert.match(helper, /runuser -u "\$\{repository_owner\}" -- env/);
   assert.match(helper, /HOME="\$\{APP_DIR\}"/);
@@ -46,10 +47,15 @@ test("runs updates with an isolated Git environment outside the Core sandbox", a
   assert.match(helper, /git_as_repository_owner merge --ff-only FETCH_HEAD/);
   assert.match(helper, /play_update_tone success/);
   assert.match(helper, /play_update_tone failure/);
+  assert.match(helper, /play_update_tone reboot/);
+  assert.match(helper, /play_update_tone shutdown/);
+  assert.match(helper, /"ready" ==|ready/);
   assert.match(helper, /system-tone\)/);
+  assert.match(helper, /System tone must be ready, reboot, shutdown, success, or failure\./);
   assert.match(helper, /restart_core\(\)/);
   assert.match(helper, /systemctl restart --no-block sublim3-nexus\.service/);
   assert.match(helper, /wifi-local\).*start_hotspot; restart_core/);
+  assert.match(server, /audio\.triggerEffect\("system-boot-ready"\)/);
   assert.match(installer, /NEXUS_INSTALL_TRANSIENT/);
   assert.match(installer, /systemd-run --quiet --wait --pipe --collect/);
   assert.match(installer, /--unit=sublim3-nexus-install/);

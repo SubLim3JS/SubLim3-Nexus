@@ -212,7 +212,7 @@ play_update_tone() {
   local result="$1" mpv_command="${NEXUS_MPV_PATH:-/usr/bin/mpv}" tone_file
   command -v python3 >/dev/null 2>&1 || return 0
   [[ -x "${mpv_command}" ]] || command -v mpv >/dev/null 2>&1 || return 0
-  tone_file="$(mktemp /tmp/sublim3-nexus-update-tone.XXXXXX.wav)" || return 0
+  tone_file="$(mktemp /tmp/sublim3-nexus-system-tone.XXXXXX.wav)" || return 0
   python3 - "${result}" "${tone_file}" <<'PY' || { rm -f "${tone_file}"; return 0; }
 import math
 import struct
@@ -221,7 +221,14 @@ import wave
 
 result, destination = sys.argv[1], sys.argv[2]
 sample_rate = 44100
-sequence = [(660, 0.16), (0, 0.04), (880, 0.22)] if result == "success" else [(220, 0.22), (0, 0.04), (185, 0.32)]
+sequences = {
+    "ready": [(523.25, 0.12), (0, 0.04), (659.25, 0.12), (0, 0.04), (783.99, 0.22)],
+    "reboot": [(660, 0.14), (0, 0.04), (440, 0.14), (0, 0.04), (330, 0.22)],
+    "shutdown": [(440, 0.18), (0, 0.04), (330, 0.18), (0, 0.04), (220, 0.28)],
+    "success": [(660, 0.16), (0, 0.04), (880, 0.22)],
+    "failure": [(220, 0.22), (0, 0.04), (185, 0.32)],
+}
+sequence = sequences.get(result, sequences["success"])
 with wave.open(destination, "wb") as output:
     output.setnchannels(1)
     output.setsampwidth(2)
@@ -301,14 +308,16 @@ case "${1:-}" in
     ;;
   system-shutdown)
     [[ $# -eq 1 ]] || exit 2
+    play_update_tone shutdown
     systemctl poweroff
     ;;
   system-reboot)
     [[ $# -eq 1 ]] || exit 2
+    play_update_tone reboot
     systemctl reboot
     ;;
   system-tone)
-    [[ $# -eq 2 && ( "$2" == "success" || "$2" == "failure" ) ]] || { echo "System tone must be success or failure." >&2; exit 2; }
+    [[ $# -eq 2 && ( "$2" == "ready" || "$2" == "reboot" || "$2" == "shutdown" || "$2" == "success" || "$2" == "failure" ) ]] || { echo "System tone must be ready, reboot, shutdown, success, or failure." >&2; exit 2; }
     play_update_tone "$2"
     ;;
   system-update)

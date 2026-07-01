@@ -341,6 +341,14 @@ test("protects and delegates system controls", async () => {
   assert.deepEqual(systemActions, ["shutdown", "reboot", "update"]);
   const audioStatus = await fetch(`${baseUrl}/api/v1/audio/status`).then((response) => response.json());
   assert.equal(audioStatus.data.last_effect.item_id, "system-update-failure");
+  const readyTone = await fetch(`${baseUrl}/api/v1/system/tone`, {
+    method: "POST",
+    headers: { "x-nexus-settings-pin": "123456", "content-type": "application/json" },
+    body: JSON.stringify({ result: "ready" }),
+  });
+  assert.equal(readyTone.status, 200);
+  const readyStatus = await fetch(`${baseUrl}/api/v1/audio/status`).then((response) => response.json());
+  assert.equal(readyStatus.data.last_effect.item_id, "system-boot-ready");
 });
 
 test("serves the offline media player demo", async () => {
@@ -485,7 +493,10 @@ test("serves the Player Controllers management page", async () => {
 test("manages the persistent audio library and playback state", async () => {
   const library = await fetch(`${baseUrl}/api/v1/audio/library`).then((response) => response.json());
   assert.equal(library.data.filter((item) => item.kind === "ambience").length, 4);
-  assert.equal(library.data.filter((item) => item.kind === "effect").length, 10);
+  assert.equal(library.data.filter((item) => item.kind === "effect").length, 13);
+  assert.ok(library.data.some((item) => item.item_id === "system-boot-ready"));
+  assert.ok(library.data.some((item) => item.item_id === "system-reboot"));
+  assert.ok(library.data.some((item) => item.item_id === "system-shutdown"));
   assert.equal(library.data.find((item) => item.item_id === "radio-iheart-2157").source.stream_url, "https://stream.revma.ihrhls.com/zc2157");
 
   const played = await fetch(`${baseUrl}/api/v1/audio/play`, {

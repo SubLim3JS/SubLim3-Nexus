@@ -31,7 +31,7 @@ export class SystemControlService {
 
   async tone(result = "success") {
     this.ensureSupported();
-    const value = result === "failure" ? "failure" : "success";
+    const value = ["ready", "reboot", "shutdown", "success", "failure"].includes(result) ? result : "success";
     await this.runner.runPrivileged("system-tone", [value]);
   }
 }

@@ -10,6 +10,13 @@ import { loadAudioPackCatalog } from "./audio-packs.js";
 
 const API_PREFIX = "/api/v1";
 const defaultPublicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
+const SYSTEM_TONE_ITEMS = new Map([
+  ["ready", "system-boot-ready"],
+  ["reboot", "system-reboot"],
+  ["shutdown", "system-shutdown"],
+  ["success", "system-update-success"],
+  ["failure", "system-update-failure"],
+]);
 
 function campaignIdFrom(pathname) {
   const match = pathname.match(/^\/api\/v1\/campaigns\/([^/]+)$/);
@@ -122,10 +129,10 @@ export function createApp({
 }) {
   const settingsGuard = { failures: 0, blockedUntil: 0 };
   const playSystemTone = async (result = "success") => {
-    const value = result === "failure" ? "failure" : "success";
+    const value = SYSTEM_TONE_ITEMS.has(result) ? result : "success";
     if (audio) {
       try {
-        await audio.triggerEffect(`system-update-${value}`);
+        await audio.triggerEffect(SYSTEM_TONE_ITEMS.get(value));
         return;
       } catch (error) {
         if (typeof systemControl?.tone !== "function") throw error;
@@ -182,7 +189,7 @@ export function createApp({
         }
         if (url.pathname === `${API_PREFIX}/system/tone`) {
           const input = await readJson(request);
-          await playSystemTone(input?.result === "failure" ? "failure" : "success");
+          await playSystemTone(input?.result);
           return sendJson(response, 200, { success: true });
         }
       }

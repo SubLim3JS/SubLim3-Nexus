@@ -115,6 +115,9 @@ const server = createServer(createApp({
 server.listen(port, host, () => {
   console.log(`Nexus Core listening on http://${host}:${port}`);
   hardware?.start();
+  audio.triggerEffect("system-boot-ready").catch((error) => {
+    console.warn(`Boot-ready tone could not be played: ${error.message}`);
+  });
 });
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
