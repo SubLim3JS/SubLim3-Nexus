@@ -8,6 +8,7 @@ let updateProgressTimer = null;
 let updateProgressStartedAt = 0;
 let autoWifiScanStarted = false;
 let bluetoothVisibilityPending = false;
+let bluetoothSpeakerDevices = [];
 
 function alertMessage(message, type = "") { const alert = $("#settings-alert"); alert.textContent = message; alert.className = `settings-alert ${type}`; }
 function headers(json = false) { return { ...(json ? { "content-type": "application/json" } : {}), ...(adminToken ? { authorization: `Bearer ${adminToken}` } : {}) }; }
@@ -95,6 +96,56 @@ function renderStatus(status) {
 }
 
 async function loadStatus() { const { data } = await api("/api/v1/connectivity/status", { headers: headers() }); renderStatus(data); }
+function bluetoothDeviceLabel(device) {
+  const badges = [device.connected ? "Connected" : "", device.paired ? "Paired" : "", device.trusted ? "Trusted" : ""].filter(Boolean).join(" · ");
+  return `${device.name || device.address}${badges ? ` (${badges})` : ""}`;
+}
+function renderBluetoothSpeakerDevices(devices = []) {
+  bluetoothSpeakerDevices = devices;
+  const select = $("#bluetooth-device-select");
+  const list = $("#bluetooth-speaker-devices");
+  if (select) {
+    const current = select.value;
+    const options = [new Option(devices.length ? "Choose a Bluetooth speaker" : "Scan for speakers", "")];
+    for (const device of devices) options.push(new Option(`${bluetoothDeviceLabel(device)} · ${device.address}`, device.address));
+    select.replaceChildren(...options);
+    if (devices.some((device) => device.address === current)) select.value = current;
+  }
+  if (list) {
+    if (!devices.length) list.textContent = "No Bluetooth speakers found yet. Put the speaker in pairing mode, then tap Scan.";
+    else {
+      list.replaceChildren(...devices.map((device) => {
+        const row = document.createElement("div");
+        row.className = "bluetooth-device-row";
+        const name = document.createElement("strong");
+        const address = document.createElement("span");
+        const status = document.createElement("small");
+        name.textContent = device.name || "Bluetooth device";
+        address.textContent = device.address;
+        status.textContent = [device.connected ? "Connected" : "", device.paired ? "Paired" : "", device.trusted ? "Trusted" : ""].filter(Boolean).join(" · ") || "Discovered";
+        row.append(name, address, status);
+        return row;
+      }));
+    }
+  }
+}
+async function loadBluetoothSpeakerDevices() {
+  const { data } = await api("/api/v1/connectivity/bluetooth/devices", { headers: headers() });
+  renderBluetoothSpeakerDevices(data);
+  return data;
+}
+function selectedBluetoothAddress() {
+  const address = $("#bluetooth-device-select")?.value || "";
+  if (!address) throw new Error("Choose a Bluetooth speaker first.");
+  return address;
+}
+async function bluetoothSpeakerAction(action, label) {
+  alertMessage(`${label} Bluetooth speaker...`);
+  const { data } = await api(`/api/v1/connectivity/bluetooth/${action}`, { method:"POST", headers:headers(true), body:JSON.stringify({ address:selectedBluetoothAddress() }) });
+  renderBluetoothSpeakerDevices(data);
+  await loadStatus();
+  alertMessage(`${label} command completed.`, "success");
+}
 async function waitForBluetoothVisibility(expected, timeoutMs = 6_000) {
   const deadline = Date.now() + timeoutMs;
   let latest = null;
@@ -142,6 +193,7 @@ async function loadAppUpdateInfo() {
 }
 async function loadSettingsPage() {
   await loadStatus();
+  await loadBluetoothSpeakerDevices().catch(() => {});
   try { await loadPlayerSettings(); enablePlayerSettings(true); return true; }
   catch { enablePlayerSettings(false); return false; }
 }
@@ -208,6 +260,41 @@ $("#bluetooth-visible").addEventListener("change", async (event) => {
     event.target.disabled = !adminToken;
     loadStatus().catch(() => {});
   }
+});
+
+$("#scan-bluetooth").addEventListener("click", async () => {
+  alertMessage("Scanning for Bluetooth speakers. Keep the speaker in pairing mode...");
+  try {
+    const { data } = await api("/api/v1/connectivity/bluetooth/scan", { method:"POST", headers:headers(true), body:"{}" });
+    renderBluetoothSpeakerDevices(data);
+    alertMessage(data.length ? `Found ${data.length} Bluetooth device${data.length === 1 ? "" : "s"}.` : "No Bluetooth devices found yet. Keep the speaker in pairing mode and scan again.", data.length ? "success" : "");
+  } catch (error) { alertMessage(error.message, "error"); }
+});
+
+$("#pair-bluetooth").addEventListener("click", async () => {
+  try { await bluetoothSpeakerAction("pair", "Pairing"); }
+  catch (error) { alertMessage(error.message, "error"); }
+});
+
+$("#connect-bluetooth").addEventListener("click", async () => {
+  try { await bluetoothSpeakerAction("connect", "Connecting"); }
+  catch (error) { alertMessage(error.message, "error"); }
+});
+
+$("#disconnect-bluetooth").addEventListener("click", async () => {
+  try { await bluetoothSpeakerAction("disconnect", "Disconnecting"); }
+  catch (error) { alertMessage(error.message, "error"); }
+});
+
+$("#forget-bluetooth").addEventListener("click", async () => {
+  const device = bluetoothSpeakerDevices.find((item) => item.address === $("#bluetooth-device-select")?.value);
+  if (!await confirmSettingsAction({
+    message: `Forget ${device?.name || "this Bluetooth speaker"}?`,
+    detail: "Nexus will remove the trusted pairing. You can pair it again later.",
+    okLabel: "Forget",
+  })) return;
+  try { await bluetoothSpeakerAction("forget", "Forgetting"); }
+  catch (error) { alertMessage(error.message, "error"); }
 });
 
 $("#ping-form").addEventListener("submit", async (event) => {

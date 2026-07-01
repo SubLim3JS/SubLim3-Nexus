@@ -437,6 +437,24 @@ export function createApp({
         return sendJson(response, 200, { success: true, data: await connectivity.status() });
       }
 
+      if (connectivity && request.method === "GET" && url.pathname === `${API_PREFIX}/connectivity/bluetooth/devices`) {
+        if (access) await access.authorize(request, { roles: ["admin"] }); else requireSettingsAccess(request, settingsPin, settingsGuard);
+        return sendJson(response, 200, { data: await connectivity.bluetoothDevices() });
+      }
+
+      if (connectivity && request.method === "POST" && url.pathname === `${API_PREFIX}/connectivity/bluetooth/scan`) {
+        if (access) await access.authorize(request, { roles: ["admin"] }); else requireSettingsAccess(request, settingsPin, settingsGuard);
+        return sendJson(response, 200, { data: await connectivity.scanBluetooth() });
+      }
+
+      const bluetoothAction = connectivity && request.method === "POST" ? url.pathname.match(/^\/api\/v1\/connectivity\/bluetooth\/(pair|connect|disconnect|forget)$/) : null;
+      if (bluetoothAction) {
+        if (access) await access.authorize(request, { roles: ["admin"] }); else requireSettingsAccess(request, settingsPin, settingsGuard);
+        const input = await readJson(request);
+        const method = `${bluetoothAction[1]}Bluetooth`;
+        return sendJson(response, 200, { data: await connectivity[method](input.address) });
+      }
+
       if (connectivity && request.method === "POST" && url.pathname === `${API_PREFIX}/connectivity/tools/ping`) {
         if (access) await access.authorize(request, { roles: ["admin"] }); else requireSettingsAccess(request, settingsPin, settingsGuard);
         const input = await readJson(request);

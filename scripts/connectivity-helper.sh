@@ -32,6 +32,7 @@ valid_cidr() {
   done
 }
 valid_positive_integer() { [[ "$1" =~ ^[0-9]+$ && "$1" -gt 0 ]]; }
+valid_bluetooth_address() { [[ "$1" =~ ^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$ ]]; }
 valid_interface "${WIFI_INTERFACE}" || { echo "Invalid Wi-Fi interface." >&2; exit 2; }
 valid_cidr "${HOTSPOT_ADDRESS}" || { echo "Invalid hotspot IPv4 address." >&2; exit 2; }
 valid_positive_integer "${HOME_RECONNECT_ATTEMPTS}" || { echo "Invalid home Wi-Fi reconnect attempt count." >&2; exit 2; }
@@ -208,6 +209,69 @@ diagnostic_ping() {
   fi
 }
 
+bluetooth_power_on() {
+  if command -v rfkill >/dev/null 2>&1; then
+    rfkill unblock bluetooth >/dev/null 2>&1 || true
+  fi
+  for attempt in 1 2 3 4 5; do
+    bluetoothctl power on >/dev/null 2>&1 || true
+    bluetoothctl show | grep -q '^.*Powered: yes' && return 0
+    sleep 1
+  done
+  echo "Bluetooth is blocked or unavailable. Check rfkill and adapter power state." >&2
+  bluetoothctl show >&2 || true
+  exit 1
+}
+
+bluetooth_device_rows() {
+  local line address name info paired trusted connected seen=""
+  while IFS= read -r line; do
+    [[ "${line}" =~ ^Device[[:space:]]+([0-9A-Fa-f:]{17})[[:space:]]+(.+)$ ]] || continue
+    address="${BASH_REMATCH[1]}"
+    name="${BASH_REMATCH[2]}"
+    [[ " ${seen} " == *" ${address} "* ]] && continue
+    seen="${seen} ${address}"
+    info="$(bluetoothctl info "${address}" 2>/dev/null || true)"
+    paired=false
+    trusted=false
+    connected=false
+    grep -q '^.*Paired: yes' <<< "${info}" && paired=true
+    grep -q '^.*Trusted: yes' <<< "${info}" && trusted=true
+    grep -q '^.*Connected: yes' <<< "${info}" && connected=true
+    if [[ "${info}" =~ Name:[[:space:]]*(.+) ]]; then
+      name="${BASH_REMATCH[1]}"
+    fi
+    printf '%s\t%s\t%s\t%s\t%s\n' "${address}" "${name}" "${paired}" "${trusted}" "${connected}"
+  done < <(bluetoothctl devices 2>/dev/null || true)
+}
+
+bluetooth_scan_devices() {
+  bluetooth_power_on
+  bluetoothctl --timeout 8 scan on >/dev/null 2>&1 || true
+  bluetooth_device_rows
+}
+
+bluetooth_device_action() {
+  local action="$1" address="$2"
+  valid_bluetooth_address "${address}" || { echo "Invalid Bluetooth device address." >&2; exit 2; }
+  bluetooth_power_on
+  case "${action}" in
+    pair)
+      bluetoothctl pair "${address}" >/dev/null
+      bluetoothctl trust "${address}" >/dev/null
+      bluetoothctl connect "${address}" >/dev/null || true
+      ;;
+    connect)
+      bluetoothctl trust "${address}" >/dev/null || true
+      bluetoothctl connect "${address}" >/dev/null
+      ;;
+    disconnect) bluetoothctl disconnect "${address}" >/dev/null ;;
+    forget) bluetoothctl remove "${address}" >/dev/null ;;
+    *) echo "Unsupported Bluetooth action." >&2; exit 2 ;;
+  esac
+  bluetooth_device_rows
+}
+
 play_update_tone() {
   local result="$1" mpv_command="${NEXUS_MPV_PATH:-/usr/bin/mpv}" tone_file
   command -v python3 >/dev/null 2>&1 || return 0
@@ -264,18 +328,7 @@ case "${1:-}" in
   ensure-connected) [[ $# -eq 1 ]] || exit 2; ensure_connected ;;
   bluetooth-visible)
     [[ $# -eq 2 && ( "$2" == "on" || "$2" == "off" ) ]] || { echo "Visibility must be on or off." >&2; exit 2; }
-    if [[ "$2" == "on" ]] && command -v rfkill >/dev/null 2>&1; then
-      rfkill unblock bluetooth >/dev/null 2>&1 || true
-    fi
-    for attempt in 1 2 3 4 5; do
-      bluetoothctl power on >/dev/null 2>&1 || true
-      bluetoothctl show | grep -q '^.*Powered: yes' && break
-      sleep 1
-    done
-    if ! bluetoothctl show | grep -q '^.*Powered: yes'; then
-      echo "Bluetooth is blocked or unavailable. Check rfkill and adapter power state." >&2
-      exit 1
-    fi
+    bluetooth_power_on
     if [[ "$2" == "on" ]]; then
       bluetoothctl discoverable-timeout 0 >/dev/null
     fi
@@ -296,6 +349,30 @@ case "${1:-}" in
       bluetoothctl show >&2 || true
       exit 1
     fi
+    ;;
+  bluetooth-devices)
+    [[ $# -eq 1 ]] || exit 2
+    bluetooth_device_rows
+    ;;
+  bluetooth-scan)
+    [[ $# -eq 1 ]] || exit 2
+    bluetooth_scan_devices
+    ;;
+  bluetooth-pair)
+    [[ $# -eq 2 ]] || exit 2
+    bluetooth_device_action pair "$2"
+    ;;
+  bluetooth-connect)
+    [[ $# -eq 2 ]] || exit 2
+    bluetooth_device_action connect "$2"
+    ;;
+  bluetooth-disconnect)
+    [[ $# -eq 2 ]] || exit 2
+    bluetooth_device_action disconnect "$2"
+    ;;
+  bluetooth-forget)
+    [[ $# -eq 2 ]] || exit 2
+    bluetooth_device_action forget "$2"
     ;;
   gm-pin)
     [[ $# -eq 1 ]] || exit 2

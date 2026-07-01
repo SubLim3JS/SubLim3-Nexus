@@ -17,6 +17,27 @@ function parseBluetooth(output) {
   };
 }
 
+const BLUETOOTH_ADDRESS = /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/;
+
+function parseBluetoothDeviceRows(output) {
+  return output.split(/\r?\n/).filter(Boolean).map((line) => {
+    const [address, name, paired, trusted, connected] = line.split("\t");
+    return {
+      address,
+      name: name || address,
+      paired: paired === "true",
+      trusted: trusted === "true",
+      connected: connected === "true",
+    };
+  }).filter((device) => BLUETOOTH_ADDRESS.test(device.address));
+}
+
+function validateBluetoothAddress(address) {
+  const normalized = String(address ?? "").trim();
+  if (!BLUETOOTH_ADDRESS.test(normalized)) throw Object.assign(new Error("A valid Bluetooth device address is required"), { statusCode: 422 });
+  return normalized.toUpperCase();
+}
+
 function splitNmcli(line) {
   const fields = [];
   let field = "";
@@ -97,6 +118,42 @@ export class ConnectivityService {
     return this.runner.runPrivileged("bluetooth-visible", [visible ? "on" : "off"]);
   }
 
+  async bluetoothDevices() {
+    if (this.platform !== "linux") return [];
+    const output = await this.runner.runPrivileged("bluetooth-devices");
+    return parseBluetoothDeviceRows(output);
+  }
+
+  async scanBluetooth() {
+    if (this.platform !== "linux") return [];
+    const output = await this.runner.runPrivileged("bluetooth-scan");
+    return parseBluetoothDeviceRows(output);
+  }
+
+  async pairBluetooth(address) {
+    if (this.platform !== "linux") throw Object.assign(new Error("Bluetooth pairing is only available on the Raspberry Pi"), { statusCode: 409 });
+    const output = await this.runner.runPrivileged("bluetooth-pair", [validateBluetoothAddress(address)]);
+    return parseBluetoothDeviceRows(output);
+  }
+
+  async connectBluetooth(address) {
+    if (this.platform !== "linux") throw Object.assign(new Error("Bluetooth speaker control is only available on the Raspberry Pi"), { statusCode: 409 });
+    const output = await this.runner.runPrivileged("bluetooth-connect", [validateBluetoothAddress(address)]);
+    return parseBluetoothDeviceRows(output);
+  }
+
+  async disconnectBluetooth(address) {
+    if (this.platform !== "linux") throw Object.assign(new Error("Bluetooth speaker control is only available on the Raspberry Pi"), { statusCode: 409 });
+    const output = await this.runner.runPrivileged("bluetooth-disconnect", [validateBluetoothAddress(address)]);
+    return parseBluetoothDeviceRows(output);
+  }
+
+  async forgetBluetooth(address) {
+    if (this.platform !== "linux") throw Object.assign(new Error("Bluetooth speaker control is only available on the Raspberry Pi"), { statusCode: 409 });
+    const output = await this.runner.runPrivileged("bluetooth-forget", [validateBluetoothAddress(address)]);
+    return parseBluetoothDeviceRows(output);
+  }
+
   async ping(target) {
     const normalizedTarget = String(target ?? "").trim();
     if (!normalizedTarget || normalizedTarget.length > 253 || normalizedTarget.startsWith("-") || !/^[a-zA-Z0-9_.:-]+$/.test(normalizedTarget)) {
@@ -113,3 +170,5 @@ export class ConnectivityService {
     }
   }
 }
+
+export const connectivityInternals = { parseBluetoothDeviceRows };

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import { ConnectivityService } from "../core/src/platform/connectivity.js";
+import { ConnectivityService, connectivityInternals } from "../core/src/platform/connectivity.js";
 
 class FakeRunner {
   constructor(outputs = new Map(), privilegedOutputs = new Map()) { this.outputs = outputs; this.privilegedOutputs = privilegedOutputs; this.privileged = []; }
@@ -63,15 +63,37 @@ test("delegates only validated connectivity mutations", async () => {
   const service = new ConnectivityService({ runner, platform: "linux" });
   await service.switchWifi({ mode: "home", ssid: "Table WiFi", password: "secret-pass" });
   await service.setBluetoothVisible(true);
+  await service.scanBluetooth();
+  await service.connectBluetooth("aa:bb:cc:dd:ee:ff");
   const ping = await service.ping("192.168.1.1");
   assert.deepEqual(runner.privileged, [
     { action: "wifi-home", args: ["Table WiFi"], input: "secret-pass\n" },
     { action: "bluetooth-visible", args: ["on"], input: "" },
+    { action: "bluetooth-scan", args: [], input: "" },
+    { action: "bluetooth-connect", args: ["AA:BB:CC:DD:EE:FF"], input: "" },
     { action: "diagnostic-ping", args: ["192.168.1.1"], input: "" },
   ]);
   assert.equal(ping.ok, true);
   await assert.rejects(() => service.switchWifi({ mode: "home", ssid: "", password: "" }), /Valid home Wi-Fi/);
+  await assert.rejects(() => service.connectBluetooth("not-a-mac"), /valid Bluetooth device address/);
   await assert.rejects(() => service.ping("-bad"), /valid hostname/);
+});
+
+test("parses Bluetooth helper device rows", () => {
+  assert.deepEqual(connectivityInternals.parseBluetoothDeviceRows("AA:BB:CC:DD:EE:FF\tTable Speaker\ttrue\ttrue\tfalse\nbad\tBad\ttrue\ttrue\ttrue"), [
+    { address: "AA:BB:CC:DD:EE:FF", name: "Table Speaker", paired: true, trusted: true, connected: false },
+  ]);
+});
+
+test("connectivity helper exposes Bluetooth speaker pairing actions", async () => {
+  const helper = await readFile(new URL("../scripts/connectivity-helper.sh", import.meta.url), "utf8");
+  assert.match(helper, /bluetooth-scan\)/);
+  assert.match(helper, /bluetooth-pair\)/);
+  assert.match(helper, /bluetooth-connect\)/);
+  assert.match(helper, /bluetooth-disconnect\)/);
+  assert.match(helper, /bluetooth-forget\)/);
+  assert.match(helper, /bluetoothctl trust "\$\{address\}"/);
+  assert.match(helper, /bluetoothctl --timeout 8 scan on/);
 });
 
 test("surfaces privileged Wi-Fi failures to callers", async () => {

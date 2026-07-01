@@ -80,6 +80,12 @@ before(async () => {
       scanWifi: async () => [{ ssid: "Table WiFi", signal: 88, security: "WPA2" }],
       switchWifi: async (input) => { connectivityActions.push(["wifi", input]); },
       setBluetoothVisible: async (visible) => { connectivityActions.push(["bluetooth", visible]); },
+      bluetoothDevices: async () => [{ address: "AA:BB:CC:DD:EE:FF", name: "Table Speaker", paired: true, trusted: true, connected: false }],
+      scanBluetooth: async () => { connectivityActions.push(["bluetooth-scan"]); return [{ address: "AA:BB:CC:DD:EE:FF", name: "Table Speaker", paired: false, trusted: false, connected: false }]; },
+      pairBluetooth: async (address) => { connectivityActions.push(["bluetooth-pair", address]); return [{ address, name: "Table Speaker", paired: true, trusted: true, connected: true }]; },
+      connectBluetooth: async (address) => { connectivityActions.push(["bluetooth-connect", address]); return [{ address, name: "Table Speaker", paired: true, trusted: true, connected: true }]; },
+      disconnectBluetooth: async (address) => { connectivityActions.push(["bluetooth-disconnect", address]); return [{ address, name: "Table Speaker", paired: true, trusted: true, connected: false }]; },
+      forgetBluetooth: async (address) => { connectivityActions.push(["bluetooth-forget", address]); return []; },
       ping: async (target) => { connectivityActions.push(["ping", target]); return { target, ok: true, output: "64 bytes from test" }; },
     },
     systemControl: {
@@ -205,6 +211,27 @@ test("protects connectivity controls with the Settings PIN", async () => {
   const bluetoothBody = await bluetooth.json();
   assert.equal(bluetoothBody.data.bluetooth.visible, false);
   assert.deepEqual(connectivityActions.at(-1), ["bluetooth", true]);
+
+  const devices = await fetch(`${baseUrl}/api/v1/connectivity/bluetooth/devices`, { headers: { "x-nexus-settings-pin": "123456" } }).then((response) => response.json());
+  assert.equal(devices.data[0].name, "Table Speaker");
+
+  const scanned = await fetch(`${baseUrl}/api/v1/connectivity/bluetooth/scan`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-nexus-settings-pin": "123456" },
+    body: "{}",
+  }).then((response) => response.json());
+  assert.equal(scanned.data[0].address, "AA:BB:CC:DD:EE:FF");
+  assert.deepEqual(connectivityActions.at(-1), ["bluetooth-scan"]);
+
+  for (const action of ["pair", "connect", "disconnect", "forget"]) {
+    const response = await fetch(`${baseUrl}/api/v1/connectivity/bluetooth/${action}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-nexus-settings-pin": "123456" },
+      body: JSON.stringify({ address: "AA:BB:CC:DD:EE:FF" }),
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(connectivityActions.at(-1), [`bluetooth-${action}`, "AA:BB:CC:DD:EE:FF"]);
+  }
 });
 
 test("serves the connectivity Settings page", async () => {
@@ -212,6 +239,13 @@ test("serves the connectivity Settings page", async () => {
   assert.equal(response.status, 200);
   const page = await response.text();
   assert.match(page, /Bluetooth visibility/);
+  assert.match(page, /Bluetooth speaker/);
+  assert.match(page, /id="scan-bluetooth"/);
+  assert.match(page, /id="bluetooth-device-select"/);
+  assert.match(page, /id="pair-bluetooth"/);
+  assert.match(page, /id="connect-bluetooth"/);
+  assert.match(page, /id="disconnect-bluetooth"/);
+  assert.match(page, /id="forget-bluetooth"/);
   assert.match(page, /Install apps/);
   assert.match(page, /Scan a QR code from another Android device/);
   assert.match(page, /id="owner-app-qr"/);
@@ -270,6 +304,12 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /renderAppInstallQrCodes\(catalog\)/);
   assert.match(script, /QR unavailable/);
   assert.match(script, /const bluetoothDevices = \$\("#bluetooth-devices"\)/);
+  assert.match(script, /loadBluetoothSpeakerDevices/);
+  assert.match(script, /connectivity\/bluetooth\/scan/);
+  assert.match(script, /bluetoothSpeakerAction\("pair"/);
+  assert.match(script, /bluetoothSpeakerAction\("connect"/);
+  assert.match(script, /bluetoothSpeakerAction\("disconnect"/);
+  assert.match(script, /bluetoothSpeakerAction\("forget"/);
   assert.match(script, /releases\/latest\/download\/SubLim3_Nexus_Owner\.apk/);
   assert.match(script, /releases\/latest\/download\/SubLim3_Nexus_Player\.apk/);
   assert.match(script, /window\.NexusAndroid\?\.getAppInfo/);
@@ -287,6 +327,8 @@ test("serves the connectivity Settings page", async () => {
   assert.match(styles, /grid-template-columns:repeat\(2,minmax\(180px,220px\)\)/);
   assert.match(styles, /unlock-panel\{order:0\}/);
   assert.match(styles, /settings-card select option\{background:#0d1019;color:#f4f2ff\}/);
+  assert.match(styles, /bluetooth-device-controls/);
+  assert.match(styles, /bluetooth-device-row/);
 });
 
 test("serves Android app release metadata", async () => {

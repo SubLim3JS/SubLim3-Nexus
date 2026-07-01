@@ -7,9 +7,9 @@
     <title>Settings • SubLim3 Nexus</title>
     <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
     <link rel="stylesheet" href="/assets/styles.css?v=1.6.3">
-    <link rel="stylesheet" href="/assets/settings.css?v=1.6.7">
+    <link rel="stylesheet" href="/assets/settings.css?v=1.6.8">
     <script type="module" src="/assets/navigation.js?v=1.0.0"></script>
-    <script type="module" src="/assets/settings.js?v=1.7.1"></script>
+    <script type="module" src="/assets/settings.js?v=1.7.2"></script>
   </head>
   <body>
     <div class="app-shell settings-shell">
@@ -101,9 +101,25 @@
 
         <article class="settings-card bluetooth-panel locked-control">
           <p class="eyebrow">AUDIO DISCOVERY</p><h2>Bluetooth visibility</h2>
-          <p class="settings-copy">Make Nexus visible and pairable. Bluetooth audio profiles will be added with the music engine.</p>
+          <p class="settings-copy">Make Nexus visible to phones, tablets, and other nearby Bluetooth devices.</p>
           <label class="toggle-row"><span>Visible to nearby devices</span><input id="bluetooth-visible" type="checkbox" role="switch"></label>
           <div id="bluetooth-devices" class="device-list">No connected devices</div>
+        </article>
+
+        <article class="settings-card bluetooth-speaker-panel locked-control">
+          <p class="eyebrow">AUDIO OUTPUT</p><h2>Bluetooth speaker</h2>
+          <p class="settings-copy">Put a speaker in pairing mode, scan from Nexus, then pair or reconnect it here. If no trusted speaker is connected, Nexus falls back to Pi audio.</p>
+          <div class="bluetooth-device-controls">
+            <label>Available speaker<select id="bluetooth-device-select"><option value="">Scan for speakers</option></select></label>
+            <button id="scan-bluetooth" class="secondary-button" type="button">Scan</button>
+          </div>
+          <div class="bluetooth-device-actions">
+            <button id="pair-bluetooth" class="primary-button" type="button">Pair</button>
+            <button id="connect-bluetooth" class="secondary-button" type="button">Connect</button>
+            <button id="disconnect-bluetooth" class="secondary-button" type="button">Disconnect</button>
+            <button id="forget-bluetooth" class="danger-button" type="button">Forget</button>
+          </div>
+          <div id="bluetooth-speaker-devices" class="bluetooth-device-list">No speakers scanned yet.</div>
         </article>
 
         <article class="settings-card wide-panel locked-control tools-panel">
