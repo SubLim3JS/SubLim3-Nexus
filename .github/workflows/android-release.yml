@@ -32,6 +32,9 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Make Gradle wrappers executable
+        run: chmod +x android/owner-gm/gradlew android/player/gradlew
+
       - name: Build Owner/GM APK
         working-directory: android/owner-gm
         run: ./gradlew :app:assembleDebug
