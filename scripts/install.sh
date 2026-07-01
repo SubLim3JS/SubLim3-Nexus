@@ -182,14 +182,21 @@ adopt_active_home_connection() {
   set_setting NEXUS_WIFI_MODE home
 }
 
-settings_pin="101010"
-gm_pin="$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')"
-gm_pin="$((gm_pin % 900000 + 100000))"
+generate_six_digit_pin() {
+  local pin
+  pin="$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')"
+  printf '%06d' "$((pin % 900000 + 100000))"
+}
+
+owner_pin="101010"
+recovery_pin="$(generate_six_digit_pin)"
+gm_pin="$(generate_six_digit_pin)"
 hotspot_password="Nexus-$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')"
 replace_setting_if_value NEXUS_HOTSPOT_ADDRESS 10.99.0.1/24 10.10.10.1/24
 replace_setting_if_value NEXUS_HOTSPOT_ADDRESS 10.42.0.1/24 10.10.10.1/24
-ensure_setting NEXUS_SETTINGS_PIN "${settings_pin}"
-ensure_setting NEXUS_ADMIN_PIN "${settings_pin}"
+replace_setting_if_value NEXUS_SETTINGS_PIN 101010 "${recovery_pin}"
+ensure_setting NEXUS_SETTINGS_PIN "${recovery_pin}"
+ensure_setting NEXUS_ADMIN_PIN "${owner_pin}"
 ensure_setting NEXUS_GM_PIN "${gm_pin}"
 ensure_setting NEXUS_HOTSPOT_PASSWORD "${hotspot_password}"
 ensure_setting NEXUS_WIFI_INTERFACE wlan0
@@ -229,3 +236,4 @@ echo "Wi-Fi SSID:       $(grep '^NEXUS_HOTSPOT_SSID=' /etc/default/sublim3-nexus
 echo "Wi-Fi password:   $(grep '^NEXUS_HOTSPOT_PASSWORD=' /etc/default/sublim3-nexus | cut -d= -f2-)"
 echo "Owner PIN:        $(grep '^NEXUS_ADMIN_PIN=' /etc/default/sublim3-nexus | cut -d= -f2-)"
 echo "GM PIN:           $(grep '^NEXUS_GM_PIN=' /etc/default/sublim3-nexus | cut -d= -f2-)"
+echo "Recovery PIN:     $(grep '^NEXUS_SETTINGS_PIN=' /etc/default/sublim3-nexus | cut -d= -f2-)"

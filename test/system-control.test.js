@@ -54,8 +54,15 @@ test("runs updates with an isolated Git environment outside the Core sandbox", a
   assert.match(installer, /systemd-run --quiet --wait --pipe --collect/);
   assert.match(installer, /--unit=sublim3-nexus-install/);
   assert.match(installer, /chown -R "\$\{repository_owner\}:\$\{repository_group\}" "\$\{APP_DIR\}"/);
+  assert.match(installer, /generate_six_digit_pin\(\)/);
+  assert.match(installer, /owner_pin="101010"/);
+  assert.match(installer, /recovery_pin="\$\(generate_six_digit_pin\)"/);
+  assert.match(installer, /replace_setting_if_value NEXUS_SETTINGS_PIN 101010 "\$\{recovery_pin\}"/);
+  assert.match(installer, /ensure_setting NEXUS_SETTINGS_PIN "\$\{recovery_pin\}"/);
+  assert.match(installer, /ensure_setting NEXUS_ADMIN_PIN "\$\{owner_pin\}"/);
   assert.match(installer, /Owner PIN:/);
   assert.doesNotMatch(installer, /Admin PIN:/);
+  assert.match(installer, /Recovery PIN:/);
 });
 
 test("allows the privileged helper to persist runtime network settings", async () => {

@@ -8,7 +8,7 @@ SubLim3 Nexus has one persistent Owner experience plus a scoped Player surface. 
 | GM workspace | `/gm/` | Owner campaign selection, scenes, encounter building, initiative, health, and conditions |
 | Player | `/player/` | One selected character with live table state, turn highlighting, and scoped health control |
 
-An Owner browser uses the recovery PIN once. Until production provisioning randomizes per-device credentials, fresh installs default the Owner/Admin recovery PIN to `101010`. Its random bearer token is stored only as a hash by Nexus Core, persists across reboots, and expires after 90 days. Routine navigation never asks for the PIN again, and transient page-loading failures do not discard the credential. A GM PIN remains only as a recovery path for pairing a separate guest GM device to one campaign.
+An Owner browser uses the Owner PIN once. Fresh installs default the Owner PIN to `101010`, while the installer generates a separate random Recovery PIN for settings recovery and prints it in the install summary. Its random bearer token is stored only as a hash by Nexus Core, persists across reboots, and expires after 90 days. Routine navigation never asks for the PIN again, and transient page-loading failures do not discard the credential. A GM PIN remains only as a recovery path for pairing a separate guest GM device to one campaign.
 
 The Admin Access & Pairing panel lists active devices, their role scopes, and expiration dates. It can revoke a client or rotate the GM PIN; rotation immediately revokes all existing GM sessions.
 
