@@ -155,6 +155,9 @@ test("serves the dashboard with secure response headers", async () => {
   assert.doesNotMatch(adminScript, /System Admin browser/);
   assert.doesNotMatch(adminScript, /window\.confirm\(`Revoke access for/);
   assert.doesNotMatch(adminScript, /window\.confirm\("Revoke every other connected client\?/);
+  const adminStyles = await fetch(`${baseUrl}/assets/styles.css`).then((asset) => asset.text());
+  assert.match(adminStyles, /campaign-form select option/);
+  assert.match(adminStyles, /color-scheme: dark/);
 });
 
 test("serves the Nexus logo asset", async () => {
@@ -360,6 +363,7 @@ test("serves the offline media player demo", async () => {
   const mediaStyles = await fetch(`${baseUrl}/assets/media.css`).then((styleResponse) => styleResponse.text());
   assert.match(mediaStyles, /\.album-art\.has-cover \.visualizer\{display:none\}/);
   assert.match(mediaStyles, /\.folder-toggle/);
+  assert.match(mediaStyles, /@media\(max-width:460px\)\{\.sfx-grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
 
 test("serves Expansion Packs on a dedicated management page", async () => {
