@@ -244,6 +244,7 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, /id="wifi-scan-progress"/);
   assert.match(page, /id="bluetooth-scan-progress"/);
   assert.match(page, /id="bluetooth-device-select"/);
+  assert.doesNotMatch(page, /id="bluetooth-speaker-devices"/);
   assert.match(page, /id="pair-bluetooth"/);
   assert.match(page, /id="connect-bluetooth"/);
   assert.match(page, /id="disconnect-bluetooth"/);
@@ -337,7 +338,7 @@ test("serves the connectivity Settings page", async () => {
   assert.match(styles, /settings-card select option\{background:#0d1019;color:#f4f2ff\}/);
   assert.match(styles, /scan-progress-panel/);
   assert.match(styles, /bluetooth-device-controls/);
-  assert.match(styles, /bluetooth-device-row/);
+  assert.doesNotMatch(styles, /bluetooth-device-row/);
 });
 
 test("serves Android app release metadata", async () => {

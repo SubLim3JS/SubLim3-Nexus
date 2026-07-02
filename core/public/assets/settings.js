@@ -116,30 +116,12 @@ function bluetoothDeviceLabel(device) {
 function renderBluetoothSpeakerDevices(devices = []) {
   bluetoothSpeakerDevices = devices;
   const select = $("#bluetooth-device-select");
-  const list = $("#bluetooth-speaker-devices");
   if (select) {
     const current = select.value;
     const options = [new Option(devices.length ? "Choose a Bluetooth speaker" : "Scan for speakers", "")];
     for (const device of devices) options.push(new Option(`${bluetoothDeviceLabel(device)} · ${device.address}`, device.address));
     select.replaceChildren(...options);
     if (devices.some((device) => device.address === current)) select.value = current;
-  }
-  if (list) {
-    if (!devices.length) list.textContent = "No Bluetooth speakers found yet. Put the speaker in pairing mode, then tap Scan.";
-    else {
-      list.replaceChildren(...devices.map((device) => {
-        const row = document.createElement("div");
-        row.className = "bluetooth-device-row";
-        const name = document.createElement("strong");
-        const address = document.createElement("span");
-        const status = document.createElement("small");
-        name.textContent = device.name || "Bluetooth device";
-        address.textContent = device.address;
-        status.textContent = [device.connected ? "Connected" : "", device.paired ? "Paired" : "", device.trusted ? "Trusted" : ""].filter(Boolean).join(" · ") || "Discovered";
-        row.append(name, address, status);
-        return row;
-      }));
-    }
   }
 }
 async function loadBluetoothSpeakerDevices() {
