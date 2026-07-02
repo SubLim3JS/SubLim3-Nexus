@@ -137,14 +137,23 @@ function selectedBluetoothAddress() {
 function setBluetoothActionButtons(disabled) {
   document.querySelectorAll("#scan-bluetooth,#pair-bluetooth,#connect-bluetooth,#disconnect-bluetooth,#forget-bluetooth").forEach((button) => { button.disabled = disabled; });
 }
+function bluetoothActionMessage(message, type = "") {
+  const element = $("#bluetooth-action-message");
+  if (!element) return;
+  element.textContent = message;
+  element.className = `bluetooth-action-message ${type}`;
+}
 async function bluetoothSpeakerAction(action, label) {
   alertMessage(`${label} Bluetooth speaker...`);
+  bluetoothActionMessage(`${label} Bluetooth speaker...`);
   setScanProgress("bluetooth-scan-progress", true, `${label} Bluetooth speaker…`, "Nexus is talking to the speaker. Keep it powered on and in pairing mode if pairing.");
   setBluetoothActionButtons(true);
   try {
     const { data } = await api(`/api/v1/connectivity/bluetooth/${action}`, { method:"POST", headers:headers(true), body:JSON.stringify({ address:selectedBluetoothAddress() }) });
     renderBluetoothSpeakerDevices(data);
     await loadStatus();
+    const device = data.find((item) => item.address === $("#bluetooth-device-select")?.value) ?? data.find((item) => item.connected);
+    bluetoothActionMessage(device?.connected ? `${device.name || "Speaker"} is connected.` : `${label} command completed. If audio does not play from the speaker, press Connect once more.`, "success");
     alertMessage(`${label} command completed.`, "success");
   } finally {
     setScanProgress("bluetooth-scan-progress", false);
@@ -269,13 +278,15 @@ $("#bluetooth-visible").addEventListener("change", async (event) => {
 
 $("#scan-bluetooth").addEventListener("click", async () => {
   alertMessage("Scanning for Bluetooth speakers. Keep the speaker in pairing mode...");
+  bluetoothActionMessage("Scanning for Bluetooth speakers...");
   setScanProgress("bluetooth-scan-progress", true, "Scanning Bluetooth devices…", "Nexus is listening for nearby Bluetooth speakers. Keep the speaker in pairing mode.");
   setBluetoothActionButtons(true);
   try {
     const { data } = await api("/api/v1/connectivity/bluetooth/scan", { method:"POST", headers:headers(true), body:"{}" });
     renderBluetoothSpeakerDevices(data);
+    bluetoothActionMessage(data.length ? `Found ${data.length} Bluetooth device${data.length === 1 ? "" : "s"}. Choose one from the dropdown.` : "No Bluetooth devices found yet. Keep the speaker in pairing mode and scan again.", data.length ? "success" : "");
     alertMessage(data.length ? `Found ${data.length} Bluetooth device${data.length === 1 ? "" : "s"}.` : "No Bluetooth devices found yet. Keep the speaker in pairing mode and scan again.", data.length ? "success" : "");
-  } catch (error) { alertMessage(error.message, "error"); }
+  } catch (error) { bluetoothActionMessage(error.message, "error"); alertMessage(error.message, "error"); }
   finally {
     setScanProgress("bluetooth-scan-progress", false);
     setBluetoothActionButtons(false);
@@ -284,12 +295,12 @@ $("#scan-bluetooth").addEventListener("click", async () => {
 
 $("#pair-bluetooth").addEventListener("click", async () => {
   try { await bluetoothSpeakerAction("pair", "Pairing"); }
-  catch (error) { alertMessage(error.message, "error"); }
+  catch (error) { bluetoothActionMessage(error.message, "error"); alertMessage(error.message, "error"); }
 });
 
 $("#connect-bluetooth").addEventListener("click", async () => {
   try { await bluetoothSpeakerAction("connect", "Connecting"); }
-  catch (error) { alertMessage(error.message, "error"); }
+  catch (error) { bluetoothActionMessage(error.message, "error"); alertMessage(error.message, "error"); }
 });
 
 $("#disconnect-bluetooth").addEventListener("click", async () => {

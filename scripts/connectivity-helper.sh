@@ -226,7 +226,7 @@ bluetooth_power_on() {
 bluetooth_prepare_audio() {
   bluetooth_power_on
   systemctl restart bluealsa.service >/dev/null 2>&1 || true
-  bluetoothctl agent NoInputNoOutput >/dev/null 2>&1 || true
+  bluetoothctl agent on >/dev/null 2>&1 || true
   bluetoothctl default-agent >/dev/null 2>&1 || true
   bluetoothctl pairable on >/dev/null 2>&1 || true
 }
@@ -265,7 +265,7 @@ run_bluetooth_session() {
   local output=""
   output="$(printf '%s\n' "$@" quit | bluetoothctl 2>&1)" || true
   printf '%s\n' "${output}" >&2
-  if grep -Eiq 'failed|not available|not ready|authentication|org\.bluez\.Error|No default controller' <<< "${output}"; then
+  if grep -Eiq 'No default controller|No default adapter' <<< "${output}"; then
     echo "${description} failed." >&2
     return 1
   fi
@@ -292,10 +292,9 @@ bluetooth_device_action() {
   bluetooth_prepare_audio
   case "${action}" in
     pair)
-      bluetoothctl remove "${address}" >/dev/null 2>&1 || true
       bluetoothctl --timeout 8 scan on >/dev/null 2>&1 || true
       run_bluetooth_session "Bluetooth pairing" \
-        "agent NoInputNoOutput" \
+        "agent on" \
         "default-agent" \
         "power on" \
         "pairable on" \
@@ -310,7 +309,7 @@ bluetooth_device_action() {
       bluetoothctl pairable on >/dev/null 2>&1 || true
       bluetoothctl trust "${address}" >/dev/null 2>&1 || true
       run_bluetooth_session "Bluetooth connection" \
-        "agent NoInputNoOutput" \
+        "agent on" \
         "default-agent" \
         "power on" \
         "pairable on" \

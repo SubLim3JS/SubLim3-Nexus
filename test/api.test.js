@@ -249,6 +249,7 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, /id="connect-bluetooth"/);
   assert.match(page, /id="disconnect-bluetooth"/);
   assert.match(page, /id="forget-bluetooth"/);
+  assert.match(page, /id="bluetooth-action-message"/);
   assert.match(page, /Install apps/);
   assert.match(page, /Scan a QR code from another Android device/);
   assert.match(page, /id="owner-app-qr"/);
@@ -291,6 +292,7 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /beginUpdateProgress/);
   assert.match(script, /function setScanProgress/);
   assert.match(script, /function setBluetoothActionButtons/);
+  assert.match(script, /function bluetoothActionMessage/);
   assert.match(script, /setScanProgress\("wifi-scan-progress", true/);
   assert.match(script, /setScanProgress\("bluetooth-scan-progress", true/);
   assert.match(script, /\$\("#scan-wifi"\)\.disabled = true/);
@@ -338,6 +340,7 @@ test("serves the connectivity Settings page", async () => {
   assert.match(styles, /settings-card select option\{background:#0d1019;color:#f4f2ff\}/);
   assert.match(styles, /scan-progress-panel/);
   assert.match(styles, /bluetooth-device-controls/);
+  assert.match(styles, /bluetooth-action-message/);
   assert.doesNotMatch(styles, /bluetooth-device-row/);
 });
 
