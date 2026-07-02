@@ -96,7 +96,11 @@ test("connectivity helper exposes Bluetooth speaker pairing actions", async () =
   assert.match(helper, /systemctl restart bluealsa\.service/);
   assert.match(helper, /bluetoothctl agent NoInputNoOutput/);
   assert.match(helper, /bluetoothctl remove "\$\{address\}"/);
-  assert.match(helper, /bluetoothctl trust "\$\{address\}"/);
+  assert.match(helper, /run_bluetooth_session "Bluetooth pairing"/);
+  assert.match(helper, /run_bluetooth_session "Bluetooth connection"/);
+  assert.match(helper, /"agent NoInputNoOutput"/);
+  assert.match(helper, /"trust \$\{address\}"/);
+  assert.match(helper, /"connect \$\{address\}"/);
   assert.match(helper, /wait_for_bluetooth_connection "\$\{address\}"/);
   assert.match(helper, /bluetoothctl --timeout 8 scan on/);
 });

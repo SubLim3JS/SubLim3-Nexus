@@ -152,12 +152,22 @@ function selectedBluetoothAddress() {
   if (!address) throw new Error("Choose a Bluetooth speaker first.");
   return address;
 }
+function setBluetoothActionButtons(disabled) {
+  document.querySelectorAll("#scan-bluetooth,#pair-bluetooth,#connect-bluetooth,#disconnect-bluetooth,#forget-bluetooth").forEach((button) => { button.disabled = disabled; });
+}
 async function bluetoothSpeakerAction(action, label) {
   alertMessage(`${label} Bluetooth speaker...`);
-  const { data } = await api(`/api/v1/connectivity/bluetooth/${action}`, { method:"POST", headers:headers(true), body:JSON.stringify({ address:selectedBluetoothAddress() }) });
-  renderBluetoothSpeakerDevices(data);
-  await loadStatus();
-  alertMessage(`${label} command completed.`, "success");
+  setScanProgress("bluetooth-scan-progress", true, `${label} Bluetooth speaker…`, "Nexus is talking to the speaker. Keep it powered on and in pairing mode if pairing.");
+  setBluetoothActionButtons(true);
+  try {
+    const { data } = await api(`/api/v1/connectivity/bluetooth/${action}`, { method:"POST", headers:headers(true), body:JSON.stringify({ address:selectedBluetoothAddress() }) });
+    renderBluetoothSpeakerDevices(data);
+    await loadStatus();
+    alertMessage(`${label} command completed.`, "success");
+  } finally {
+    setScanProgress("bluetooth-scan-progress", false);
+    setBluetoothActionButtons(false);
+  }
 }
 async function waitForBluetoothVisibility(expected, timeoutMs = 6_000) {
   const deadline = Date.now() + timeoutMs;
@@ -278,7 +288,7 @@ $("#bluetooth-visible").addEventListener("change", async (event) => {
 $("#scan-bluetooth").addEventListener("click", async () => {
   alertMessage("Scanning for Bluetooth speakers. Keep the speaker in pairing mode...");
   setScanProgress("bluetooth-scan-progress", true, "Scanning Bluetooth devices…", "Nexus is listening for nearby Bluetooth speakers. Keep the speaker in pairing mode.");
-  $("#scan-bluetooth").disabled = true;
+  setBluetoothActionButtons(true);
   try {
     const { data } = await api("/api/v1/connectivity/bluetooth/scan", { method:"POST", headers:headers(true), body:"{}" });
     renderBluetoothSpeakerDevices(data);
@@ -286,7 +296,7 @@ $("#scan-bluetooth").addEventListener("click", async () => {
   } catch (error) { alertMessage(error.message, "error"); }
   finally {
     setScanProgress("bluetooth-scan-progress", false);
-    $("#scan-bluetooth").disabled = false;
+    setBluetoothActionButtons(false);
   }
 });
 

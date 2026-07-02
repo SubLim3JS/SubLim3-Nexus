@@ -259,18 +259,17 @@ bluetooth_scan_devices() {
   bluetooth_device_rows
 }
 
-run_bluetooth_command() {
+run_bluetooth_session() {
   local description="$1"
   shift
   local output=""
-  if output="$("$@" 2>&1)"; then
-    printf '%s\n' "${output}" >&2
-    return 0
-  fi
-  local code=$?
-  echo "${description} failed." >&2
+  output="$(printf '%s\n' "$@" quit | bluetoothctl 2>&1)" || true
   printf '%s\n' "${output}" >&2
-  return "${code}"
+  if grep -Eiq 'failed|not available|not ready|authentication|org\.bluez\.Error|No default controller' <<< "${output}"; then
+    echo "${description} failed." >&2
+    return 1
+  fi
+  return 0
 }
 
 wait_for_bluetooth_connection() {
@@ -294,16 +293,30 @@ bluetooth_device_action() {
   case "${action}" in
     pair)
       bluetoothctl remove "${address}" >/dev/null 2>&1 || true
-      bluetoothctl --timeout 6 scan on >/dev/null 2>&1 || true
-      run_bluetooth_command "Bluetooth pairing" bluetoothctl pair "${address}"
-      run_bluetooth_command "Bluetooth trust" bluetoothctl trust "${address}"
-      run_bluetooth_command "Bluetooth connection" bluetoothctl connect "${address}"
+      bluetoothctl --timeout 8 scan on >/dev/null 2>&1 || true
+      run_bluetooth_session "Bluetooth pairing" \
+        "agent NoInputNoOutput" \
+        "default-agent" \
+        "power on" \
+        "pairable on" \
+        "trust ${address}" \
+        "pair ${address}" \
+        "trust ${address}" \
+        "connect ${address}" \
+        "info ${address}"
       wait_for_bluetooth_connection "${address}"
       ;;
     connect)
       bluetoothctl pairable on >/dev/null 2>&1 || true
       bluetoothctl trust "${address}" >/dev/null 2>&1 || true
-      run_bluetooth_command "Bluetooth connection" bluetoothctl connect "${address}"
+      run_bluetooth_session "Bluetooth connection" \
+        "agent NoInputNoOutput" \
+        "default-agent" \
+        "power on" \
+        "pairable on" \
+        "trust ${address}" \
+        "connect ${address}" \
+        "info ${address}"
       wait_for_bluetooth_connection "${address}"
       ;;
     disconnect) bluetoothctl disconnect "${address}" >/dev/null ;;

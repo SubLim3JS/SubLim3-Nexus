@@ -289,10 +289,11 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /Please keep this page open/);
   assert.match(script, /beginUpdateProgress/);
   assert.match(script, /function setScanProgress/);
+  assert.match(script, /function setBluetoothActionButtons/);
   assert.match(script, /setScanProgress\("wifi-scan-progress", true/);
   assert.match(script, /setScanProgress\("bluetooth-scan-progress", true/);
   assert.match(script, /\$\("#scan-wifi"\)\.disabled = true/);
-  assert.match(script, /\$\("#scan-bluetooth"\)\.disabled = true/);
+  assert.match(script, /setBluetoothActionButtons\(true\)/);
   assert.match(script, /showUpdateProgress\("Restarting Nexus Core/);
   assert.match(script, /confirmSettingsAction/);
   assert.match(script, /waitForBluetoothVisibility/);
