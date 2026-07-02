@@ -223,6 +223,14 @@ bluetooth_power_on() {
   exit 1
 }
 
+bluetooth_prepare_audio() {
+  bluetooth_power_on
+  systemctl restart bluealsa.service >/dev/null 2>&1 || true
+  bluetoothctl agent NoInputNoOutput >/dev/null 2>&1 || true
+  bluetoothctl default-agent >/dev/null 2>&1 || true
+  bluetoothctl pairable on >/dev/null 2>&1 || true
+}
+
 bluetooth_device_rows() {
   local line address name info paired trusted connected seen=""
   while IFS= read -r line; do
@@ -246,24 +254,57 @@ bluetooth_device_rows() {
 }
 
 bluetooth_scan_devices() {
-  bluetooth_power_on
+  bluetooth_prepare_audio
   bluetoothctl --timeout 8 scan on >/dev/null 2>&1 || true
   bluetooth_device_rows
+}
+
+run_bluetooth_command() {
+  local description="$1"
+  shift
+  local output=""
+  if output="$("$@" 2>&1)"; then
+    printf '%s\n' "${output}" >&2
+    return 0
+  fi
+  local code=$?
+  echo "${description} failed." >&2
+  printf '%s\n' "${output}" >&2
+  return "${code}"
+}
+
+wait_for_bluetooth_connection() {
+  local address="$1" attempt info
+  for attempt in 1 2 3 4 5 6; do
+    info="$(bluetoothctl info "${address}" 2>/dev/null || true)"
+    if grep -q '^.*Connected: yes' <<< "${info}"; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Bluetooth device did not stay connected. Make sure the speaker is in pairing mode, not connected to another phone, and BlueALSA is installed/running." >&2
+  bluetoothctl info "${address}" >&2 || true
+  return 1
 }
 
 bluetooth_device_action() {
   local action="$1" address="$2"
   valid_bluetooth_address "${address}" || { echo "Invalid Bluetooth device address." >&2; exit 2; }
-  bluetooth_power_on
+  bluetooth_prepare_audio
   case "${action}" in
     pair)
-      bluetoothctl pair "${address}" >/dev/null
-      bluetoothctl trust "${address}" >/dev/null
-      bluetoothctl connect "${address}" >/dev/null || true
+      bluetoothctl remove "${address}" >/dev/null 2>&1 || true
+      bluetoothctl --timeout 6 scan on >/dev/null 2>&1 || true
+      run_bluetooth_command "Bluetooth pairing" bluetoothctl pair "${address}"
+      run_bluetooth_command "Bluetooth trust" bluetoothctl trust "${address}"
+      run_bluetooth_command "Bluetooth connection" bluetoothctl connect "${address}"
+      wait_for_bluetooth_connection "${address}"
       ;;
     connect)
-      bluetoothctl trust "${address}" >/dev/null || true
-      bluetoothctl connect "${address}" >/dev/null
+      bluetoothctl pairable on >/dev/null 2>&1 || true
+      bluetoothctl trust "${address}" >/dev/null 2>&1 || true
+      run_bluetooth_command "Bluetooth connection" bluetoothctl connect "${address}"
+      wait_for_bluetooth_connection "${address}"
       ;;
     disconnect) bluetoothctl disconnect "${address}" >/dev/null ;;
     forget) bluetoothctl remove "${address}" >/dev/null ;;

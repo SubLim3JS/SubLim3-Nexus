@@ -121,7 +121,10 @@ read-only Nexus Core sandbox.
 Version 1.5 adds headless Raspberry Pi audio. Nexus automatically installs and
 detects `mpv`, renders its built-in procedural sounds to cached WAV files, and
 plays ambience, effects, uploads, USB files, and radio through ALSA without an
-open browser. Browser playback remains the automatic fallback.
+open browser. The installer also attempts to install BlueALSA for Bluetooth
+speaker output; Settings can scan, pair, connect, disconnect, and forget trusted
+speakers, and Nexus falls back to Pi audio when a trusted speaker is not
+connected. Browser playback remains the automatic fallback.
 
 Initial development may use Raspberry Pi hardware.
 

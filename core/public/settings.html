@@ -7,9 +7,9 @@
     <title>Settings • SubLim3 Nexus</title>
     <link rel="icon" type="image/png" href="/assets/nexus-logo.png">
     <link rel="stylesheet" href="/assets/styles.css?v=1.6.3">
-    <link rel="stylesheet" href="/assets/settings.css?v=1.6.8">
+    <link rel="stylesheet" href="/assets/settings.css?v=1.6.9">
     <script type="module" src="/assets/navigation.js?v=1.0.0"></script>
-    <script type="module" src="/assets/settings.js?v=1.7.2"></script>
+    <script type="module" src="/assets/settings.js?v=1.7.3"></script>
   </head>
   <body>
     <div class="app-shell settings-shell">
@@ -90,6 +90,11 @@
             <label>Password<input id="home-password" type="password" autocomplete="new-password" maxlength="64" placeholder="Wi-Fi password"></label>
             <button class="primary-button" type="submit">Connect to Home Wi-Fi</button>
           </form>
+          <div id="wifi-scan-progress" class="scan-progress-panel" hidden>
+            <div class="update-progress-header"><span><span id="wifi-scan-stage">Scanning Wi-Fi networks…</span><small>Keep this page open.</small></span></div>
+            <div class="update-progress-track" aria-hidden="true"><span></span></div>
+            <p id="wifi-scan-detail">Nexus is asking the Wi-Fi radio for nearby networks.</p>
+          </div>
           <p class="wifi-recovery-note">If the Home Wi-Fi connection fails, Nexus should restore Local Mode. Rejoin <strong>SubLim3-Nexus</strong> and open <strong>http://10.10.10.1:3000/settings/</strong>.</p>
         </article>
 
@@ -118,6 +123,11 @@
             <button id="connect-bluetooth" class="secondary-button" type="button">Connect</button>
             <button id="disconnect-bluetooth" class="secondary-button" type="button">Disconnect</button>
             <button id="forget-bluetooth" class="danger-button" type="button">Forget</button>
+          </div>
+          <div id="bluetooth-scan-progress" class="scan-progress-panel" hidden>
+            <div class="update-progress-header"><span><span id="bluetooth-scan-stage">Scanning Bluetooth devices…</span><small>Keep the speaker in pairing mode.</small></span></div>
+            <div class="update-progress-track" aria-hidden="true"><span></span></div>
+            <p id="bluetooth-scan-detail">Nexus is listening for nearby Bluetooth speakers.</p>
           </div>
           <div id="bluetooth-speaker-devices" class="bluetooth-device-list">No speakers scanned yet.</div>
         </article>

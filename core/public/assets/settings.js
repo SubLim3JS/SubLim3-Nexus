@@ -49,6 +49,13 @@ function updateElapsedTime() { const elapsed=Math.max(0,Math.floor((Date.now()-u
 function showUpdateProgress(stage, detail, state = "running") { const panel=$("#update-progress-panel");panel.hidden=false;panel.classList.toggle("is-complete",state==="complete");panel.classList.toggle("is-error",state==="error");$("#update-progress-stage").textContent=stage;$("#update-progress-detail").textContent=detail;updateElapsedTime(); }
 function beginUpdateProgress() { updateProgressStartedAt=Date.now();clearInterval(updateProgressTimer);showUpdateProgress("Starting update…","Nexus is contacting the updater.");updateProgressTimer=setInterval(updateElapsedTime,1_000); }
 function finishUpdateProgress(stage, detail, state) { clearInterval(updateProgressTimer);updateProgressTimer=null;showUpdateProgress(stage,detail,state); }
+function setScanProgress(id, active, stage = "", detail = "") {
+  const panel = $(`#${id}`);
+  if (!panel) return;
+  panel.hidden = !active;
+  if (stage) panel.querySelector("[id$='-stage']").textContent = stage;
+  if (detail) panel.querySelector("[id$='-detail']").textContent = detail;
+}
 function confirmSettingsAction({ message, detail = "", okLabel = "OK" }) {
   return nexusConfirm(message, { detail, okLabel });
 }
@@ -64,12 +71,18 @@ function renderWifiNetworks(networks) {
 
 async function scanWifiNetworks({ automatic = false } = {}) {
   alertMessage(automatic ? "Local Mode detected. Scanning for Wi-Fi networks..." : "Scanning for Wi-Fi networks...");
+  setScanProgress("wifi-scan-progress", true, automatic ? "Auto-scanning Wi-Fi networks…" : "Scanning Wi-Fi networks…", "Nexus is asking the Wi-Fi radio for nearby networks.");
+  $("#scan-wifi").disabled = true;
   try {
     const { data } = await api("/api/v1/connectivity/wifi/networks", { headers: headers() });
     renderWifiNetworks(data);
     alertMessage(`Found ${data.length} networks. Choose one or type its SSID.`, "success");
   }
   catch (error) { alertMessage(error.message, "error"); }
+  finally {
+    setScanProgress("wifi-scan-progress", false);
+    $("#scan-wifi").disabled = false;
+  }
 }
 
 function renderStatus(status) {
@@ -264,11 +277,17 @@ $("#bluetooth-visible").addEventListener("change", async (event) => {
 
 $("#scan-bluetooth").addEventListener("click", async () => {
   alertMessage("Scanning for Bluetooth speakers. Keep the speaker in pairing mode...");
+  setScanProgress("bluetooth-scan-progress", true, "Scanning Bluetooth devices…", "Nexus is listening for nearby Bluetooth speakers. Keep the speaker in pairing mode.");
+  $("#scan-bluetooth").disabled = true;
   try {
     const { data } = await api("/api/v1/connectivity/bluetooth/scan", { method:"POST", headers:headers(true), body:"{}" });
     renderBluetoothSpeakerDevices(data);
     alertMessage(data.length ? `Found ${data.length} Bluetooth device${data.length === 1 ? "" : "s"}.` : "No Bluetooth devices found yet. Keep the speaker in pairing mode and scan again.", data.length ? "success" : "");
   } catch (error) { alertMessage(error.message, "error"); }
+  finally {
+    setScanProgress("bluetooth-scan-progress", false);
+    $("#scan-bluetooth").disabled = false;
+  }
 });
 
 $("#pair-bluetooth").addEventListener("click", async () => {

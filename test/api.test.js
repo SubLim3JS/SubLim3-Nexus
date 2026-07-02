@@ -241,6 +241,8 @@ test("serves the connectivity Settings page", async () => {
   assert.match(page, /Bluetooth visibility/);
   assert.match(page, /Bluetooth speaker/);
   assert.match(page, /id="scan-bluetooth"/);
+  assert.match(page, /id="wifi-scan-progress"/);
+  assert.match(page, /id="bluetooth-scan-progress"/);
   assert.match(page, /id="bluetooth-device-select"/);
   assert.match(page, /id="pair-bluetooth"/);
   assert.match(page, /id="connect-bluetooth"/);
@@ -286,6 +288,11 @@ test("serves the connectivity Settings page", async () => {
   assert.match(script, /function updateDurationText/);
   assert.match(script, /Please keep this page open/);
   assert.match(script, /beginUpdateProgress/);
+  assert.match(script, /function setScanProgress/);
+  assert.match(script, /setScanProgress\("wifi-scan-progress", true/);
+  assert.match(script, /setScanProgress\("bluetooth-scan-progress", true/);
+  assert.match(script, /\$\("#scan-wifi"\)\.disabled = true/);
+  assert.match(script, /\$\("#scan-bluetooth"\)\.disabled = true/);
   assert.match(script, /showUpdateProgress\("Restarting Nexus Core/);
   assert.match(script, /confirmSettingsAction/);
   assert.match(script, /waitForBluetoothVisibility/);
@@ -327,6 +334,7 @@ test("serves the connectivity Settings page", async () => {
   assert.match(styles, /grid-template-columns:repeat\(2,minmax\(180px,220px\)\)/);
   assert.match(styles, /unlock-panel\{order:0\}/);
   assert.match(styles, /settings-card select option\{background:#0d1019;color:#f4f2ff\}/);
+  assert.match(styles, /scan-progress-panel/);
   assert.match(styles, /bluetooth-device-controls/);
   assert.match(styles, /bluetooth-device-row/);
 });

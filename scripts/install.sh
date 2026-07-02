@@ -75,6 +75,15 @@ if ! command -v mpv >/dev/null 2>&1; then
   fi
 fi
 
+if ! command -v bluealsa >/dev/null 2>&1; then
+  echo "Installing Bluetooth speaker audio support (BlueALSA)..."
+  if command -v apt-get >/dev/null 2>&1 && apt-get update && apt-cache show bluez-alsa-utils >/dev/null 2>&1 && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends bluez-alsa-utils; then
+    echo "BlueALSA installed. Nexus can register Bluetooth speaker audio endpoints."
+  else
+    echo "Warning: BlueALSA could not be installed. Bluetooth speakers may pair briefly and disconnect until BlueALSA is available." >&2
+  fi
+fi
+
 install_python_package() {
   local package="$1"
   if /usr/bin/python3 -c "import ${package}" >/dev/null 2>&1; then
@@ -228,6 +237,9 @@ chmod 0440 /etc/sudoers.d/sublim3-nexus-connectivity
 visudo -cf /etc/sudoers.d/sublim3-nexus-connectivity >/dev/null
 
 systemctl daemon-reload
+if systemctl list-unit-files bluealsa.service >/dev/null 2>&1; then
+  systemctl enable --now bluealsa.service >/dev/null 2>&1 || true
+fi
 systemctl enable "${RECOVERY_SERVICE}"
 systemctl enable "${SERVICE_NAME}"
 systemctl restart "${SERVICE_NAME}"

@@ -59,6 +59,8 @@ test("runs updates with an isolated Git environment outside the Core sandbox", a
   assert.match(installer, /NEXUS_INSTALL_TRANSIENT/);
   assert.match(installer, /systemd-run --quiet --wait --pipe --collect/);
   assert.match(installer, /--unit=sublim3-nexus-install/);
+  assert.match(installer, /bluez-alsa-utils/);
+  assert.match(installer, /bluealsa\.service/);
   assert.match(installer, /chown -R "\$\{repository_owner\}:\$\{repository_group\}" "\$\{APP_DIR\}"/);
   assert.match(installer, /generate_six_digit_pin\(\)/);
   assert.match(installer, /owner_pin="101010"/);
