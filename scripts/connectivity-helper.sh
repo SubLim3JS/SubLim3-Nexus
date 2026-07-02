@@ -272,6 +272,47 @@ run_bluetooth_session() {
   return 0
 }
 
+run_bluetooth_pair_session() {
+  local address="$1" output=""
+  output="$({
+    printf 'agent NoInputNoOutput\n'
+    sleep 1
+    printf 'default-agent\n'
+    sleep 1
+    printf 'power on\n'
+    sleep 1
+    printf 'pairable on\n'
+    sleep 1
+    printf 'scan on\n'
+    sleep 5
+    printf 'pair %s\n' "${address}"
+    sleep 16
+    printf 'info %s\n' "${address}"
+    sleep 1
+    printf 'quit\n'
+  } | bluetoothctl 2>&1)" || true
+  printf '%s\n' "${output}" >&2
+  if grep -Eiq 'No default controller|No default adapter' <<< "${output}"; then
+    echo "Bluetooth pairing failed." >&2
+    return 1
+  fi
+  return 0
+}
+
+wait_for_bluetooth_pairing() {
+  local address="$1" attempt info
+  for attempt in 1 2 3 4 5 6; do
+    info="$(bluetoothctl info "${address}" 2>/dev/null || true)"
+    if grep -q '^.*Paired: yes' <<< "${info}"; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Bluetooth device did not finish pairing. Keep the speaker in pairing mode, make sure it is not connected to another phone, and try again." >&2
+  bluetoothctl info "${address}" >&2 || true
+  return 1
+}
+
 wait_for_bluetooth_connection() {
   local address="$1" attempt info
   for attempt in 1 2 3 4 5 6; do
@@ -293,16 +334,10 @@ bluetooth_device_action() {
   case "${action}" in
     pair)
       bluetoothctl --timeout 8 scan on >/dev/null 2>&1 || true
-      run_bluetooth_session "Bluetooth pairing" \
-        "agent on" \
-        "default-agent" \
-        "power on" \
-        "pairable on" \
-        "trust ${address}" \
-        "pair ${address}" \
-        "trust ${address}" \
-        "connect ${address}" \
-        "info ${address}"
+      run_bluetooth_pair_session "${address}"
+      wait_for_bluetooth_pairing "${address}"
+      run_bluetooth_session "Bluetooth trust" "trust ${address}" "info ${address}"
+      run_bluetooth_session "Bluetooth connection" "connect ${address}" "info ${address}"
       wait_for_bluetooth_connection "${address}"
       ;;
     connect)
