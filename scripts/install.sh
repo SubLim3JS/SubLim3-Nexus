@@ -204,6 +204,7 @@ hotspot_password="Nexus-$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')"
 replace_setting_if_value NEXUS_HOTSPOT_ADDRESS 10.99.0.1/24 10.10.10.1/24
 replace_setting_if_value NEXUS_HOTSPOT_ADDRESS 10.42.0.1/24 10.10.10.1/24
 replace_setting_if_value NEXUS_SETTINGS_PIN 101010 "${recovery_pin}"
+replace_setting_if_value NEXUS_BLUETOOTH_AUDIO_DEVICE auto alsa/bluealsa
 ensure_setting NEXUS_SETTINGS_PIN "${recovery_pin}"
 ensure_setting NEXUS_ADMIN_PIN "${owner_pin}"
 ensure_setting NEXUS_GM_PIN "${gm_pin}"
@@ -216,7 +217,7 @@ ensure_setting NEXUS_HOTSPOT_ADDRESS 10.10.10.1/24
 ensure_setting NEXUS_WIFI_MODE local
 ensure_setting NEXUS_HOME_RECONNECT_ATTEMPTS 12
 ensure_setting NEXUS_HOME_RECONNECT_DELAY_SECONDS 5
-ensure_setting NEXUS_BLUETOOTH_AUDIO_DEVICE auto
+ensure_setting NEXUS_BLUETOOTH_AUDIO_DEVICE alsa/bluealsa
 ensure_setting NEXUS_HARDWARE_DRIVER auto
 ensure_setting NEXUS_EXPANSIONS_REPO "${EXPANSIONS_REPO_DEFAULT}"
 ensure_setting NEXUS_EXPANSIONS_REF "${EXPANSIONS_REF_DEFAULT}"

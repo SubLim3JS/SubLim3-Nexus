@@ -96,6 +96,25 @@ test("falls back to Pi audio when Bluetooth output has no connected speaker", as
   assert.ok(!calls.at(-1).args.includes("--audio-device=alsa/bluealsa"));
 });
 
+test("routes Bluetooth playback through BlueALSA by default", async () => {
+  const calls = [];
+  const output = new MpvAudioOutput({
+    platform: "linux",
+    command: "/usr/bin/mpv",
+    audioDevice: "alsa/default",
+    outputDevice: "bluetooth",
+    cacheDirectory: await temporaryDirectory("nexus-audio-bluealsa-default-"),
+    accessFile: async () => {},
+    spawnProcess: (command, args) => {
+      const child = new EventEmitter(); child.kill = () => child.emit("close", 0);
+      calls.push({ command, args }); return child;
+    },
+  });
+  await output.initialize();
+  await output.play({ item_id: "bluealsa-loop", kind: "ambience", loop: true, synthesis: { frequencies: [110] } }, { volume: 42 });
+  assert.ok(calls.at(-1).args.includes("--audio-device=alsa/bluealsa"));
+});
+
 test("routes AudioService controls to the configured server output", async () => {
   const directory = await temporaryDirectory("nexus-audio-service-");
   const calls = [];

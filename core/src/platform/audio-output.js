@@ -61,7 +61,7 @@ export class MpvAudioOutput {
   constructor({
     command = "/usr/bin/mpv",
     audioDevice = "auto",
-    bluetoothAudioDevice = "auto",
+    bluetoothAudioDevice = "alsa/bluealsa",
     outputDevice = "pi",
     cacheDirectory,
     platform = process.platform,

@@ -66,7 +66,9 @@ test("runs updates with an isolated Git environment outside the Core sandbox", a
   assert.match(installer, /owner_pin="101010"/);
   assert.match(installer, /recovery_pin="\$\(generate_six_digit_pin\)"/);
   assert.match(installer, /replace_setting_if_value NEXUS_SETTINGS_PIN 101010 "\$\{recovery_pin\}"/);
+  assert.match(installer, /replace_setting_if_value NEXUS_BLUETOOTH_AUDIO_DEVICE auto alsa\/bluealsa/);
   assert.match(installer, /ensure_setting NEXUS_SETTINGS_PIN "\$\{recovery_pin\}"/);
+  assert.match(installer, /ensure_setting NEXUS_BLUETOOTH_AUDIO_DEVICE alsa\/bluealsa/);
   assert.match(installer, /ensure_setting NEXUS_ADMIN_PIN "\$\{owner_pin\}"/);
   assert.match(installer, /Owner PIN:/);
   assert.doesNotMatch(installer, /Admin PIN:/);
